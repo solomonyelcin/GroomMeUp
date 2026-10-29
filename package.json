@@ -1,0 +1,16 @@
+{
+  "name": "groommeup",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Interview preparation workbench: question bank, quizzes, mock interviews, coding tests, evaluation.",
+  "scripts": {
+    "test": "node tests/verify.mjs",
+    "start": "npx --yes serve . -l 5173",
+    "test:smoke": "node tests/smoke.mjs"
+  },
+  "devDependencies": {
+    "sql.js": "^1.10.3",
+    "playwright": "^1.49.0"
+  }
+}

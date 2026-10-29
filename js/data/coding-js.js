@@ -1,0 +1,117 @@
+// JavaScript coding challenges. They run in a Web Worker, entirely in the browser.
+// A test is { args: [...], expected } or { call: "<expression using fn>", expected }.
+const c = (o) => o;
+
+export const JS_CHALLENGES = [
+  c({
+    id: "js01", title: "Two Sum", diff: 1, topic: "Arrays / hash map", fn: "twoSum",
+    desc: "Given an array of integers `nums` and an integer `target`, return the indices `[i, j]` (i < j) of the two numbers that add up to `target`. Exactly one solution exists. Aim for O(n).",
+    starter: "function twoSum(nums, target) {\n  // your code\n}\n",
+    solution: "function twoSum(nums, target) {\n  const seen = new Map();\n  for (let i = 0; i < nums.length; i++) {\n    const need = target - nums[i];\n    if (seen.has(need)) return [seen.get(need), i];\n    seen.set(nums[i], i);\n  }\n  return [];\n}\n",
+    hint: "Store each value's index in a Map and look up the complement.", complexity: "O(n) time, O(n) space",
+    tests: [{ args: [[2, 7, 11, 15], 9], expected: [0, 1] }, { args: [[3, 2, 4], 6], expected: [1, 2] }, { args: [[3, 3], 6], expected: [0, 1] }, { args: [[-1, -2, -3, -4, -5], -8], expected: [2, 4], hidden: true }],
+  }),
+  c({
+    id: "js02", title: "Valid Parentheses", diff: 1, topic: "Stack", fn: "isValid",
+    desc: "Given a string containing only `()[]{}`, return true if brackets are closed in the correct order.",
+    starter: "function isValid(s) {\n  // your code\n}\n",
+    solution: "function isValid(s) {\n  const pairs = { ')': '(', ']': '[', '}': '{' };\n  const st = [];\n  for (const ch of s) {\n    if (pairs[ch]) { if (st.pop() !== pairs[ch]) return false; }\n    else st.push(ch);\n  }\n  return st.length === 0;\n}\n",
+    hint: "Push openers; on a closer, the top of the stack must match.", complexity: "O(n)",
+    tests: [{ args: ["()"], expected: true }, { args: ["()[]{}"], expected: true }, { args: ["(]"], expected: false }, { args: ["([)]"], expected: false }, { args: ["{[]}"], expected: true }, { args: ["(("], expected: false, hidden: true }, { args: [""], expected: true, hidden: true }],
+  }),
+  c({
+    id: "js03", title: "Group Anagrams", diff: 2, topic: "Hash map / sorting", fn: "groupAnagrams",
+    desc: "Group words that are anagrams. Return an array of groups. Each group must be sorted alphabetically and the groups sorted by their first word.",
+    starter: "function groupAnagrams(words) {\n  // your code\n}\n",
+    solution: "function groupAnagrams(words) {\n  const m = new Map();\n  for (const w of words) {\n    const k = [...w].sort().join('');\n    if (!m.has(k)) m.set(k, []);\n    m.get(k).push(w);\n  }\n  return [...m.values()].map(g => g.sort()).sort((a, b) => a[0].localeCompare(b[0]));\n}\n",
+    hint: "Use the sorted letters of each word as a map key.", complexity: "O(n * k log k)",
+    tests: [{ args: [["eat", "tea", "tan", "ate", "nat", "bat"]], expected: [["ate", "eat", "tea"], ["bat"], ["nat", "tan"]] }, { args: [[""]], expected: [[""]] }, { args: [["a"]], expected: [["a"]] }],
+  }),
+  c({
+    id: "js04", title: "Merge Intervals", diff: 2, topic: "Sorting / intervals", fn: "mergeIntervals",
+    desc: "Given an array of `[start, end]` intervals, merge all overlapping intervals and return the result sorted by start. Touching intervals (e.g. [1,2] and [2,3]) overlap.",
+    starter: "function mergeIntervals(intervals) {\n  // your code\n}\n",
+    solution: "function mergeIntervals(intervals) {\n  const s = intervals.map(x => [...x]).sort((a, b) => a[0] - b[0]);\n  const out = [];\n  for (const cur of s) {\n    const last = out[out.length - 1];\n    if (last && cur[0] <= last[1]) last[1] = Math.max(last[1], cur[1]);\n    else out.push(cur);\n  }\n  return out;\n}\n",
+    hint: "Sort by start, then extend the last interval when the next one starts inside it.", complexity: "O(n log n)",
+    tests: [{ args: [[[1, 3], [2, 6], [8, 10], [15, 18]]], expected: [[1, 6], [8, 10], [15, 18]] }, { args: [[[1, 4], [4, 5]]], expected: [[1, 5]] }, { args: [[[5, 6], [1, 2], [2, 3]]], expected: [[1, 3], [5, 6]] }, { args: [[]], expected: [], hidden: true }],
+  }),
+  c({
+    id: "js05", title: "LRU Cache", diff: 3, topic: "Design / Map", fn: "LRUCache",
+    desc: "Implement `class LRUCache` with `constructor(capacity)`, `get(key)` (returns -1 if missing) and `put(key, value)`. When capacity is exceeded evict the least recently used key. Both operations must be O(1).",
+    starter: "class LRUCache {\n  constructor(capacity) {\n    // your code\n  }\n  get(key) {\n  }\n  put(key, value) {\n  }\n}\n",
+    solution: "class LRUCache {\n  constructor(capacity) { this.cap = capacity; this.map = new Map(); }\n  get(key) {\n    if (!this.map.has(key)) return -1;\n    const v = this.map.get(key);\n    this.map.delete(key);\n    this.map.set(key, v);\n    return v;\n  }\n  put(key, value) {\n    if (this.map.has(key)) this.map.delete(key);\n    this.map.set(key, value);\n    if (this.map.size > this.cap) this.map.delete(this.map.keys().next().value);\n  }\n}\n",
+    hint: "A JavaScript Map keeps insertion order: delete and re-insert on access.", complexity: "O(1) per operation",
+    tests: [
+      { call: "(() => { const c = new fn(2); c.put(1, 1); c.put(2, 2); const a = c.get(1); c.put(3, 3); const b = c.get(2); c.put(4, 4); return [a, b, c.get(1), c.get(3), c.get(4)]; })()", expected: [1, -1, -1, 3, 4] },
+      { call: "(() => { const c = new fn(1); c.put(1, 1); c.put(2, 2); return [c.get(1), c.get(2)]; })()", expected: [-1, 2] },
+      { call: "(() => { const c = new fn(2); c.put(2, 1); c.put(2, 2); return [c.get(2)]; })()", expected: [2], hidden: true },
+    ],
+  }),
+  c({
+    id: "js06", title: "Flatten Deep", diff: 1, topic: "Recursion", fn: "flattenDeep",
+    desc: "Flatten an arbitrarily nested array into a single-level array without using `Array.prototype.flat`.",
+    starter: "function flattenDeep(arr) {\n  // your code\n}\n",
+    solution: "function flattenDeep(arr) {\n  const out = [];\n  const walk = (a) => { for (const x of a) Array.isArray(x) ? walk(x) : out.push(x); };\n  walk(arr);\n  return out;\n}\n",
+    hint: "Recurse when an element is an array; otherwise push it.", complexity: "O(n)",
+    tests: [{ args: [[1, [2, [3, [4]], 5]]], expected: [1, 2, 3, 4, 5] }, { args: [[]], expected: [] }, { args: [[[[]], 1]], expected: [1], hidden: true }],
+  }),
+  c({
+    id: "js07", title: "Promise Pool (concurrency limit)", diff: 3, topic: "Async / concurrency", fn: "promisePool",
+    desc: "Implement `promisePool(tasks, limit)`. `tasks` is an array of functions returning promises. Run at most `limit` at a time and resolve with the results in the original order.",
+    starter: "async function promisePool(tasks, limit) {\n  // your code\n}\n",
+    solution: "async function promisePool(tasks, limit) {\n  const results = new Array(tasks.length);\n  let next = 0;\n  const worker = async () => {\n    while (next < tasks.length) {\n      const i = next++;\n      results[i] = await tasks[i]();\n    }\n  };\n  await Promise.all(Array.from({ length: Math.min(limit, tasks.length) }, worker));\n  return results;\n}\n",
+    hint: "Start `limit` workers that each pull the next index until none are left.", complexity: "O(n) with bounded concurrency",
+    tests: [
+      { call: "(async () => { let cur = 0, max = 0; const mk = (v, ms) => () => new Promise(r => { cur++; max = Math.max(max, cur); setTimeout(() => { cur--; r(v); }, ms); }); const res = await fn([mk('a', 30), mk('b', 10), mk('c', 10), mk('d', 5)], 2); return { res, max }; })()", expected: { res: ["a", "b", "c", "d"], max: 2 } },
+      { call: "(async () => { const res = await fn([], 3); return res; })()", expected: [] },
+      { call: "(async () => { let cur = 0, max = 0; const mk = (v) => () => new Promise(r => { cur++; max = Math.max(max, cur); setTimeout(() => { cur--; r(v); }, 5); }); const res = await fn([mk(1), mk(2), mk(3)], 1); return { res, max }; })()", expected: { res: [1, 2, 3], max: 1 }, hidden: true },
+    ],
+  }),
+  c({
+    id: "js08", title: "Deep Equal", diff: 2, topic: "Recursion / types", fn: "deepEqual",
+    desc: "Implement `deepEqual(a, b)` for primitives, arrays and plain objects (key order does not matter). Treat `NaN` as equal to `NaN`.",
+    starter: "function deepEqual(a, b) {\n  // your code\n}\n",
+    solution: "function deepEqual(a, b) {\n  if (Object.is(a, b)) return true;\n  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;\n  if (Array.isArray(a) !== Array.isArray(b)) return false;\n  const ka = Object.keys(a), kb = Object.keys(b);\n  if (ka.length !== kb.length) return false;\n  return ka.every(k => Object.prototype.hasOwnProperty.call(b, k) && deepEqual(a[k], b[k]));\n}\n",
+    hint: "Compare keys length first, then recurse on every key.", complexity: "O(size of structure)",
+    tests: [{ args: [{ a: 1, b: [1, 2, { c: 3 }] }, { b: [1, 2, { c: 3 }], a: 1 }], expected: true }, { args: [[1, 2], [1, 2, 3]], expected: false }, { args: [{ a: 1 }, { a: 2 }], expected: false }, { args: [NaN, NaN], expected: true }, { args: [null, {}], expected: false, hidden: true }, { args: [[], {}], expected: false, hidden: true }],
+  }),
+  c({
+    id: "js09", title: "Longest Substring Without Repeating Characters", diff: 2, topic: "Sliding window", fn: "lengthOfLongestSubstring",
+    desc: "Return the length of the longest substring of `s` without repeating characters. Aim for O(n).",
+    starter: "function lengthOfLongestSubstring(s) {\n  // your code\n}\n",
+    solution: "function lengthOfLongestSubstring(s) {\n  const last = new Map();\n  let best = 0, start = 0;\n  for (let i = 0; i < s.length; i++) {\n    if (last.has(s[i]) && last.get(s[i]) >= start) start = last.get(s[i]) + 1;\n    last.set(s[i], i);\n    best = Math.max(best, i - start + 1);\n  }\n  return best;\n}\n",
+    hint: "Keep a window start and a map of last-seen indexes.", complexity: "O(n)",
+    tests: [{ args: ["abcabcbb"], expected: 3 }, { args: ["bbbbb"], expected: 1 }, { args: ["pwwkew"], expected: 3 }, { args: [""], expected: 0 }, { args: ["abba"], expected: 2, hidden: true }],
+  }),
+  c({
+    id: "js10", title: "Top K Frequent Elements", diff: 2, topic: "Hash map / sorting", fn: "topKFrequent",
+    desc: "Return the `k` most frequent numbers. Break frequency ties by smaller number first. Return them ordered by frequency (desc), then value (asc).",
+    starter: "function topKFrequent(nums, k) {\n  // your code\n}\n",
+    solution: "function topKFrequent(nums, k) {\n  const f = new Map();\n  for (const n of nums) f.set(n, (f.get(n) || 0) + 1);\n  return [...f.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0]).slice(0, k).map(e => e[0]);\n}\n",
+    hint: "Count with a Map, then sort entries. Bucket sort gives O(n).", complexity: "O(n log n) (O(n) with buckets)",
+    tests: [{ args: [[1, 1, 1, 2, 2, 3], 2], expected: [1, 2] }, { args: [[1], 1], expected: [1] }, { args: [[4, 4, 5, 5, 6], 2], expected: [4, 5] }, { args: [[-1, -1, 2, 2, 3], 3], expected: [-1, 2, 3], hidden: true }],
+  }),
+  c({
+    id: "js11", title: "Curry", diff: 2, topic: "Functional / closures", fn: "curry",
+    desc: "Implement `curry(fn)` so that `curry(add)(1)(2)(3)`, `curry(add)(1, 2)(3)` and `curry(add)(1, 2, 3)` all work for a function with arity 3.",
+    starter: "function curry(fn) {\n  // your code\n}\n",
+    solution: "function curry(fn) {\n  return function curried(...args) {\n    if (args.length >= fn.length) return fn.apply(this, args);\n    return (...more) => curried.apply(this, [...args, ...more]);\n  };\n}\n",
+    hint: "Compare collected args to fn.length; return a new function until enough are collected.", complexity: "O(args)",
+    tests: [
+      { call: "(() => { const add = (a, b, c) => a + b + c; const f = fn(add); return [f(1)(2)(3), f(1, 2)(3), f(1)(2, 3), f(1, 2, 3)]; })()", expected: [6, 6, 6, 6] },
+      { call: "(() => { const m = (a, b) => a * b; return [fn(m)(3)(4), fn(m)(3, 4)]; })()", expected: [12, 12] },
+    ],
+  }),
+  c({
+    id: "js12", title: "Event Emitter", diff: 2, topic: "Design / patterns", fn: "EventEmitter",
+    desc: "Implement `class EventEmitter` with `on(event, fn)`, `off(event, fn)`, `once(event, fn)` and `emit(event, ...args)`. `emit` returns true if the event had listeners. Listeners run in registration order.",
+    starter: "class EventEmitter {\n  constructor() {\n    // your code\n  }\n  on(event, fn) {}\n  off(event, fn) {}\n  once(event, fn) {}\n  emit(event, ...args) {}\n}\n",
+    solution: "class EventEmitter {\n  constructor() { this.l = new Map(); }\n  on(e, f) { if (!this.l.has(e)) this.l.set(e, []); this.l.get(e).push(f); return this; }\n  off(e, f) { const a = this.l.get(e); if (a) this.l.set(e, a.filter(x => x !== f && x.orig !== f)); return this; }\n  once(e, f) { const w = (...a) => { this.off(e, w); f(...a); }; w.orig = f; return this.on(e, w); }\n  emit(e, ...args) { const a = this.l.get(e); if (!a || a.length === 0) return false; [...a].forEach(f => f(...args)); return true; }\n}\n",
+    hint: "Wrap `once` listeners so they remove themselves before running. Iterate over a copy when emitting.", complexity: "O(listeners) per emit",
+    tests: [
+      { call: "(() => { const e = new fn(); const out = []; e.on('a', x => out.push('1:' + x)); e.on('a', x => out.push('2:' + x)); const r1 = e.emit('a', 5); const r2 = e.emit('b'); return [out, r1, r2]; })()", expected: [["1:5", "2:5"], true, false] },
+      { call: "(() => { const e = new fn(); let n = 0; e.once('x', () => n++); e.emit('x'); e.emit('x'); return n; })()", expected: 1 },
+      { call: "(() => { const e = new fn(); let n = 0; const f = () => n++; e.on('x', f); e.emit('x'); e.off('x', f); e.emit('x'); return n; })()", expected: 1, hidden: true },
+    ],
+  }),
+];

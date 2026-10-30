@@ -213,6 +213,14 @@ if (process.env.WORKBOOK_PATH) {
   check(true, "real workbook imports and quizzes in the browser");
 }
 
+// desktop chrome: no phone-only controls, no stray focus ring on the page container
+await page.goto(base + "/#/dashboard"); await page.waitForSelector(".tile");
+await page.keyboard.press("Tab");
+check(!(await page.locator(".rail-close").isVisible()), "Close button is hidden on desktop");
+check(!(await page.locator(".topbar").isVisible()) && !(await page.locator("#tabbar").isVisible()), "top bar and bottom tabs are hidden on desktop");
+await page.evaluate(() => document.getElementById("main").focus());
+check((await page.evaluate(() => getComputedStyle(document.getElementById("main")).outlineStyle)) === "none", "no outline around the main content when focused");
+
 // daily set
 aiMode = "gen";
 await page.route(/text\.pollinations\.ai/, (r) => aiMode === "gen" ? r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ choices: [{ message: { content: JSON.stringify({ questions: Array.from({ length: 5 }, (_, i) => ({ q: `Fresh question number ${i + 1} about Kubernetes autoscaling?`, a: "Use the horizontal pod autoscaler with sensible requests and limits, and watch the metrics server.", keyPoints: ["horizontal pod autoscaler", "requests and limits"] })) }) } }] }) }) : r.fallback());

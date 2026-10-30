@@ -23,6 +23,8 @@ a { color: var(--cobalt); }
 code, pre, textarea.code { font-family: var(--font-mono); }
 code { background: var(--cobalt-tint); padding: .1em .35em; border-radius: 4px; font-size: .9em; }
 :focus-visible { outline: 3px solid var(--chalk); outline-offset: 2px; border-radius: 4px; }
+/* the page container is focused by script after navigation for screen readers; it is not an interactive control, so no ring */
+main:focus, main:focus-visible { outline: none; }
 .skip { position: absolute; left: -999px; top: 0; background: var(--ink); color: var(--on-ink); padding: .6rem 1rem; z-index: 99; }
 .skip:focus { left: 0; }
 
@@ -162,7 +164,7 @@ table.tbl th { font-weight: 600; color: var(--ink-2); background: color-mix(in s
 .timer.low { color: var(--thread); }
 
 /* top bar, bottom tabs and menu drawer exist only on phones */
-.topbar, .tabbar, .rail-close { display: none; }
+.topbar, .tabbar, .rail .rail-close { display: none; }
 .scrim { position: fixed; inset: 0; background: rgba(8, 10, 24, .55); z-index: 35; }
 .scrim[hidden] { display: none; }
 .nav-group { font: 600 .72rem var(--font-body); letter-spacing: .08em; text-transform: uppercase; color: var(--rail-fg-2); padding: 14px 12px 4px; }
@@ -206,7 +208,7 @@ table.tbl th { font-weight: 600; color: var(--ink-2); background: color-mix(in s
   .rail { position: fixed; z-index: 40; top: 0; left: 0; bottom: 0; width: min(310px, 86vw); height: auto; overflow-y: auto; padding: 14px; transform: translateX(-102%); visibility: hidden; transition: transform .22s ease, visibility 0s linear .22s; }
   body.menu-open .rail { transform: none; visibility: visible; transition: transform .22s ease; }
   body.menu-open { overflow: hidden; }
-  .rail-close { display: inline-flex; align-self: flex-end; background: var(--rail-hover); border-color: var(--rail-line); color: var(--rail-strong); }
+  .rail .rail-close { display: inline-flex; align-self: flex-end; background: var(--rail-hover); border-color: var(--rail-line); color: var(--rail-strong); }
   /* the phone menu is a grid of big tiles */
   #nav { overflow: visible; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   #nav .nav-group { grid-column: 1 / -1; padding: 12px 2px 0; }

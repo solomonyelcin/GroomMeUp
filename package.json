@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Interview preparation workbench: question bank, quizzes, mock interviews, coding tests, evaluation.",
   "scripts": {
-    "test": "node tests/verify.mjs",
+    "test": "node tests/verify.mjs && node tests/import.test.mjs",
     "start": "npx --yes serve . -l 5173",
     "test:smoke": "node tests/smoke.mjs"
   },

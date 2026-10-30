@@ -33,6 +33,16 @@ For sharper, more consistent feedback add your own **free** key in Settings:
 Choose **Offline** in Settings to keep everything on your device. Keys stay in your browser's localStorage and
 are sent only to the provider you choose. Model names change, so edit the model field if a provider retires one.
 
+## Import your own material
+
+Open **Import material** and drop in Excel (.xlsx), Word (.docx), PDF, text, markdown or CSV files.
+
+- Excel/CSV: one sheet per topic, with `Question` and `Answer` columns (optional `Sub Topic`, `Learning Status`). Sub topics containing "Scenario" are flagged as scenario questions; rows marked "Confident" can start as already learned.
+- Word/PDF/text: `Q:`/`A:` pairs, numbered questions with answers underneath, or question headings. Loose notes can be turned into questions with the AI option.
+- Imported topics appear in the Question bank, Practice, Quick quiz (multiple choice is generated from your own answers), Mock interview and Dashboard. Each import can be removed in one click.
+- Everything is parsed in your browser and stored in localStorage; nothing is uploaded. Old `.xls`/`.doc` files must be saved as `.xlsx`/`.docx`; scanned PDFs need OCR first.
+- Tests: `npm test` covers the parsers; set `WORKBOOK_PATH=/path/to/your.xlsx` to also check your own file (never commit personal files). PDF reading uses a vendored PDF.js (Apache-2.0).
+
 ## Themes
 
 Six themes (Chalk, Midnight, Forest, Graphite, Rose, High contrast) plus "match my device", switchable from the

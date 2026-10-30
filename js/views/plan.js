@@ -6,7 +6,7 @@ import { esc, tape } from "../ui.js";
 export function view(root) {
   const s = store.get();
   const stats = categoryStats();
-  const weak = Object.values(stats).sort((a, b) => a.readiness - b.readiness);
+  const weak = Object.values(stats).filter((x) => !x.mine).sort((a, b) => a.readiness - b.readiness);
   const w = (i) => weak[i]?.key || "csharp";
   const name = (k) => CATEGORIES[k].name;
   const cd = codingStats();

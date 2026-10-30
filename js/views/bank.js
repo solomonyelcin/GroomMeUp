@@ -3,11 +3,12 @@ import { CATEGORIES } from "../data/index.js";
 import { generateQuestions, aiEnabled } from "../ai.js";
 import { esc, rich, scoreBadge, toast, busy, $, $$ } from "../ui.js";
 
-const filt = { text: "", cat: "all", diff: 0, status: "all" };
+const filt = { text: "", cat: "all", diff: 0, status: "all", src: "", kind: "all" };
 let shown = 40;
 
 export function view(root, ctx) {
   if (ctx.params.get("cat")) filt.cat = ctx.params.get("cat");
+  if (ctx.params.has("src")) { filt.src = ctx.params.get("src"); filt.cat = "all"; }
   root.innerHTML = `
     <header class="page-head">
       <h1>Question bank</h1>
@@ -19,7 +20,11 @@ export function view(root, ctx) {
         <div><label for="d">Difficulty</label><select id="d"><option value="0">Any</option><option value="1">Warm-up</option><option value="2">Core</option><option value="3">Senior / hard</option></select></div>
         <div><label for="st">Status</label><select id="st"><option value="all">All</option><option value="new">Not tried</option><option value="weak">Weak (under 6)</option><option value="due">Due for review</option><option value="strong">Strong (8+)</option></select></div>
       </div>
-      <div class="chips" id="cats" style="margin-top:12px" role="group" aria-label="Category filter"></div>
+      <div class="grid g3" style="margin-top:12px">
+        <div><label for="tp">Topic</label><select id="tp"></select></div>
+        <div><label for="sc">Source</label><select id="sc"></select></div>
+        <div><label for="kd">Type</label><select id="kd"><option value="all">Any</option><option value="concept">Concept</option><option value="scenario">Scenario-based</option></select></div>
+      </div>
     </div>
     <div class="row between" style="margin:16px 0 10px"><span id="count" class="muted" aria-live="polite"></span><div class="row"><button class="btn sm" id="add">Add your own question</button><button class="btn sm" id="gen">Generate with AI</button></div></div>
     <div id="forms"></div>
@@ -27,10 +32,16 @@ export function view(root, ctx) {
   `;
   $("#d").value = String(filt.diff); $("#st").value = filt.status;
 
-  const catsEl = $("#cats");
   const draw = () => {
-    catsEl.innerHTML = [["all", "All topics"], ...Object.entries(CATEGORIES).map(([k, v]) => [k, v.name]), ["custom", "My questions"]]
-      .map(([k, n]) => `<button class="chip" data-c="${k}" aria-pressed="${filt.cat === k}">${esc(n)}</button>`).join("");
+    const mine = Object.entries(CATEGORIES).filter(([, v]) => v.mine);
+    const opt = ([k, n]) => `<option value="${esc(k)}">${esc(n)}</option>`;
+    $("#tp").innerHTML = `<option value="all">All topics</option><optgroup label="Built-in topics">${Object.entries(CATEGORIES).filter(([, v]) => !v.mine).map(([k, v]) => opt([k, v.name])).join("")}<option value="custom">My questions</option></optgroup>${mine.length ? `<optgroup label="Your material">${mine.map(([k, v]) => opt([k, v.name])).join("")}</optgroup>` : ""}`;
+    $("#tp").value = filt.cat;
+    if ($("#tp").value !== filt.cat) { filt.cat = "all"; $("#tp").value = "all"; }
+    const imps = store.get().imports;
+    $("#sc").innerHTML = `<option value="">All sources</option><option value="builtin">Built-in only</option>${imps.length ? `<option value="mine">All my imports</option>` : ""}${imps.map((i) => opt([i.id, i.name])).join("")}`;
+    $("#sc").value = filt.src; if ($("#sc").value !== filt.src) { filt.src = ""; $("#sc").value = ""; }
+    $("#kd").value = filt.kind;
     list();
   };
 
@@ -39,6 +50,10 @@ export function view(root, ctx) {
     const t = filt.text.trim().toLowerCase();
     const qs = allQuestions().filter((q) => {
       if (filt.cat !== "all" && q.c !== filt.cat) return false;
+      if (filt.src === "builtin" && (q.imported || q.custom)) return false;
+      if (filt.src === "mine" && !q.imported) return false;
+      if (filt.src && filt.src !== "builtin" && filt.src !== "mine" && q.src !== filt.src) return false;
+      if (filt.kind !== "all" && (q.kind || "concept") !== filt.kind) return false;
       if (filt.diff && q.d !== filt.diff) return false;
       const l = last.get(q.id);
       if (filt.status === "new" && l) return false;
@@ -52,10 +67,11 @@ export function view(root, ctx) {
     const diffName = ["", "Warm-up", "Core", "Senior"];
     $("#list").innerHTML = qs.slice(0, shown).map((q) => {
       const cat = CATEGORIES[q.c] || { name: "My questions", color: "#546178" };
+      const tagS = q.kind === "scenario" ? " / Scenario" : "";
       const l = last.get(q.id);
       return `<details class="q-card" data-id="${q.id}">
         <summary class="q-head"><span class="dot" style="background:${cat.color};margin-top:8px" title="${esc(cat.name)}"></span>
-          <span class="q-title">${rich(q.q)}<br><span class="small muted">${esc(cat.name)} / ${diffName[q.d] || "Core"}</span></span>${scoreBadge(l ? l.score : null)}</summary>
+          <span class="q-title">${rich(q.q)}<br><span class="small muted">${esc(cat.name)} / ${q.imported ? (q.sub ? esc(q.sub) : "Imported") : diffName[q.d] || "Core"}${tagS}</span></span>${scoreBadge(l ? l.score : null)}</summary>
         <div class="q-body">
           <h4>Model answer</h4><div class="model">${rich(q.a)}</div>
           <h4>Points interviewers listen for</h4><ul class="kp">${q.kp.map((k) => `<li>${esc(k[0])}</li>`).join("")}</ul>
@@ -66,7 +82,9 @@ export function view(root, ctx) {
     const more = $("#more"); if (more) more.onclick = () => { shown += 40; list(); };
   }
 
-  catsEl.onclick = (e) => { const b = e.target.closest("[data-c]"); if (b) { filt.cat = b.dataset.c; shown = 40; draw(); } };
+  $("#tp").onchange = (e) => { filt.cat = e.target.value; shown = 40; list(); };
+  $("#sc").onchange = (e) => { filt.src = e.target.value; shown = 40; list(); };
+  $("#kd").onchange = (e) => { filt.kind = e.target.value; shown = 40; list(); };
   $("#s").oninput = (e) => { filt.text = e.target.value; shown = 40; list(); };
   $("#d").onchange = (e) => { filt.diff = +e.target.value; shown = 40; list(); };
   $("#st").onchange = (e) => { filt.status = e.target.value; shown = 40; list(); };
@@ -85,7 +103,7 @@ export function view(root, ctx) {
       const kw = (s) => [...new Set(s.toLowerCase().split(/[^a-z0-9+#.]+/).filter((w) => w.length >= 5))].slice(0, 4);
       const kp = (kps.length ? kps : [a.split(/[.!?]/)[0]]).map((k) => [k, ...kw(k)]);
       store.update((s) => s.custom.push({ id: "c" + Date.now().toString(36), c: "custom", d: 2, custom: true, q, a, kp, f: [] }));
-      $("#forms").innerHTML = ""; toast("Question saved"); filt.cat = "custom"; draw();
+      $("#forms").innerHTML = ""; toast("Question saved"); filt.cat = "custom"; filt.src = ""; draw();
     };
   };
 

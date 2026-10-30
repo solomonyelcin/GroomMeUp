@@ -1,0 +1,4 @@
+Topic,Question,Answer
+SQL,"What is a primary key?","A column (or set) that uniquely identifies each row and cannot be NULL."
+SQL,"What is normalization?","Organising tables to reduce duplicate data, e.g. splitting a customer table from an orders table."
+SQL,"Name three join types, with commas?","INNER, LEFT and FULL OUTER joins, each keeping different unmatched rows."

@@ -6,6 +6,7 @@ import { evalPanel } from "./evalpanel.js";
 
 export function view(root, ctx) {
   const p = ctx.params;
+  const mineOnly = p.get("mine") === "1";
   const cat = p.get("cat") || "all";
   const mode = p.get("mode") || "mixed";
   const flash = p.get("flash") === "1";
@@ -15,6 +16,7 @@ export function view(root, ctx) {
   let pool = allQuestions();
   if (single) pool = pool.filter((q) => q.id === single);
   else {
+    if (mineOnly) pool = pool.filter((q) => q.imported);
     if (cat !== "all") pool = pool.filter((q) => q.c === cat);
     if (mode === "due") pool = pool.filter((q) => last.has(q.id) && isDue(q.id));
     else if (mode === "new") pool = pool.filter((q) => !last.has(q.id));
@@ -33,14 +35,14 @@ export function view(root, ctx) {
     </header>
     <div class="card">
       <div class="grid g3">
-        <div><label for="fcat">Topic</label><select id="fcat"><option value="all">All topics</option>${Object.entries(CATEGORIES).map(([k, v]) => `<option value="${k}">${esc(v.name)}</option>`).join("")}</select></div>
+        <div><label for="fcat">Topic</label><select id="fcat"><option value="all">All topics</option><option value="mine">All my imported material</option><optgroup label="Built-in topics">${Object.entries(CATEGORIES).filter(([, v]) => !v.mine).map(([k, v]) => `<option value="${esc(k)}">${esc(v.name)}</option>`).join("")}</optgroup>${Object.values(CATEGORIES).some((v) => v.mine) ? `<optgroup label="Your material">${Object.entries(CATEGORIES).filter(([, v]) => v.mine).map(([k, v]) => `<option value="${esc(k)}">${esc(v.name)}</option>`).join("")}</optgroup>` : ""}</select></div>
         <div><label for="fmode">Which questions</label><select id="fmode"><option value="mixed">Mixed (weak and new first)</option><option value="due">Due for review</option><option value="new">Not tried yet</option><option value="weak">Weak ones (under 6)</option></select></div>
         <div><label for="fstyle">Style</label><select id="fstyle"><option value="write">Write or speak an answer</option><option value="flash">Flashcard (self-rate)</option></select></div>
       </div>
     </div>
     <div id="stage" style="margin-top:16px"></div>`;
-  $("#fcat").value = cat; $("#fmode").value = mode; $("#fstyle").value = flash ? "flash" : "write";
-  const reload = () => { const q = new URLSearchParams(); if ($("#fcat").value !== "all") q.set("cat", $("#fcat").value); if ($("#fmode").value !== "mixed") q.set("mode", $("#fmode").value); if ($("#fstyle").value === "flash") q.set("flash", "1"); ctx.go("#/practice" + (q.toString() ? "?" + q : "")); };
+  $("#fcat").value = mineOnly && cat === "all" ? "mine" : cat; $("#fmode").value = mode; $("#fstyle").value = flash ? "flash" : "write";
+  const reload = () => { const q = new URLSearchParams(); if ($("#fcat").value === "mine") q.set("mine", "1"); else if ($("#fcat").value !== "all") q.set("cat", $("#fcat").value); if ($("#fmode").value !== "mixed") q.set("mode", $("#fmode").value); if ($("#fstyle").value === "flash") q.set("flash", "1"); ctx.go("#/practice" + (q.toString() ? "?" + q : "")); };
   ["fcat", "fmode", "fstyle"].forEach((id) => ($("#" + id).onchange = reload));
 
   const stage = $("#stage");

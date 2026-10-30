@@ -12,13 +12,22 @@ const fresh = () => ({
   quizzes: [],         // {t, total, correct, cats:{cat:[correct,total]}}
   code: {},            // challengeId -> {solved, tries, best, code, t}
   log: [],             // real interviews
-  custom: [],          // user-added / AI generated questions
+  custom: [],          // user-added, AI generated and imported questions
+  cats: {},            // topics created by imports: key -> {name, color}
+  imports: [],         // {id, name, kind, t}
   mocks: [],           // mock interview reports
   settings: { provider: "pollinations", aiChoice: false, keys: {}, models: {}, target: "", pistonUrl: "", name: "" },
 });
 
 let state = load();
 const listeners = new Set();
+
+// Imported topics join the shared CATEGORIES object so every page sees them.
+function syncCats() {
+  for (const k of Object.keys(CATEGORIES)) if (k.startsWith("u:") && !state.cats[k]) delete CATEGORIES[k];
+  for (const [k, v] of Object.entries(state.cats || {})) CATEGORIES[k] = { ...v, mine: true };
+}
+syncCats();
 
 function load() {
   try {
@@ -32,21 +41,28 @@ function load() {
     return { ...f, ...parsed, settings };
   } catch { return fresh(); }
 }
-function persist() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { console.warn("Could not save", e); } }
+function persist() {
+  try { localStorage.setItem(KEY, JSON.stringify(state)); return true; }
+  catch (e) {
+    console.warn("Could not save", e);
+    try { dispatchEvent(new CustomEvent("groommeup:save-error", { detail: e })); } catch { /* not in a browser */ }
+    return false;
+  }
+}
 
 export const store = {
   get: () => state,
   subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
-  update(fn) { fn(state); persist(); listeners.forEach((l) => l(state)); },
+  update(fn) { fn(state); syncCats(); persist(); listeners.forEach((l) => l(state)); },
   exportJSON() { return JSON.stringify({ ...state, settings: { ...state.settings, keys: {} } }, null, 2); },
   importJSON(text) {
     const d = JSON.parse(text);
     if (!d || typeof d !== "object") throw new Error("Not a GroomMeUp export");
     const keep = state.settings;
     state = { ...fresh(), ...d, settings: { ...fresh().settings, ...(d.settings || {}), keys: keep.keys } };
-    persist(); listeners.forEach((l) => l(state));
+    syncCats(); persist(); listeners.forEach((l) => l(state));
   },
-  reset() { state = fresh(); persist(); listeners.forEach((l) => l(state)); },
+  reset() { state = fresh(); syncCats(); persist(); listeners.forEach((l) => l(state)); },
 };
 
 export const allQuestions = () => [...QUESTIONS, ...state.custom];
@@ -98,7 +114,7 @@ export function categoryStats() {
     if (mcqAcc !== null) parts.push([mcqAcc, 0.2]);
     const wsum = parts.reduce((s, p) => s + p[1], 0);
     const readiness = attempted.length || mtot ? parts.reduce((s, p) => s + p[0] * p[1], 0) / wsum : 0;
-    out[key] = { key, name: meta.name, color: meta.color, total: inCat.length, attempted: attempted.length, acc, coverage, mcqAcc, readiness };
+    out[key] = { key, mine: !!meta.mine, name: meta.name, color: meta.color, total: inCat.length, attempted: attempted.length, acc, coverage, mcqAcc, readiness };
   }
   return out;
 }
@@ -112,9 +128,12 @@ export function codingStats() {
   };
 }
 
+const mean = (xs) => (xs.length ? xs.reduce((s, c) => s + c.readiness, 0) / xs.length : 0);
 export function overallReadiness() {
-  const cs = Object.values(categoryStats());
-  const theory = cs.reduce((s, c) => s + c.readiness, 0) / cs.length;
+  const all = Object.values(categoryStats());
+  const own = all.filter((c) => c.mine), built = all.filter((c) => !c.mine);
+  // imported topics count as half of the theory score once they exist, so 16 untouched sheets don't sink it
+  const theory = own.length ? (mean(built) + mean(own)) / 2 : mean(built);
   const cd = codingStats();
   const tot = cd.js[1] + cd.sql[1] + cd.cs[1];
   const done = cd.js[0] + cd.sql[0] + cd.cs[0];
@@ -123,11 +142,12 @@ export function overallReadiness() {
 }
 
 export function weakTopics(n = 4) {
-  return Object.values(categoryStats()).sort((a, b) => a.readiness - b.readiness).slice(0, n);
+  // imported topics only count once you have started them, otherwise untouched sheets always look "weakest"
+  return Object.values(categoryStats()).filter((c) => !c.mine || c.attempted > 0).sort((a, b) => a.readiness - b.readiness).slice(0, n);
 }
 
 export function streak() {
-  const days = new Set(state.attempts.map((a) => new Date(a.t).toDateString()));
+  const days = new Set(state.attempts.filter((a) => a.mode !== "self-rated").map((a) => new Date(a.t).toDateString()));
   for (const q of state.quizzes) days.add(new Date(q.t).toDateString());
   for (const c of Object.values(state.code)) if (c.t) days.add(new Date(c.t).toDateString());
   let n = 0; const d = new Date();
@@ -140,3 +160,47 @@ export const counts = () => ({
   questions: allQuestions().length, mcq: MCQ.length,
   coding: JS_CHALLENGES.length + SQL_CHALLENGES.length + CS_CHALLENGES.length,
 });
+
+// ---------- imports ----------
+const DAYS3 = 3 * DAY;
+export function importQuestions({ questions, cats, seeds = [], record, seedConfident = true, update = true }) {
+  const res = { added: 0, updated: 0, skipped: 0, seeded: 0 };
+  store.update((s) => {
+    for (const [k, v] of Object.entries(cats)) if (!s.cats[k]) s.cats[k] = v;
+    const index = new Map(s.custom.map((q, i) => [q.id, i]));
+    const seedSet = new Set(seedConfident ? seeds : []);
+    const attempted = new Set(s.attempts.map((a) => a.qid));
+    for (const q of questions) {
+      if (index.has(q.id)) {
+        if (update) { s.custom[index.get(q.id)] = q; res.updated++; } else { res.skipped++; continue; }
+      } else { s.custom.push(q); index.set(q.id, s.custom.length - 1); res.added++; }
+      if (seedSet.has(q.id) && !attempted.has(q.id)) {
+        s.attempts.push({ qid: q.id, cat: q.c, score: 8, t: Date.now(), mode: "self-rated" });
+        s.srs[q.id] = { box: 2, due: Date.now() + DAYS3 };
+        res.seeded++;
+      }
+    }
+    s.imports.push({ id: record.id, name: record.name, kind: record.kind, t: Date.now() });
+    // a re-import takes ownership of its questions, so drop import records that own nothing now
+    const owned = new Set(s.custom.map((q) => q.src));
+    s.imports = s.imports.filter((i) => owned.has(i.id));
+  });
+  return res;
+}
+
+export function removeImport(id) {
+  let removed = 0;
+  store.update((s) => {
+    const gone = new Set(s.custom.filter((q) => q.src === id).map((q) => q.id));
+    removed = gone.size;
+    s.custom = s.custom.filter((q) => !gone.has(q.id));
+    s.attempts = s.attempts.filter((a) => !gone.has(a.qid));
+    for (const q of gone) delete s.srs[q];
+    s.imports = s.imports.filter((i) => i.id !== id);
+    const live = new Set(s.custom.map((q) => q.c));
+    for (const k of Object.keys(s.cats)) if (!live.has(k)) delete s.cats[k];
+  });
+  return removed;
+}
+
+export const importedQuestions = () => state.custom.filter((q) => q.imported);

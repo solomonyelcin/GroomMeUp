@@ -184,3 +184,8 @@ table.tbl th { font-weight: 600; color: var(--ink-2); background: color-mix(in s
 .theme-card .sw { display: flex; height: 34px; border-radius: 6px; overflow: hidden; border: 1px solid var(--line); margin-bottom: 4px; }
 .theme-card .sw i { flex: 1; }
 .theme-card .sw i:first-child { flex: 1.4; }
+
+/* import page */
+.drop { display: flex; flex-direction: column; gap: 6px; align-items: center; text-align: center; padding: 34px 20px; border: 2px dashed var(--line); border-radius: 12px; background: var(--card); cursor: pointer; font-weight: 400; margin: 0; }
+.drop:hover, .drop.over { border-color: var(--cobalt); background: var(--cobalt-tint); }
+.drop strong { font: 700 1.15rem var(--font-head); }

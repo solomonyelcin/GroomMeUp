@@ -8,7 +8,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const types = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".svg": "image/svg+xml" };
+const types = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".json": "application/json", ".svg": "image/svg+xml" };
 const server = http.createServer((req, res) => {
   let p = decodeURIComponent(req.url.split("?")[0]); if (p === "/") p = "/index.html";
   const f = path.join(root, p);
@@ -132,9 +132,89 @@ for (let i = 0; i < 4; i++) { await page.fill("#ans", "I would explain the conce
 await page.waitForSelector("text=Interview debrief", { timeout: 15000 });
 check(true, "mock interview debrief rendered");
 
+// ---- import material ----
+const fx = (n) => path.join(root, "tests/fixtures", n);
+await page.goto(base + "/#/import");
+await page.waitForSelector("#file", { state: "attached" });
+await page.setInputFiles("#file", fx("sample.xlsx"));
+await page.waitForSelector("[data-act=import]", { timeout: 10000 });
+check(/Found \d+ question/.test(await page.textContent("#results")), "xlsx previewed");
+await page.click("[data-act=import]");
+await page.waitForSelector("text=Imported sample.xlsx");
+const st1 = await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")));
+const nX = st1.custom.filter((q) => q.imported).length;
+check(nX > 0 && st1.imports.length === 1 && Object.keys(st1.cats).length > 0, `xlsx imported: ${nX} questions, ${Object.keys(st1.cats).length} topics`);
+
+for (const f of ["sample.docx", "sample.txt", "sample.pdf"]) {
+  await page.goto(base + "/#/import");
+  await page.waitForSelector("#file", { state: "attached" });
+  await page.setInputFiles("#file", fx(f));
+  try { await page.waitForSelector("[data-act=import]", { timeout: 15000 }); await page.click("[data-act=import]"); await page.waitForSelector(`text=Imported ${f}`); check(true, `${f} imported`); }
+  catch (e) { check(false, `${f} import: ${(await page.textContent("#results")).slice(0, 160)}`); }
+}
+// re-import is idempotent
+await page.goto(base + "/#/import");
+await page.setInputFiles("#file", fx("sample.xlsx"));
+await page.waitForSelector("[data-act=import]"); await page.click("[data-act=import]"); await page.waitForSelector("text=Imported sample.xlsx");
+const st2 = await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")));
+const ids = st2.custom.map((q) => q.id);
+check(new Set(ids).size === ids.length, "no duplicate ids after re-import");
+
+// unsupported formats give a clear message
+await page.goto(base + "/#/import");
+await page.setInputFiles("#file", { name: "old.xls", mimeType: "application/vnd.ms-excel", buffer: Buffer.from("x") });
+await page.waitForSelector("text=could not be imported");
+check(/xlsx/i.test(await page.textContent("#results")), "old .xls explained");
+
+// imported topics show up everywhere
+const topicKey = Object.keys(st2.cats)[0];
+await page.goto(base + "/#/bank?src=mine"); await page.waitForSelector(".q-card");
+check((await page.locator(".q-card").count()) > 0, "bank filters to imported questions");
+await page.goto(base + "/#/practice?mine=1"); await page.waitForSelector("#ans");
+check(true, "practice serves imported questions");
+await page.goto(base + "/#/quiz?mine=1"); await page.waitForSelector("#start");
+check((await page.locator("#cc h4").count()) === 1, "quiz lists 'Your material' topics");
+await page.click("#start");
+const qn = await page.locator(".opt").count();
+check(qn === 4, "generated multiple choice has 4 options");
+await page.goto(base + "/#/mock?mine=1"); await page.waitForSelector("#r");
+check((await page.inputValue("#r")) === "mine", "mock offers imported round");
+await page.goto(base + "/#/dashboard"); await page.waitForSelector("#mine");
+check(true, "dashboard shows imported material");
+
+// AI extraction path (mocked)
+aiMode = "extractor";
+await page.route(/text\.pollinations\.ai/, (r) => aiMode === "extractor" ? r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ choices: [{ message: { content: JSON.stringify({ items: [{ topic: "Notes", q: "What does the outbox pattern guarantee?", a: "At-least-once publication of events written in the same transaction as state." }] }) } }] }) }) : r.fallback());
+await page.goto(base + "/#/import");
+await page.setInputFiles("#file", fx("notes-only.txt"));
+await page.waitForSelector("[data-act=ai-extract]");
+await page.click("[data-act=ai-extract]");
+await page.waitForSelector("text=Found 1 question", { timeout: 10000 });
+check(true, "AI extract turns loose notes into a reviewable preview");
+aiMode = "ok";
+
+// remove an import
+await page.goto(base + "/#/import");
+page.once("dialog", (d) => d.accept());
+const before = await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")).imports.length);
+await page.click("[data-rm] >> nth=0");
+await page.waitForTimeout(300);
+const after = await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")).imports.length);
+check(after === before - 1, `import removed (${before} -> ${after})`);
+
+// optional: the real workbook (never committed)
+if (process.env.WORKBOOK_PATH) {
+  await page.goto(base + "/#/import");
+  await page.setInputFiles("#file", process.env.WORKBOOK_PATH);
+  await page.waitForSelector("[data-act=import]", { timeout: 20000 });
+  await page.click("[data-act=import]"); await page.waitForSelector("text=Imported");
+  await page.goto(base + "/#/quiz?mine=1"); await page.click("#start"); await page.click(".opt >> nth=0");
+  check(true, "real workbook imports and quizzes in the browser");
+}
+
 // mobile layout has no horizontal overflow
 await page.setViewportSize({ width: 390, height: 800 });
-for (const r of ["dashboard", "bank", "code", "market"]) {
+for (const r of ["dashboard", "bank", "code", "market", "import", "quiz"]) {
   await page.goto(`${base}/#/${r}`); await page.waitForTimeout(400);
   const over = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   check(over <= 1, `mobile ${r}: horizontal overflow ${over}px`);

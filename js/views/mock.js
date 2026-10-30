@@ -13,8 +13,11 @@ const ROUNDS = {
   hr: { name: "HR & behavioural", cats: ["hr", "ai"], tip: "Story-telling, salary, motivation." },
 };
 
-export function view(root) {
+export function view(root, ctx) {
   let timerId = null;
+  const mineKeys = Object.keys(CATEGORIES).filter((k) => CATEGORIES[k].mine);
+  if (mineKeys.length) ROUNDS.mine = { name: "My imported material", cats: mineKeys, tip: "Questions from the files you imported, asked cold with no hints." };
+  else delete ROUNDS.mine;
   const setup = () => {
     const past = store.get().mocks.slice(-4).reverse();
     root.innerHTML = `
@@ -31,6 +34,7 @@ export function view(root) {
         <button class="btn chalk" id="go">Start interview</button>
       </div>
       ${past.length ? `<div class="card" style="margin-top:16px"><h3>Previous mocks</h3>${past.map((m) => `<div class="row between small" style="padding:6px 0;border-bottom:1px dashed var(--line)"><span>${fmtDate(m.t)}: ${esc(ROUNDS[m.round]?.name || m.round)}</span><span>${scoreBadge(m.avg)}</span></div>`).join("")}</div>` : ""}`;
+    if (ctx?.params?.get("mine") === "1" && ROUNDS.mine) $("#r").value = "mine";
     const upd = () => ($("#rt").textContent = ROUNDS[$("#r").value].tip); $("#r").onchange = upd; upd();
     $("#go").onclick = () => {
       const round = $("#r").value, n = +$("#n").value, mins = +$("#m").value, lvl = +$("#l").value;

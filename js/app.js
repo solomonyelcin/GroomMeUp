@@ -1,6 +1,6 @@
 import { store } from "./store.js";
 import { activeProvider, PROVIDERS } from "./ai.js";
-import { $, $$, esc } from "./ui.js";
+import { $, $$, esc, toast } from "./ui.js";
 import { THEMES, getTheme, cycleTheme, applyTheme } from "./theme.js";
 
 const ROUTES = [
@@ -10,6 +10,7 @@ const ROUTES = [
   { id: "quiz", label: "Quick quiz", ico: "?", mod: "./views/quiz.js" },
   { id: "mock", label: "Mock interview", ico: "◉", mod: "./views/mock.js" },
   { id: "code", label: "Coding tests", ico: "⌘", mod: "./views/code.js" },
+  { id: "import", label: "Import material", ico: "⇪", mod: "./views/import.js" },
   { id: "log", label: "Interview log", ico: "✓", mod: "./views/log.js" },
   { id: "market", label: "Market & resume", ico: "↗", mod: "./views/market.js" },
   { id: "plan", label: "Study plan", ico: "▤", mod: "./views/plan.js" },
@@ -55,6 +56,7 @@ async function route() {
 }
 
 applyTheme();
+addEventListener("groommeup:save-error", () => toast("Browser storage is full, so your latest changes were not saved. Export a backup in Settings and remove old imports.", true));
 addEventListener("hashchange", route);
 store.subscribe(() => renderNav(parseHash().id));
 route();

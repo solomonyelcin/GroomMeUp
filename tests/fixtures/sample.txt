@@ -1,0 +1,16 @@
+CONCURRENCY
+
+1. What is a race condition?
+Two threads touch shared data without coordination, so the result depends on timing.
+Fix it with locks, atomic operations or immutable data.
+
+2. Explain thread starvation.
+A thread never gets CPU or a lock because others keep winning. Fair locks and priorities help.
+
+TESTING
+
+What is a mock?
+A fake collaborator that records calls so a test can verify interactions.
+
+Why write integration tests?
+They prove that real components work together, which unit tests with mocks cannot show.

@@ -73,14 +73,37 @@ async function chatOnce(system, user, { json = false, temperature = 0.3 } = {}) 
   } finally { clearTimeout(timer); }
 }
 
+// Close any open strings/brackets so a reply that was cut off still parses.
+function closeOpen(t) {
+  const stack = []; let inStr = false, esc = false;
+  for (const ch of t) {
+    if (inStr) { if (esc) esc = false; else if (ch === "\\") esc = true; else if (ch === '"') inStr = false; continue; }
+    if (ch === '"') inStr = true; else if (ch === "{") stack.push("}"); else if (ch === "[") stack.push("]"); else if (ch === "}" || ch === "]") stack.pop();
+  }
+  return t + (inStr ? '"' : "") + stack.reverse().join("");
+}
+
+// Free models often return slightly broken JSON (cut off, unescaped quote, trailing comma).
+// Keep every complete item before the damage rather than throwing everything away.
 export function parseJSON(text) {
   if (!text) throw new Error("Empty AI response");
-  const cleaned = text.replace(/```json|```/gi, "").trim();
-  try { return JSON.parse(cleaned); } catch { /* fall through */ }
-  const a = cleaned.search(/[\[{]/);
-  const b = Math.max(cleaned.lastIndexOf("}"), cleaned.lastIndexOf("]"));
-  if (a >= 0 && b > a) return JSON.parse(cleaned.slice(a, b + 1));
-  throw new Error("Could not parse AI response");
+  let t = text.replace(/```json|```/gi, "").trim();
+  const a = t.search(/[\[{]/);
+  if (a < 0) throw new Error("The AI did not return structured data");
+  t = t.slice(a).replace(/,\s*([}\]])/g, "$1");
+  try { return JSON.parse(t); } catch { /* try repairs */ }
+  const end = Math.max(t.lastIndexOf("}"), t.lastIndexOf("]"));
+  if (end > 0) { try { return JSON.parse(t.slice(0, end + 1)); } catch { /* keep going */ } }
+  let cur = t;
+  for (let n = 0; n < 40 && cur.length > 2; n++) {
+    try { return JSON.parse(closeOpen(cur).replace(/,\s*([}\]])/g, "$1")); } catch (e) {
+      const pos = +(/position (\d+)/.exec(e.message)?.[1] ?? cur.length);
+      const cut = cur.lastIndexOf("}", Math.min(pos, cur.length) - 1);
+      if (cut <= 0 || cut >= cur.length - 1 && n > 0 && cut === cur.length - 1) { cur = cur.slice(0, Math.max(cur.lastIndexOf("}", cur.length - 2), 0) + 1); if (cur.length < 3) break; }
+      else cur = cur.slice(0, cut + 1);
+    }
+  }
+  throw new Error("The AI reply was garbled. Try again, it usually works on the second go.");
 }
 
 // ---------------- offline evaluator ----------------
@@ -148,10 +171,16 @@ export async function explainFailure(ch, code, failures) {
 const kwFrom = (s) => [...new Set(s.toLowerCase().replace(/[^a-z0-9+#. ]/g, " ").split(/\s+/).filter((w) => w.length >= 5))].slice(0, 5);
 
 export async function generateQuestions(topic, count, level) {
-  const system = `You write realistic technical interview questions as asked in 2026 for senior .NET full stack roles in India. Return ONLY JSON: {"questions":[{"q": string, "a": string (model answer, 60-120 words), "keyPoints": string[] (3-5 short phrases)}]}`;
+  const system = `You write realistic technical interview questions as asked in 2026 for senior .NET full stack roles in India. Return ONLY JSON: {"questions":[{"q": string, "a": string (model answer, 50-90 words, plain text, no double quotes inside), "keyPoints": string[] (3-4 short phrases)}]}. Output compact JSON only, no commentary.`;
   const user = `Topic: ${topic}\nLevel: ${level}\nCount: ${count}\nCandidate background:\n${RESUME_CONTEXT}`;
-  const d = parseJSON(await chat(system, user, { json: true, temperature: 0.6 }));
-  const list = Array.isArray(d) ? d : d.questions || [];
+  let list = [];
+  for (const [n, temp] of [[count, 0.6], [Math.max(2, Math.ceil(count / 2)), 0.3]]) { // second try asks for fewer, from a calmer model
+    try {
+      const d = parseJSON(await chat(system, user.replace(`Count: ${count}`, `Count: ${n}`), { json: true, temperature: temp }));
+      list = (Array.isArray(d) ? d : d.questions || []).filter((x) => x && x.q && x.a);
+      if (list.length) break;
+    } catch (e) { if (n === Math.max(2, Math.ceil(count / 2))) throw e; }
+  }
   return list.filter((x) => x.q && x.a).map((x, i) => ({
     id: `ai${Date.now().toString(36)}${i}`, c: "custom", d: level === "senior" ? 3 : 2, custom: true, tags: [topic],
     q: String(x.q), a: String(x.a), f: [],

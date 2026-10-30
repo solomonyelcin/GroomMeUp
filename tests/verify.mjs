@@ -2,7 +2,7 @@
 import { createRequire } from "node:module";
 import { QUESTIONS, MCQ, JS_CHALLENGES, SQL_CHALLENGES, SQL_SCHEMA, CS_CHALLENGES, CATEGORIES } from "../js/data/index.js";
 import { runJSTests, runSQLTest } from "../js/runner-core.js";
-import { offlineEvaluate } from "../js/ai.js";
+import { offlineEvaluate, parseJSON } from "../js/ai.js";
 
 const require = createRequire(import.meta.url);
 let fails = 0, checks = 0;
@@ -62,6 +62,27 @@ for (const ch of CS_CHALLENGES) {
   ok(ch.solution.length > 100 && ch.starter && ch.rubric.length >= 4, `${ch.id} incomplete`);
 }
 console.log(`  ${CS_CHALLENGES.length} challenges`);
+
+// parseJSON survives the kinds of damage free AI models produce
+{
+  const item = (i) => `{"q":"Question ${i}?","a":"Answer ${i} text here."}`;
+  const cases = {
+    "clean": `{"questions":[${item(1)},${item(2)}]}`,
+    "code fences": "```json\n{\"questions\":[" + item(1) + "]}\n```",
+    "trailing comma": `{"questions":[${item(1)},${item(2)},]}`,
+    "cut off mid-string": `{"questions":[${item(1)},${item(2)},{"q":"Third que`,
+    "cut off after item": `{"questions":[${item(1)},${item(2)},`,
+    "unescaped quote in later item": `{"questions":[${item(1)},{"q":"What does "async" mean?","a":"Not blocking."},${item(3)}]}`,
+    "prose around it": `Sure! Here you go: {"questions":[${item(1)}]} Hope that helps.`,
+  };
+  const need = { "clean": 2, "code fences": 1, "trailing comma": 2, "cut off mid-string": 2, "cut off after item": 2, "unescaped quote in later item": 1, "prose around it": 1 };
+  for (const [name, txt] of Object.entries(cases)) {
+    let n = -1; try { const d = parseJSON(txt); n = (d.questions || []).filter((x) => x.q && x.a).length; } catch { /* counted as failure */ }
+    ok(n >= need[name], `parseJSON salvages ${name}: ${n} usable`);
+  }
+  let threw = false; try { parseJSON("I cannot help with that."); } catch { threw = true; }
+  ok(threw, "parseJSON rejects text with no data");
+}
 
 console.log(`\n${checks} checks, ${fails} failures`);
 process.exit(fails ? 1 : 0);

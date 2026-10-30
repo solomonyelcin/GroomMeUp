@@ -72,7 +72,7 @@ async function route() {
   const root = $("#main");
   root.innerHTML = `<p class="muted"><span class="spinner"></span> Loading</p>`;
   try {
-    const m = await import(r.mod);
+    const m = await import(r.mod + "?v=" + encodeURIComponent(window.__V || "dev"));
     if (my !== token) return;
     root.innerHTML = "";
     cleanup = (await m.view(root, { params, go: (h) => { location.hash = h; } })) || null;

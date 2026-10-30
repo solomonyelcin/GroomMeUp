@@ -183,6 +183,9 @@ table.tbl th { font-weight: 600; color: var(--ink-2); background: color-mix(in s
 .tile strong { display: block; font-size: 1rem; }
 .tile-ico { flex: none; width: 42px; height: 42px; display: grid; place-items: center; border-radius: 10px; background: var(--cobalt-tint); color: var(--cobalt); font-size: 1.2rem; }
 
+.tile-head { font: 600 .78rem var(--font-body); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); margin: 20px 0 8px; }
+.tile-head:first-child { margin-top: 4px; }
+
 /* guided tour */
 .tour-scrim { position: fixed; inset: 0; background: rgba(8, 10, 24, .5); z-index: 60; }
 .tour-hl { position: relative; z-index: 61 !important; box-shadow: 0 0 0 4px var(--chalk), 0 0 0 9999px rgba(8, 10, 24, .5); border-radius: 12px; }
@@ -204,8 +207,12 @@ table.tbl th { font-weight: 600; color: var(--ink-2); background: color-mix(in s
   body.menu-open .rail { transform: none; visibility: visible; transition: transform .22s ease; }
   body.menu-open { overflow: hidden; }
   .rail-close { display: inline-flex; align-self: flex-end; background: var(--rail-hover); border-color: var(--rail-line); color: var(--rail-strong); }
-  #nav { overflow: visible; }
-  #nav a { padding: 12px; font-size: 1.02rem; min-height: 46px; }
+  /* the phone menu is a grid of big tiles */
+  #nav { overflow: visible; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  #nav .nav-group { grid-column: 1 / -1; padding: 12px 2px 0; }
+  #nav a { flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 8px; padding: 12px; min-height: 84px; font-size: 1rem; font-weight: 600; line-height: 1.2; background: var(--rail-hover); border: 1px solid var(--rail-line); border-radius: 12px; }
+  #nav a .ico { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 9px; background: rgba(255,255,255,.1); font-size: 1.1rem; }
+  #nav a[aria-current="page"] .ico { background: rgba(0,0,0,.08); }
   .tabbar { display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; z-index: 30; left: 0; right: 0; bottom: 0; padding: 4px 4px calc(4px + env(safe-area-inset-bottom)); background: var(--card); border-top: 1px solid var(--line); }
   .tabbar a, .tabbar button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 54px; border: 0; border-radius: 10px; background: none; color: var(--ink-2); text-decoration: none; font: 600 .74rem var(--font-body); cursor: pointer; }
   .tabbar .ico { font-size: 1.25rem; line-height: 1; }

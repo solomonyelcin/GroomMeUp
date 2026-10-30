@@ -52,13 +52,26 @@ export function view(root) {
 
     <section aria-labelledby="start">
       <a class="next-step" href="${next.h}"><span class="small" style="opacity:.85">YOUR NEXT STEP</span><strong id="start">${esc(next.t)}</strong><span>${esc(next.d)}</span><span class="go" aria-hidden="true">Go →</span></a>
-      <div class="tiles" id="startgrid">
-        ${tile("#/practice", "✎", "Practise answers", "Write or speak an answer, get a score")}
-        ${tile("#/quiz", "?", "Quick quiz", "Multiple choice, instant answers")}
-        ${tile("#/code", "⌘", "Coding tests", "JavaScript, SQL and C# challenges")}
-        ${tile("#/mock", "◉", "Mock interview", "A timed round with no hints")}
-        ${tile("#/import", "⇪", myCount ? "Add more questions" : "Add my questions", myCount ? `${myCount} of yours added` : "Excel, Word, PDF or text", "import")}
-        ${tile("#/bank", "☰", "Browse questions", "Search and read model answers")}
+      <div id="startgrid">
+        <h3 class="tile-head">Learn</h3>
+        <div class="tiles">
+          ${tile("#/practice", "✎", "Practise answers", "Answer in your own words, get a score")}
+          ${tile("#/bank", "☰", "Question bank", "Search and read model answers")}
+        </div>
+        <h3 class="tile-head">Test yourself</h3>
+        <div class="tiles">
+          ${tile("#/quiz", "?", "Quick quiz", "Multiple choice, instant answers")}
+          ${tile("#/mock", "◉", "Mock interview", "A timed round with no hints")}
+          ${tile("#/code", "⌘", "Coding tests", "JavaScript, SQL and C# challenges")}
+        </div>
+        <h3 class="tile-head">My material and progress</h3>
+        <div class="tiles">
+          ${tile("#/import", "⇪", myCount ? "Add more questions" : "Add my questions", myCount ? `${myCount} of yours added` : "Excel, Word, PDF or text", "import")}
+          ${tile("#/log", "✓", "Interview log", "Record real interviews you attend")}
+          ${tile("#/plan", "▤", "Study plan", "A 4-week plan built for you")}
+          ${tile("#/market", "↗", "Market & resume", "Trends, salary and resume tips")}
+          ${tile("#/settings", "⚙", "Settings & AI", "Free AI, colours, backup")}
+        </div>
       </div>
     </section>
 

@@ -14,7 +14,7 @@ const fresh = () => ({
   log: [],             // real interviews
   custom: [],          // user-added / AI generated questions
   mocks: [],           // mock interview reports
-  settings: { provider: "offline", keys: {}, models: {}, target: "", pistonUrl: "", name: "" },
+  settings: { provider: "pollinations", aiChoice: false, keys: {}, models: {}, target: "", pistonUrl: "", name: "" },
 });
 
 let state = load();
@@ -26,7 +26,10 @@ function load() {
     if (!raw) return fresh();
     const parsed = JSON.parse(raw);
     const f = fresh();
-    return { ...f, ...parsed, settings: { ...f.settings, ...(parsed.settings || {}) } };
+    const settings = { ...f.settings, ...(parsed.settings || {}) };
+    // one-time migration: people who never chose a provider get the free keyless AI
+    if (!settings.aiChoice && settings.provider === "offline") settings.provider = "pollinations";
+    return { ...f, ...parsed, settings };
   } catch { return fresh(); }
 }
 function persist() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { console.warn("Could not save", e); } }

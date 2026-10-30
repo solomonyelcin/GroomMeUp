@@ -99,13 +99,14 @@ export function view(root, ctx) {
     $("#cancel").onclick = () => ($("#forms").innerHTML = "");
     $("#go").onclick = async (e) => {
       const topic = $("#gt").value.trim(); if (!topic) return toast("Enter a topic", true);
-      busy(e.currentTarget, true, "Generating");
+      const btn = e.currentTarget;
+      busy(btn, true, "Generating");
       try {
         const qs = await generateQuestions(topic, +$("#gn").value, $("#gl").value);
         if (!qs.length) throw new Error("The AI returned no usable questions. Try again.");
         store.update((s) => s.custom.push(...qs));
         toast(`${qs.length} questions added to "My questions"`); $("#forms").innerHTML = ""; filt.cat = "custom"; draw();
-      } catch (err) { toast(err.message, true); busy(e.currentTarget, false); }
+      } catch (err) { toast(err.message, true); busy(btn, false); }
     };
   };
 

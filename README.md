@@ -18,16 +18,25 @@ get evaluated, and log real interviews so practice follows what companies actual
 | Market and resume | 2026 skill demand, round formats, pay guidance (with caveats), resume risks to fix, sources |
 | Study plan | Four-week plan that reorders itself around your weakest topics |
 
-## Free AI (optional)
+## AI feedback (free, on by default)
 
-Evaluation works offline using key-point coverage. For deeper feedback add a **free** key in Settings:
+AI evaluation is **on by default using a free, keyless service** (Pollinations), so nothing needs setting up.
+Your answer, the question and a short profile are sent to that service, so keep confidential employer details
+out of answers. If the service is unavailable the app automatically falls back to offline key-point scoring.
+
+For sharper, more consistent feedback add your own **free** key in Settings:
 
 - Google Gemini: https://aistudio.google.com/apikey
 - Groq: https://console.groq.com/keys
 - OpenRouter (free models): https://openrouter.ai/keys
 
-Keys stay in your browser's localStorage and are sent only to the provider you choose. Model names change,
-so edit the model field in Settings if a provider retires one. Do not paste confidential employer data into answers.
+Choose **Offline** in Settings to keep everything on your device. Keys stay in your browser's localStorage and
+are sent only to the provider you choose. Model names change, so edit the model field if a provider retires one.
+
+## Themes
+
+Six themes (Chalk, Midnight, Forest, Graphite, Rose, High contrast) plus "match my device", switchable from the
+sidebar or Settings. All colours come from tokens in `css/themes.css`, and every theme is checked for WCAG AA text contrast.
 
 ## Run it
 

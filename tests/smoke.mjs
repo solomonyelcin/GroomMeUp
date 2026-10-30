@@ -26,6 +26,9 @@ page.on("console", (m) => { if (m.type() === "error" && !/Failed to load resourc
 // External CDNs are not reachable in CI sandboxes; the app must degrade gracefully.
 await page.route(/fonts\.(googleapis|gstatic)\.com|cdn\.jsdelivr\.net|cdnjs\.cloudflare\.com/, (r) => r.abort());
 
+let aiMode = "down";
+const fakeAI = { choices: [{ message: { content: JSON.stringify({ score: 6.5, verdict: "Decent answer", strengths: ["Names the dual-write problem"], gaps: ["Mention the inbox table"], tips: ["Add a project example"], improved: "A stronger model answer.", followUp: "How would you relay events?" }) } }] };
+await page.route(/text\.pollinations\.ai/, (r) => aiMode === "ok" ? r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(fakeAI) }) : r.fulfill({ status: 500, body: "busy" }));
 let fails = 0;
 const check = (c, m) => { if (!c) { fails++; console.log("FAIL:", m); } else console.log("ok  :", m); };
 
@@ -56,8 +59,38 @@ await page.click("#eval");
 await page.waitForSelector(".eval", { timeout: 8000 });
 const scoreText = await page.textContent(".eval .big");
 check(parseFloat(scoreText) >= 7, `good answer scored ${scoreText.trim()}`);
+check((await page.textContent("#result")).includes("AI evaluation failed"), "AI service down -> falls back to offline score with a notice");
 const state = await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")));
 check(state.attempts.length === 1 && state.srs.ms03, "attempt + spaced repetition saved");
+
+// free keyless AI is the default, and a good AI response is shown as AI feedback
+check((await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")).settings.provider)) === "pollinations", "keyless free AI is the default provider");
+aiMode = "ok";
+await page.goto(base + "/#/practice?q=ms01");
+await page.waitForSelector("#ans");
+await page.fill("#ans", "Split services by business capability and bounded context, each owning its own database. Avoid microservices for small teams or when operations maturity is low, a modular monolith is better then.");
+await page.click("#eval");
+await page.waitForSelector(".eval");
+const aiText = await page.textContent("#result");
+check(aiText.includes("Evaluated by AI") && aiText.includes("Names the dual-write problem") && aiText.includes("How would you relay events?"), "AI feedback rendered (score, strengths, gaps, follow-up)");
+check(parseFloat(await page.textContent(".eval .big")) === 6.5, "AI score used instead of offline score");
+
+// themes: every theme applies and changes the page colours; saved across reload
+await page.goto(base + "/#/settings");
+await page.waitForSelector(".theme-card");
+const seen = new Set();
+for (const t of ["chalk", "midnight", "forest", "graphite", "rose", "contrast", "system"]) {
+  await page.click(`.theme-card[data-t="${t}"]`);
+  const info = await page.evaluate(() => ({ attr: document.documentElement.dataset.theme, bg: getComputedStyle(document.body).backgroundColor, rail: getComputedStyle(document.querySelector(".rail")).backgroundColor }));
+  if (t !== "system") { seen.add(info.bg + "|" + info.rail); check(info.attr === t, `theme ${t} applied`); }
+}
+check(seen.size === 6, `six themes look different (${seen.size} unique palettes)`);
+await page.click('.theme-card[data-t="graphite"]');
+await page.reload(); await page.waitForSelector("h1");
+check((await page.evaluate(() => document.documentElement.dataset.theme)) === "graphite", "theme persists after reload");
+await page.click("#themeBtn");
+check((await page.evaluate(() => document.documentElement.dataset.theme)) !== "graphite", "rail theme button cycles themes");
+await page.evaluate(() => localStorage.setItem("groommeup.theme", "chalk"));
 
 // quiz: answer all
 await page.goto(base + "/#/quiz");

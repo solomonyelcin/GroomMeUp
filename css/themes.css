@@ -1,0 +1,76 @@
+/* Themes. Every colour in the app comes from these tokens, so a theme is just one block.
+   Preview swatches in Settings set data-theme on a small element, so these cascade there too. */
+
+/* Chalk: the default light theme (tailor's bench: ink, cobalt, chalk yellow) */
+:root, [data-theme="chalk"] {
+  color-scheme: light;
+  --paper: #F3F4F9; --card: #FFFFFF; --ink: #151A33; --ink-2: #4A5170; --ink-3: #666D88; --line: #DDE0EC;
+  --cobalt: #3446E8; --cobalt-d: #2434B8; --cobalt-tint: #E6E9FD; --on-primary: #FFFFFF;
+  --chalk: #F5D547; --chalk-tint: #FFF6CC; --on-chalk: #151A33;
+  --thread: #C42E50; --thread-tint: #FDE6EC; --moss: #1F7A55; --moss-tint: #DFF3EA; --amber: #98610B; --amber-tint: #FCEFD6;
+  --code-bg: #141A33; --code-fg: #E8EBFA; --on-ink: #FFFFFF; --tape-line: #151A33;
+  --rail-bg: #151A33; --rail-fg: #C9CEE8; --rail-fg-2: #98A0C8; --rail-strong: #FFFFFF; --rail-hover: rgba(255,255,255,.08);
+  --rail-line: transparent; --rail-active-bg: #FFFFFF; --rail-active-fg: #151A33;
+}
+
+/* Midnight: deep indigo dark theme */
+[data-theme="midnight"] {
+  color-scheme: dark;
+  --paper: #0F1226; --card: #181C38; --ink: #ECEEFA; --ink-2: #B4B9D6; --ink-3: #8F96BA; --line: #2A3057;
+  --cobalt: #8795FF; --cobalt-d: #A9B4FF; --cobalt-tint: #252C63; --on-primary: #0B1030;
+  --chalk: #F5D547; --chalk-tint: #3A3416; --on-chalk: #151A33;
+  --thread: #FF7D99; --thread-tint: #43212D; --moss: #4CCB93; --moss-tint: #163A2D; --amber: #F0B44C; --amber-tint: #3C2F12;
+  --code-bg: #0A0D20; --code-fg: #E8EBFA; --on-ink: #0F1226; --tape-line: #0A0D20;
+  --rail-bg: #0A0D20; --rail-fg: #B4B9D6; --rail-fg-2: #8F96BA; --rail-strong: #FFFFFF; --rail-hover: rgba(255,255,255,.07);
+  --rail-line: #1E2347; --rail-active-bg: #8795FF; --rail-active-fg: #0B1030;
+}
+
+/* Forest: calm green light theme */
+[data-theme="forest"] {
+  color-scheme: light;
+  --paper: #EFF5F1; --card: #FFFFFF; --ink: #12261C; --ink-2: #3D5849; --ink-3: #5A7566; --line: #CFE0D5;
+  --cobalt: #12714F; --cobalt-d: #0C573C; --cobalt-tint: #DAEFE4; --on-primary: #FFFFFF;
+  --chalk: #F2C94C; --chalk-tint: #FFF3C9; --on-chalk: #12261C;
+  --thread: #B83227; --thread-tint: #FBE5E2; --moss: #12714F; --moss-tint: #DAEFE4; --amber: #8F5A0A; --amber-tint: #F9ECD3;
+  --code-bg: #0F2018; --code-fg: #E4F2EA; --on-ink: #FFFFFF; --tape-line: #12261C;
+  --rail-bg: #12261C; --rail-fg: #BFD6C8; --rail-fg-2: #8FAE9C; --rail-strong: #FFFFFF; --rail-hover: rgba(255,255,255,.08);
+  --rail-line: transparent; --rail-active-bg: #F2C94C; --rail-active-fg: #12261C;
+}
+
+/* Graphite: neutral dark with amber accent */
+[data-theme="graphite"] {
+  color-scheme: dark;
+  --paper: #141516; --card: #1E2022; --ink: #EDEDED; --ink-2: #BABDC2; --ink-3: #92969C; --line: #33363A;
+  --cobalt: #F2A93B; --cobalt-d: #F7C06A; --cobalt-tint: #3A2F17; --on-primary: #1A1200;
+  --chalk: #E9C46A; --chalk-tint: #3A3217; --on-chalk: #1A1200;
+  --thread: #FF8A80; --thread-tint: #432522; --moss: #6FD6A1; --moss-tint: #1B3A2B; --amber: #F2B04A; --amber-tint: #3C2E12;
+  --code-bg: #0C0D0E; --code-fg: #ECECEC; --on-ink: #141516; --tape-line: #0C0D0E;
+  --rail-bg: #0C0D0E; --rail-fg: #BABDC2; --rail-fg-2: #92969C; --rail-strong: #FFFFFF; --rail-hover: rgba(255,255,255,.07);
+  --rail-line: #26292C; --rail-active-bg: #F2A93B; --rail-active-fg: #1A1200;
+}
+
+/* Rose: warm light theme */
+[data-theme="rose"] {
+  color-scheme: light;
+  --paper: #FBF3F5; --card: #FFFFFF; --ink: #2A1420; --ink-2: #5C3D4B; --ink-3: #7A5A68; --line: #EBD5DC;
+  --cobalt: #B3234F; --cobalt-d: #8A1A3C; --cobalt-tint: #FBE0E8; --on-primary: #FFFFFF;
+  --chalk: #F5D547; --chalk-tint: #FFF4C7; --on-chalk: #2A1420;
+  --thread: #B03A0A; --thread-tint: #FDE8DC; --moss: #1F7A55; --moss-tint: #DFF3EA; --amber: #8F5A0A; --amber-tint: #FAEBD0;
+  --code-bg: #24101B; --code-fg: #F6E8EE; --on-ink: #FFFFFF; --tape-line: #2A1420;
+  --rail-bg: #2A1420; --rail-fg: #E4C8D2; --rail-fg-2: #B993A2; --rail-strong: #FFFFFF; --rail-hover: rgba(255,255,255,.08);
+  --rail-line: transparent; --rail-active-bg: #FFFFFF; --rail-active-fg: #2A1420;
+}
+
+/* High contrast: for glare, long sessions and accessibility */
+[data-theme="contrast"] {
+  color-scheme: dark;
+  --paper: #000000; --card: #0A0A0A; --ink: #FFFFFF; --ink-2: #EDEDED; --ink-3: #D2D2D2; --line: #9A9A9A;
+  --cobalt: #5CC8FF; --cobalt-d: #8BDAFF; --cobalt-tint: #06324A; --on-primary: #000000;
+  --chalk: #FFE14D; --chalk-tint: #3D3500; --on-chalk: #000000;
+  --thread: #FF8A8A; --thread-tint: #4A1111; --moss: #5BF0A0; --moss-tint: #0B3A22; --amber: #FFC247; --amber-tint: #432F00;
+  --code-bg: #000000; --code-fg: #FFFFFF; --on-ink: #000000; --tape-line: #FFFFFF;
+  --rail-bg: #000000; --rail-fg: #EDEDED; --rail-fg-2: #D2D2D2; --rail-strong: #FFFFFF; --rail-hover: rgba(255,255,255,.14);
+  --rail-line: #9A9A9A; --rail-active-bg: #FFE14D; --rail-active-fg: #000000;
+}
+[data-theme="contrast"] .card, [data-theme="contrast"] .q-card, [data-theme="contrast"] .btn, [data-theme="contrast"] input,
+[data-theme="contrast"] select, [data-theme="contrast"] textarea { border-color: #9A9A9A; }

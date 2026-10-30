@@ -97,11 +97,12 @@ export function view(root, ctx) {
     $("#eval").onclick = async (e) => {
       const text = ans.value.trim();
       if (text.split(/\s+/).length < 8) return toast("Write a fuller answer first (at least a couple of sentences)", true);
-      busy(e.currentTarget, true, "Evaluating");
+      const btn = e.currentTarget; // currentTarget is cleared once the handler yields, so keep a reference
+      busy(btn, true, "Evaluating");
       stopAll();
       const ev = await evaluateAnswer(q, text);
       recordAttempt(q, ev.score, "practice");
-      busy(e.currentTarget, false); e.currentTarget.disabled = true;
+      busy(btn, false); btn.disabled = true;
       $("#result").innerHTML = evalPanel(ev) + `<div class="row" style="margin-top:14px">${nextBtn()}<button class="btn" id="redo">Try again</button></div>`;
       $("#next").onclick = goNext; $("#redo").onclick = () => { $("#result").innerHTML = ""; $("#eval").disabled = false; ans.focus(); };
       $("#result").scrollIntoView({ behavior: "smooth", block: "nearest" });

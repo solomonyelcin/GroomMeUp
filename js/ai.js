@@ -4,6 +4,7 @@ import { store } from "./store.js";
 
 export const PROVIDERS = {
   offline: { name: "Offline (no AI, keyword scoring)", needsKey: false },
+  pollinations: { name: "Free AI, no key needed (Pollinations)", needsKey: false, keyless: true, model: "openai", url: "https://text.pollinations.ai/openai", note: "Works with no signup. Quality and uptime vary, so the app falls back to offline scoring if it fails." },
   gemini: { name: "Google Gemini (free tier)", needsKey: true, model: "gemini-2.5-flash", keyUrl: "https://aistudio.google.com/apikey" },
   groq: { name: "Groq (free tier)", needsKey: true, model: "llama-3.3-70b-versatile", keyUrl: "https://console.groq.com/keys" },
   openrouter: { name: "OpenRouter (free models)", needsKey: true, model: "meta-llama/llama-3.3-70b-instruct:free", keyUrl: "https://openrouter.ai/keys" },
@@ -17,16 +18,25 @@ Goal: a senior role at a good company with a strong package.`;
 
 export const activeProvider = () => {
   const s = store.get().settings;
-  if (s.provider !== "offline" && s.keys[s.provider]) return s.provider;
+  const meta = PROVIDERS[s.provider];
+  if (meta && s.provider !== "offline" && (!meta.needsKey || s.keys[s.provider])) return s.provider;
   return "offline";
 };
 export const aiEnabled = () => activeProvider() !== "offline";
 
-export async function chat(system, user, { json = false, temperature = 0.3 } = {}) {
+export async function chat(system, user, opts = {}) {
+  try { return await chatOnce(system, user, opts); }
+  catch (e) {
+    if (PROVIDERS[activeProvider()]?.keyless && !/abort/i.test(e.name + e.message)) { await new Promise((r) => setTimeout(r, 1200)); return chatOnce(system, user, opts); }
+    throw e;
+  }
+}
+
+async function chatOnce(system, user, { json = false, temperature = 0.3 } = {}) {
   const s = store.get().settings;
   const p = activeProvider();
   if (p === "offline") throw new Error("AI is off");
-  const key = s.keys[p];
+  const key = s.keys[p] || "";
   const model = s.models[p] || PROVIDERS[p].model;
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), 60000);
@@ -44,18 +54,21 @@ export async function chat(system, user, { json = false, temperature = 0.3 } = {
       if (!r.ok) throw new Error(d?.error?.message || `Gemini error ${r.status}`);
       return d.candidates?.[0]?.content?.parts?.map((x) => x.text).join("") || "";
     }
-    const url = p === "groq" ? "https://api.groq.com/openai/v1/chat/completions" : "https://openrouter.ai/api/v1/chat/completions";
+    const url = PROVIDERS[p].url || (p === "groq" ? "https://api.groq.com/openai/v1/chat/completions" : "https://openrouter.ai/api/v1/chat/completions");
+    const headers = { "Content-Type": "application/json" };
+    if (key) headers.Authorization = `Bearer ${key}`;
     const r = await fetch(url, {
       method: "POST", signal: ctl.signal,
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+      headers,
       body: JSON.stringify({
         model, temperature,
         messages: [{ role: "system", content: system }, { role: "user", content: user }],
         ...(json && p === "groq" ? { response_format: { type: "json_object" } } : {}),
       }),
     });
-    const d = await r.json();
-    if (!r.ok) throw new Error(d?.error?.message || `${p} error ${r.status}`);
+    const raw = await r.text();
+    let d; try { d = JSON.parse(raw); } catch { if (r.ok && raw.trim()) return raw; throw new Error(`${p} returned an unreadable response`); }
+    if (!r.ok) throw new Error((typeof d?.error === "string" ? d.error : d?.error?.message) || `${p} error ${r.status}`);
     return d.choices?.[0]?.message?.content || "";
   } finally { clearTimeout(timer); }
 }

@@ -1,6 +1,7 @@
 import { store } from "./store.js";
 import { activeProvider, PROVIDERS } from "./ai.js";
 import { $, $$, esc } from "./ui.js";
+import { THEMES, getTheme, cycleTheme, applyTheme } from "./theme.js";
 
 const ROUTES = [
   { id: "dashboard", label: "Dashboard", ico: "◧", mod: "./views/dashboard.js" },
@@ -27,7 +28,9 @@ function parseHash() {
 function renderNav(current) {
   $("#nav").innerHTML = ROUTES.map((r) => `<a href="#/${r.id}" ${r.id === current ? 'aria-current="page"' : ""}><span class="ico" aria-hidden="true">${r.ico}</span>${esc(r.label)}</a>`).join("");
   const p = activeProvider();
-  $("#railFoot").innerHTML = `AI: ${esc(p === "offline" ? "offline mode" : PROVIDERS[p].name.split(" (")[0])}<br>Data stays in this browser.`;
+  const tn = THEMES.find((x) => x.id === getTheme())?.name || "Theme";
+  $("#railFoot").innerHTML = `<button class="rail-btn" id="themeBtn" title="Switch theme">Theme: ${esc(tn)}</button><div style="margin-top:8px">AI: ${esc(p === "offline" ? "off (offline scoring)" : PROVIDERS[p].keyless ? "free, no key" : PROVIDERS[p].name.split(" (")[0])}<br>Progress stays in this browser.</div>`;
+  $("#themeBtn").onclick = () => { cycleTheme(); renderNav(current); };
 }
 
 async function route() {
@@ -51,6 +54,7 @@ async function route() {
   }
 }
 
+applyTheme();
 addEventListener("hashchange", route);
 store.subscribe(() => renderNav(parseHash().id));
 route();

@@ -1,5 +1,5 @@
 import { store, categoryStats, codingStats, overallReadiness, weakTopics, streak, counts, allQuestions, isDue } from "../store.js";
-import { aiEnabled } from "../ai.js";
+import { aiEnabled, activeProvider, PROVIDERS } from "../ai.js";
 import { CATEGORIES } from "../data/index.js";
 import { esc, tape, tapeScale, pct, fmtDate } from "../ui.js";
 
@@ -48,7 +48,7 @@ export function view(root) {
       <div style="margin-top:16px">${tape(overall, { label: "Overall readiness" })}${tapeScale()}</div>
     </section>
 
-    ${!aiEnabled() ? `<div class="callout" style="margin-top:16px"><strong>AI feedback is off.</strong> Answers are scored by key-point coverage. For richer feedback on your wording and depth, add a free Gemini, Groq or OpenRouter key in <a href="#/settings">Settings</a> (takes two minutes, costs nothing).</div>` : ""}
+    ${!aiEnabled() ? `<div class="callout" style="margin-top:16px"><strong>AI feedback is off.</strong> Answers are scored by key-point coverage only. Turn on free AI in <a href="#/settings">Settings</a>.</div>` : PROVIDERS[activeProvider()].keyless ? `<div class="callout" style="margin-top:16px"><strong>Free AI is on (no key).</strong> Your answers are sent to a free public AI service for feedback, so keep confidential employer details out. It is less consistent than a personal key: add a free Gemini or Groq key in <a href="#/settings">Settings</a> for sharper feedback. If the service is down you automatically get offline scoring.</div>` : ""}
 
     <div class="grid g2" style="margin-top:16px">
       <section class="card" aria-labelledby="today">

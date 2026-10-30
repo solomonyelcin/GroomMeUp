@@ -11,10 +11,12 @@ export function view(root, ctx) {
   const mode = p.get("mode") || "mixed";
   const flash = p.get("flash") === "1";
   const single = p.get("q");
+  const idList = p.get("ids");
 
   const last = lastScores();
   let pool = allQuestions();
-  if (single) pool = pool.filter((q) => q.id === single);
+  if (idList) pool = idList.split(",").map((id) => questionById(id)).filter(Boolean);
+  else if (single) pool = pool.filter((q) => q.id === single);
   else {
     if (mineOnly) pool = pool.filter((q) => q.imported);
     if (cat !== "all") pool = pool.filter((q) => q.c === cat);
@@ -24,7 +26,7 @@ export function view(root, ctx) {
   }
   // order: never-tried and weak first, strong last, with shuffle inside buckets
   const bucket = (q) => { const l = last.get(q.id); return !l ? 1 : l.score < 6 ? 0 : isDue(q.id) ? 2 : 3; };
-  pool = shuffle(pool).sort((a, b) => bucket(a) - bucket(b));
+  if (!idList) pool = shuffle(pool).sort((a, b) => bucket(a) - bucket(b));
 
   let i = 0, timerId = null, stopDictation = null, startedAt = 0;
 
@@ -41,6 +43,7 @@ export function view(root, ctx) {
       </div>
     </div>
     <div id="stage" style="margin-top:16px"></div>`;
+  if (idList) root.querySelector(".card .grid").insertAdjacentHTML("beforebegin", `<p class="callout" style="margin:0 0 12px"><strong>Today's set.</strong> ${pool.length} questions picked for you today. <a href="#/practice">Practise something else</a></p>`);
   $("#fcat").value = mineOnly && cat === "all" ? "mine" : cat; $("#fmode").value = mode; $("#fstyle").value = flash ? "flash" : "write";
   const reload = () => { const q = new URLSearchParams(); if ($("#fcat").value === "mine") q.set("mine", "1"); else if ($("#fcat").value !== "all") q.set("cat", $("#fcat").value); if ($("#fmode").value !== "mixed") q.set("mode", $("#fmode").value); if ($("#fstyle").value === "flash") q.set("flash", "1"); ctx.go("#/practice" + (q.toString() ? "?" + q : "")); };
   ["fcat", "fmode", "fstyle"].forEach((id) => ($("#" + id).onchange = reload));

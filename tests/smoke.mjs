@@ -213,6 +213,21 @@ if (process.env.WORKBOOK_PATH) {
   check(true, "real workbook imports and quizzes in the browser");
 }
 
+// daily set
+aiMode = "gen";
+await page.route(/text\.pollinations\.ai/, (r) => aiMode === "gen" ? r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ choices: [{ message: { content: JSON.stringify({ questions: Array.from({ length: 5 }, (_, i) => ({ q: `Fresh question number ${i + 1} about Kubernetes autoscaling?`, a: "Use the horizontal pod autoscaler with sensible requests and limits, and watch the metrics server.", keyPoints: ["horizontal pod autoscaler", "requests and limits"] })) }) } }] }) }) : r.fallback());
+await page.goto(base + "/#/dashboard"); await page.waitForSelector("#daily");
+const dl = await page.locator(".daily-list li").count();
+const ids1 = await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")).daily.ids.join(","));
+check(dl === 5, "Today's 5 shows five questions");
+await page.reload(); await page.waitForSelector("#daily");
+check((await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")).daily.ids.join(","))) === ids1, "today's set is frozen for the day");
+await page.click("#fresh"); await page.waitForFunction(() => document.querySelectorAll(".daily-list li").length === 10, null, { timeout: 8000 });
+check(!(await page.locator("#fresh").count()), "5 fresh AI questions added once, button then hidden");
+await page.click("#daily a.btn.primary"); await page.waitForSelector("#ans");
+check((await page.textContent("#stage")).includes("question 1 of 10"), "Start today's set opens exactly those questions");
+aiMode = "ok";
+
 // guided tour + phone menu
 await page.setViewportSize({ width: 390, height: 800 });
 await page.goto(base + "/#/dashboard"); await page.waitForSelector(".tile");

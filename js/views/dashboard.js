@@ -1,7 +1,8 @@
 import { store, categoryStats, codingStats, overallReadiness, weakTopics, streak, counts, allQuestions, isDue } from "../store.js";
 import { aiEnabled, activeProvider, PROVIDERS } from "../ai.js";
 import { CATEGORIES } from "../data/index.js";
-import { esc, tape, tapeScale, pct, fmtDate } from "../ui.js";
+import { todaySet, dailyProgress, freshAvailable, freshTopic, addFreshAI, todayKey } from "../daily.js";
+import { esc, toast, busy, $, tape, tapeScale, pct, fmtDate } from "../ui.js";
 
 export function view(root) {
   const s = store.get();
@@ -36,9 +37,12 @@ export function view(root) {
     return left ? `#/code?lang=${left[0]}` : "#/code";
   })();
 
+  const day = todaySet(), dayQs = day.ids.map((id) => allQuestions().find((q) => q.id === id)).filter(Boolean);
+  const dp = dailyProgress(day.ids), left = dayQs.length - dp.n;
   const tried = s.attempts.length;
   const myCount = allQuestions().filter((q) => q.imported).length;
   const next = !tried ? { t: "Practise your first 5 questions", d: "Answer in your own words and get a score with feedback.", h: "#/practice" }
+    : left > 0 ? { t: `Do today's ${dayQs.length} questions${dp.n ? ` (${left} left)` : ""}`, d: "A fresh set, picked from what is due, weak or new.", h: `#/practice?ids=${day.ids.map(encodeURIComponent).join(",")}` }
     : due ? { t: `Review ${due} question${due > 1 ? "s" : ""} that are due`, d: "Spaced repetition brings weak answers back at the right time.", h: "#/practice?mode=due" }
     : weak[0] && weak[0].attempted ? { t: `Strengthen ${weak[0].name}`, d: "This is your weakest topic right now.", h: `#/practice?cat=${encodeURIComponent(weak[0].key)}` }
     : { t: "Take a 10-question quiz", d: "A fast way to find blind spots.", h: "#/quiz" };
@@ -52,6 +56,14 @@ export function view(root) {
 
     <section aria-labelledby="start">
       <a class="next-step" href="${next.h}"><span class="small" style="opacity:.85">YOUR NEXT STEP</span><strong id="start">${esc(next.t)}</strong><span>${esc(next.d)}</span><span class="go" aria-hidden="true">Go →</span></a>
+      <div class="card" id="daily" style="margin-bottom:14px">
+        <div class="row between"><h2 style="margin:0">Today's ${dayQs.length}</h2><span class="tag">${left === 0 ? "All done today 🔥" : `${dp.n} of ${dayQs.length} done`}</span></div>
+        <p class="small muted" style="margin:6px 0 10px">A new set every day. Your streak grows when you answer at least one.</p>
+        <ol class="daily-list">${dayQs.map((q) => `<li class="${dp.done.has(q.id) ? "done" : ""}"><span aria-hidden="true">${dp.done.has(q.id) ? "✓" : "○"}</span><span>${esc(q.q.length > 110 ? q.q.slice(0, 110) + "…" : q.q)}</span></li>`).join("")}</ol>
+        <div class="row" style="margin-top:12px"><a class="btn primary" href="#/practice?ids=${day.ids.map(encodeURIComponent).join(",")}">${dp.n ? "Continue today's set" : "Start today's set"}</a>
+          ${aiEnabled() && freshAvailable() ? `<button class="btn" id="fresh">Add 5 fresh AI questions</button>` : ""}</div>
+        ${aiEnabled() && freshAvailable() ? `<p class="small muted" style="margin:8px 0 0">Today's AI topic: ${esc(freshTopic(todayKey()))}</p>` : ""}
+      </div>
       <div id="startgrid">
         <h3 class="tile-head">Learn</h3>
         <div class="tiles">
@@ -129,4 +141,10 @@ export function view(root) {
       <details><summary class="small" style="cursor:pointer;margin-bottom:10px">${mineRows.length} topics, ${mineRows.reduce((a, r) => a + r.total, 0)} questions</summary><div class="stack">${mineRows.map(rowHtml).join("")}</div></details>
     </section>` : ""}
   `;
+  const fb = $("#fresh");
+  if (fb) fb.onclick = async (e) => {
+    const btn = e.currentTarget; busy(btn, true, "Writing questions");
+    try { const r = await addFreshAI(5); toast(`Added ${r.count} fresh questions on ${r.topic}`); view(root); }
+    catch (err) { toast(err.message, true); busy(btn, false); }
+  };
 }

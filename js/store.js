@@ -13,6 +13,8 @@ const fresh = () => ({
   code: {},            // challengeId -> {solved, tries, best, code, t}
   log: [],             // real interviews
   custom: [],          // user-added, AI generated and imported questions
+  daily: null,         // { date, ids } frozen set for today
+  dailyAI: "",         // date of the last AI refresh
   cats: {},            // topics created by imports: key -> {name, color}
   imports: [],         // {id, name, kind, t}
   mocks: [],           // mock interview reports

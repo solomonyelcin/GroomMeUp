@@ -33,6 +33,10 @@ For sharper, more consistent feedback add your own **free** key in Settings:
 Choose **Offline** in Settings to keep everything on your device. Keys stay in your browser's localStorage and
 are sent only to the provider you choose. Model names change, so edit the model field if a provider retires one.
 
+## Daily set
+
+Home shows **Today's 5**: a new set every day, chosen from what is due for review, weak, or not yet tried (at most 2 per topic) and frozen for the day. With AI on, one tap adds 5 fresh questions on a topic that rotates through the market's most-wanted skills and your topic list. Nothing runs in the background; the set refreshes whenever you open the app on a new day.
+
 ## Import your own material
 
 Open **Import material** and drop in Excel (.xlsx), Word (.docx), PDF, text, markdown or CSV files.

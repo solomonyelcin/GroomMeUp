@@ -36,11 +36,33 @@ export function view(root) {
     return left ? `#/code?lang=${left[0]}` : "#/code";
   })();
 
+  const tried = s.attempts.length;
+  const myCount = allQuestions().filter((q) => q.imported).length;
+  const next = !tried ? { t: "Practise your first 5 questions", d: "Answer in your own words and get a score with feedback.", h: "#/practice" }
+    : due ? { t: `Review ${due} question${due > 1 ? "s" : ""} that are due`, d: "Spaced repetition brings weak answers back at the right time.", h: "#/practice?mode=due" }
+    : weak[0] && weak[0].attempted ? { t: `Strengthen ${weak[0].name}`, d: "This is your weakest topic right now.", h: `#/practice?cat=${encodeURIComponent(weak[0].key)}` }
+    : { t: "Take a 10-question quiz", d: "A fast way to find blind spots.", h: "#/quiz" };
+  const tile = (h, ico, t, d, id) => `<a class="tile" href="${h}" ${id ? `data-tile="${id}"` : ""}><span class="tile-ico" aria-hidden="true">${ico}</span><span><strong>${t}</strong><span class="small muted">${d}</span></span></a>`;
+
   root.innerHTML = `
     <header class="page-head">
       <h1>Welcome back${name}.</h1>
-      <p>Your goal: a senior role at a good company with a strong package. Readiness blends answer quality, topic coverage, quiz accuracy and coding tests.</p>
+      <p>Pick what you want to do. Not sure? Use the highlighted next step.</p>
     </header>
+
+    <section aria-labelledby="start">
+      <a class="next-step" href="${next.h}"><span class="small" style="opacity:.85">YOUR NEXT STEP</span><strong id="start">${esc(next.t)}</strong><span>${esc(next.d)}</span><span class="go" aria-hidden="true">Go →</span></a>
+      <div class="tiles" id="startgrid">
+        ${tile("#/practice", "✎", "Practise answers", "Write or speak an answer, get a score")}
+        ${tile("#/quiz", "?", "Quick quiz", "Multiple choice, instant answers")}
+        ${tile("#/code", "⌘", "Coding tests", "JavaScript, SQL and C# challenges")}
+        ${tile("#/mock", "◉", "Mock interview", "A timed round with no hints")}
+        ${tile("#/import", "⇪", myCount ? "Add more questions" : "Add my questions", myCount ? `${myCount} of yours added` : "Excel, Word, PDF or text", "import")}
+        ${tile("#/bank", "☰", "Browse questions", "Search and read model answers")}
+      </div>
+    </section>
+
+    <h2 style="margin:28px 0 12px">Your progress</h2>
 
     <section class="card" aria-labelledby="rd">
       <div class="row between" style="align-items:flex-end">

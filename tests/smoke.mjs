@@ -26,6 +26,7 @@ page.on("console", (m) => { if (m.type() === "error" && !/Failed to load resourc
 // External CDNs are not reachable in CI sandboxes; the app must degrade gracefully.
 await page.route(/fonts\.(googleapis|gstatic)\.com|cdn\.jsdelivr\.net|cdnjs\.cloudflare\.com/, (r) => r.abort());
 
+await page.addInitScript(() => { try { if (!sessionStorage.getItem("smoke-init")) { sessionStorage.setItem("smoke-init", "1"); localStorage.setItem("groommeup.tour", "done"); } } catch {} });
 let aiMode = "down";
 const fakeAI = { choices: [{ message: { content: JSON.stringify({ score: 6.5, verdict: "Decent answer", strengths: ["Names the dual-write problem"], gaps: ["Mention the inbox table"], tips: ["Add a project example"], improved: "A stronger model answer.", followUp: "How would you relay events?" }) } }] };
 await page.route(/text\.pollinations\.ai/, (r) => aiMode === "ok" ? r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(fakeAI) }) : r.fulfill({ status: 500, body: "busy" }));
@@ -211,6 +212,29 @@ if (process.env.WORKBOOK_PATH) {
   await page.goto(base + "/#/quiz?mine=1"); await page.click("#start"); await page.click(".opt >> nth=0");
   check(true, "real workbook imports and quizzes in the browser");
 }
+
+// guided tour + phone menu
+await page.setViewportSize({ width: 390, height: 800 });
+await page.goto(base + "/#/dashboard"); await page.waitForSelector(".tile");
+await page.evaluate(() => localStorage.removeItem("groommeup.tour"));
+await page.reload();
+await page.waitForSelector(".tour-box", { timeout: 5000 });
+check(true, "tour starts automatically on first visit");
+for (let k = 0; k < 6; k++) { await page.click("[data-t=next]"); await page.waitForTimeout(500); }
+check((await page.textContent(".tour-box h2")).includes("ready"), "tour reaches the last step");
+await page.click("[data-t=next]");
+check((await page.locator(".tour-box").count()) === 0, "tour closes on Done");
+await page.reload(); await page.waitForTimeout(1200);
+check((await page.locator(".tour-box").count()) === 0, "tour does not repeat");
+await page.click("#tourBtn"); await page.waitForSelector(".tour-box");
+await page.keyboard.press("Escape");
+check((await page.locator(".tour-box").count()) === 0, "tour can be reopened and skipped with Escape");
+check(!(await page.locator("#rail").isVisible()), "menu drawer is closed by default on a phone");
+await page.click("#menuBtn");
+check(await page.locator("#rail").isVisible(), "Menu button opens the drawer");
+await page.click('#nav a[href="#/quiz"]'); await page.waitForTimeout(400);
+check(!(await page.locator("#rail").isVisible()) && (await page.textContent("#pageTitle")) === "Quick quiz", "choosing a page closes the drawer and updates the title");
+await page.setViewportSize({ width: 1280, height: 900 });
 
 // mobile layout has no horizontal overflow
 await page.setViewportSize({ width: 390, height: 800 });

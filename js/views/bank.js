@@ -66,7 +66,12 @@ export function view(root, ctx) {
       if (t && !(q.q + " " + q.a + " " + (q.o || []).join(" ") + " " + q.kp.map((k) => k[0]).join(" ")).toLowerCase().includes(t)) return false;
       return true;
     });
-    $("#count").textContent = `${qs.length} question${qs.length === 1 ? "" : "s"}`;
+    const all = allQuestions();
+    const studiedAll = all.filter((q) => last.has(q.id)).length;
+    const studiedHere = qs.filter((q) => last.has(q.id)).length;
+    const filtered = qs.length !== all.length;
+    $("#count").innerHTML = `<b>${studiedAll} of ${all.length}</b> studied` +
+      (filtered ? ` · showing ${qs.length} (${studiedHere} studied)` : "");
     const diffName = ["", "Warm-up", "Core", "Senior"];
     $("#list").innerHTML = qs.slice(0, shown).map((q) => {
       const cat = CATEGORIES[q.c] || { name: "My questions", color: "#546178" };

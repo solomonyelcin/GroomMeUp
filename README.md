@@ -51,6 +51,10 @@ Open **Import material** and drop in Excel (.xlsx), Word (.docx), PDF, text, mar
 - Browse questions shows answers inline (toggle **Show answers**) with topic, source and type filters. Quick quiz uses every question, favouring weak topics and ones you missed; choosing topics is optional.
 - Tests: `npm test` covers the parsers; set `MCQ_PDF_PATH=/path/to/file.pdf` for the smoke test to check your own MCQ PDF; set `WORKBOOK_PATH=/path/to/your.xlsx` to also check your own file (never commit personal files). PDF reading uses a vendored PDF.js (Apache-2.0).
 
+## Install as an app
+
+GroomMeUp is a Progressive Web App. In Chrome/Edge on Android or desktop use **Install app** (menu or browser address bar); on iPhone use Share, then Add to Home Screen. It opens full-screen and keeps working offline after the first visit (AI features need a connection). Updates arrive on the next open.
+
 ## Themes
 
 Six themes (Chalk, Midnight, Forest, Graphite, Rose, High contrast) plus "match my device", switchable from the

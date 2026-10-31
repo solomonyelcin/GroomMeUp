@@ -19,7 +19,7 @@ const server = http.createServer((req, res) => {
 const base = `http://localhost:${server.address().port}`;
 
 const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+const page = await browser.newPage({ serviceWorkers: "block", viewport: { width: 1280, height: 900 } });
 const errors = [];
 page.on("pageerror", (e) => errors.push("pageerror: " + e.message));
 page.on("console", (m) => { if (m.type() === "error" && !/Failed to load resource|ERR_|net::/.test(m.text())) errors.push("console: " + m.text()); });
@@ -261,6 +261,23 @@ const t1 = await page.textContent(".one-card h2");
 await page.click("[data-go='1']");
 check((await page.textContent(".one-card h2")) !== t1 && /2 \//.test(await page.textContent(".pager .pos")), "one-by-one view: Next shows the next question");
 await page.click("#vl"); await page.waitForSelector(".q-card");
+// encrypted library: card appears only when the file exists, wrong passphrase rejected, right one imports
+{
+  const { encryptLibrary } = await import("../js/library.js");
+  const env = await encryptLibrary({ name: "Test library", kind: "Excel workbook (encrypted library)", items: [{ topic: "Lib Topic", sub: "Sub", q: "What does the library test ask?", a: "It asks whether an encrypted library imports correctly and keeps formatting.", kind: "concept", status: "" }, { topic: "Lib Topic", sub: "Sub Scenario Questions", q: "A scenario question inside the library?", a: "Yes, and it is marked as scenario-based.", kind: "scenario", status: "" }] }, "test-pass-1", 1000);
+  await page.route("**/library/library.enc.json", (r) => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(env) }));
+  await page.goto(base + "/#/import"); await page.waitForSelector("#libpass", { state: "visible", timeout: 10000 });
+  await page.fill("#libpass", "nope"); await page.click("#libgo");
+  await page.waitForFunction(() => /Wrong passphrase/.test(document.querySelector("#libmsg").textContent));
+  await page.fill("#libpass", "test-pass-1"); await page.check("#libremember"); await page.click("#libgo");
+  await page.waitForFunction(() => /Done\./.test(document.querySelector("#libmsg").textContent));
+  const ls = await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")));
+  check(ls.custom.filter((q) => q.imported && q.q.includes("library")).length === 2 && ls.imports.some((i) => i.name === "Test library"), "library unlocked with the passphrase and imported (2 questions)");
+  await page.click("#libgo"); await page.waitForFunction(() => /refreshed your earlier copy/.test(document.querySelector("#libmsg").textContent));
+  const ls2 = await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")));
+  check(ls2.imports.filter((i) => i.name === "Test library").length === 1 && ls2.custom.filter((q) => q.src && q.q.includes("library")).length === 2, "updating replaces the earlier copy instead of duplicating");
+  await page.unroute("**/library/library.enc.json");
+}
 // legacy badly-read MCQs are flagged and removable
 await page.evaluate(() => { const k = "groommeup.v1", st = JSON.parse(localStorage.getItem(k)); st.custom.push({ id: "wbad1", c: st.custom[0].c, d: 2, q: "Old bad question?", a: "A) one thing here B) another thing C) third thing D) fourth", kp: [["A) one"]], f: [], imported: true, src: "x" }); localStorage.setItem(k, JSON.stringify(st)); });
 await page.goto(base + "/#/bank"); await page.reload(); await page.waitForSelector("#rmbad");

@@ -51,6 +51,10 @@ Open **Import material** and drop in Excel (.xlsx), Word (.docx), PDF, text, mar
 - Browse questions shows answers inline (toggle **Show answers**) with topic, source and type filters. Quick quiz uses every question, favouring weak topics and ones you missed; choosing topics is optional.
 - Tests: `npm test` covers the parsers; set `MCQ_PDF_PATH=/path/to/file.pdf` for the smoke test to check your own MCQ PDF; set `WORKBOOK_PATH=/path/to/your.xlsx` to also check your own file (never commit personal files). PDF reading uses a vendored PDF.js (Apache-2.0).
 
+## Encrypted personal library
+
+For material you may not publish (a licensed question bank, say) the repo can hold an **encrypted** copy at `library/library.enc.json` (AES-256-GCM, key from your passphrase via PBKDF2-SHA256, 600k rounds). On any device open **Add my questions**, enter the passphrase under *My library* and tap *Load library*; it is decrypted in the browser only. Loading again refreshes the earlier copy. Update it with `LIB_PASS='...' node tools/make-library.mjs workbook.xlsx library/library.enc.json "Library name"`. Never commit the Excel file or the passphrase; use a long, unguessable passphrase because the encrypted file is public.
+
 ## Motivation
 
 **Progress & badges** tracks a daily streak, XP and levels, three daily challenges, a weekly question goal (adjustable), a 4-week activity map and 21 badges (study milestones, streaks, quizzes, coding, mocks). Everything is derived from your saved activity; new badges pop up as you earn them. Home shows a streak card.

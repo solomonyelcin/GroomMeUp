@@ -5,6 +5,7 @@ import { aiExtract, aiAnswers, MAX_CHUNKS } from "../import/ai.js";
 import { flag } from "../import/quality.js";
 import { reduceRepeats } from "../import/mcq.js";
 import { aiEnabled } from "../ai.js";
+import { libraryAvailable, loadLibrary, installLibrary } from "../library.js";
 import { CATEGORIES } from "../data/index.js";
 import { esc, rich, toast, busy, fmtDate, $, $$ } from "../ui.js";
 
@@ -21,6 +22,11 @@ export function view(root) {
       <span class="muted small">Excel (.xlsx), Word (.docx), PDF, text, markdown or CSV. Files are read in your browser and never uploaded.</span>
       <input id="file" type="file" accept="${ACCEPT}" multiple hidden>
     </label>
+    <section class="card" id="libCard" style="margin-top:16px" hidden aria-labelledby="lib"><h2 id="lib">My library (encrypted)</h2>
+      <p class="small muted" style="margin-top:0">Your saved question library is stored on this site in locked form. Enter your passphrase to unlock and add it to this device. It is decrypted here in your browser and never sent anywhere.</p>
+      <div class="row" style="align-items:flex-end;gap:10px"><div style="flex:1;min-width:200px"><label for="libpass">Passphrase</label><input id="libpass" type="password" autocomplete="current-password" inputmode="text"></div><button class="btn primary" id="libgo">Load library</button></div>
+      <label style="font-weight:400;display:block;margin-top:8px"><input type="checkbox" id="libremember"> Remember the passphrase on this device (so one tap updates it)</label>
+      <p id="libmsg" class="small" style="margin:8px 0 0" aria-live="polite"></p></section>
     <div id="results" style="margin-top:16px"></div>
 
     <section class="card" style="margin-top:16px" aria-labelledby="mine"><h2 id="mine">Your imported material</h2><div id="mineBody"></div></section>
@@ -180,6 +186,28 @@ export function view(root) {
       prepare(r); draw(r);
       toast(`AI found ${out.items.length} questions${out.failed ? ` (${out.failed} part${out.failed === 1 ? "" : "s"} failed)` : ""}${out.truncated ? `, from the first ${MAX_CHUNKS} of ${out.total} parts` : ""}. Review, then import.`);
     }
+  });
+
+  // ---------- encrypted library ----------
+  const PASS_KEY = "groommeup.libpass";
+  const getPass = () => { try { return localStorage.getItem(PASS_KEY) || ""; } catch { return ""; } };
+  libraryAvailable().then((yes) => {
+    if (!yes || !$("#libCard")) return;
+    $("#libCard").hidden = false;
+    const saved = getPass(); if (saved) { $("#libpass").value = saved; $("#libremember").checked = true; $("#libgo").textContent = "Update library"; }
+  });
+  $("#libgo")?.addEventListener("click", async (e) => {
+    const btn = e.currentTarget, pass = $("#libpass").value, msg = $("#libmsg");
+    if (!pass.trim()) { msg.textContent = "Enter your passphrase first."; return; }
+    busy(btn, true, "Unlocking");
+    try {
+      const lib = await loadLibrary(pass);
+      const out = installLibrary(lib);
+      try { $("#libremember").checked ? localStorage.setItem(PASS_KEY, pass) : localStorage.removeItem(PASS_KEY); } catch { /* ignore */ }
+      msg.innerHTML = `<strong>Done.</strong> ${out.total} questions in ${out.topics} topics${out.replaced || out.updated ? " (refreshed your earlier copy)" : ""}. <a href="#/bank?src=${out.importId}">Browse them</a> or <a href="#/quiz?mine=1">take a quiz</a>.`;
+      drawMine();
+    } catch (err) { msg.textContent = err.message; }
+    busy(btn, false);
   });
 
   function doImport(r) {

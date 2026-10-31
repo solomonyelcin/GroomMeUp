@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { parseFile } from "../js/import/index.js";
 import { buildQuestions, makeMcqs, deriveKeyPoints, hash32, optionText } from "../js/import/build.js";
 import { offlineEvaluate } from "../js/ai.js";
+import { encryptLibrary, decryptLibrary } from "../js/library.js";
 
 const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures");
 let fails = 0, checks = 0;
@@ -100,6 +101,20 @@ console.log("Answers in cell notes");
   ok(n.items.length === 2 && n.pending.length === 0, `notes workbook: 2 items, none pending (got ${n.items.length}/${n.pending.length}); Dashboard labels are not questions`);
   ok(n.items[0].topic === "Demo Topic" && n.items[0].sub === "Basics" && /^Encapsulation hides internal state behind members\. It keeps data private/.test(n.items[0].a), "wrapped note text is re-joined and the wrapper lines are dropped");
   ok(n.items[1].kind === "scenario" && /\nint Salary \{ get; private set; \}\n/.test(n.items[1].a), "code lines inside a note keep their line breaks; scenario detected from sub topic");
+}
+// ---- encrypted library ----
+console.log("Encrypted library");
+{
+  const lib = { name: "T", items: [{ topic: "A", sub: "s", q: "What is DI?", a: "Dependency injection: pass dependencies in.\n\ncode()", kind: "concept" }] };
+  const env = await encryptLibrary(lib, "correct horse 123", 1000);
+  ok(!JSON.stringify(env).includes("What is DI"), "ciphertext does not contain the plain text");
+  const back = await decryptLibrary(env, "correct horse 123");
+  ok(back.items[0].q === "What is DI?" && back.items[0].a.includes("\n\ncode()"), "round trip keeps text and line breaks");
+  let bad = ""; try { await decryptLibrary(env, "wrong"); } catch (e) { bad = e.message; }
+  ok(bad === "Wrong passphrase.", "wrong passphrase is rejected");
+  const t = JSON.parse(JSON.stringify(env)); t.data = t.data.slice(0, -4) + (t.data.slice(-4) === "AAAA" ? "BBBB" : "AAAA");
+  let tamper = ""; try { await decryptLibrary(t, "correct horse 123"); } catch (e) { tamper = e.message; }
+  ok(tamper !== "", "tampered file is rejected");
 }
 // ---- multiple-choice documents ----
 console.log("Multiple choice documents");

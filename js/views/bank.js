@@ -4,7 +4,8 @@ import { generateQuestions, aiEnabled } from "../ai.js";
 import { esc, rich, scoreBadge, toast, busy, $, $$ } from "../ui.js";
 
 const filt = { text: "", cat: "all", diff: 0, status: "all", src: "", kind: "all" };
-const readMode = () => { try { return localStorage.getItem("groommeup.read") !== "0"; } catch { return true; } };
+const readMode = () => { try { return localStorage.getItem("groommeup.read") === "1"; } catch { return false; } };
+const revealed = new Set();
 const setReadMode = (v) => { try { localStorage.setItem("groommeup.read", v ? "1" : "0"); } catch { /* ignore */ } };
 let shown = 40;
 let rank = new Map(), idx = 0;
@@ -93,32 +94,40 @@ export function view(root, ctx) {
       const cat = CATEGORIES[q.c] || { name: "My questions", color: "#546178" };
       return { cat, sub: `${esc(cat.name)} / ${q.imported ? (q.sub ? esc(q.sub) : "Imported") : diffName[q.d] || "Core"}${q.kind === "scenario" ? " / Scenario" : ""}` };
     };
-    const body = (q) => `${q.ai ? `<p class="callout warn small" style="margin:0 0 8px"><strong>AI draft answer.</strong> Written by AI from your question, so double-check it before relying on it.</p>` : ""}${q.o ? `<h4>Options</h4><div class="mcq-opts">${q.o.map((o, k) => `<div class="mcq-opt ${k === q.ans ? "right" : ""}"><b>${"ABCDE"[k]}</b><span>${esc(o)}</span>${k === q.ans ? `<em>correct</em>` : ""}</div>`).join("")}</div>${q.e ? `<div class="model" style="margin-top:8px">${rich(q.e)}</div>` : ""}` : `<h4>Model answer</h4><div class="model">${rich(q.a)}</div>`}
-          ${q.o ? "" : `<h4>Points interviewers listen for</h4><ul class="kp">${q.kp.map((k) => `<li>${esc(k[0])}</li>`).join("")}</ul>`}
-          ${q.f && q.f.length ? `<h4>Likely follow-ups</h4><ul class="kp">${q.f.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>` : ""}`;
+    const body = (q) => {
+      const show = readMode() || revealed.has(q.id);
+      const ai = show && q.ai ? `<p class="callout warn small" style="margin:0 0 8px"><strong>AI draft answer.</strong> Written by AI from your question, so double-check it before relying on it.</p>` : "";
+      const reveal = show ? "" : `<div class="row" style="margin-top:12px"><button class="btn primary sm" data-rev="${q.id}">Show answer</button></div>`;
+      if (q.o) return `<h4>Options</h4><div class="mcq-opts">${q.o.map((o, k) => `<div class="mcq-opt ${show && k === q.ans ? "right" : ""}"><b>${"ABCDE"[k]}</b><span>${esc(o)}</span>${show && k === q.ans ? `<em>correct</em>` : ""}</div>`).join("")}</div>${reveal}${show && q.e ? `<div class="model" style="margin-top:8px">${rich(q.e)}</div>` : ""}${ai}`;
+      if (!show) return reveal;
+      return `${ai}<h4>Model answer</h4><div class="model">${rich(q.a)}</div><h4>Points interviewers listen for</h4><ul class="kp">${q.kp.map((k) => `<li>${esc(k[0])}</li>`).join("")}</ul>${q.f && q.f.length ? `<h4>Likely follow-ups</h4><ul class="kp">${q.f.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>` : ""}`;
+    };
+    const wire = () => $$("[data-rev]").forEach((b) => (b.onclick = (e) => { e.preventDefault(); revealed.add(b.dataset.rev); list(); }));
     if (!qs.length) { $("#list").innerHTML = `<div class="card muted">No questions match. Clear a filter or add your own.</div>`; return; }
     if (view1) {
       if (idx >= qs.length) idx = qs.length - 1; if (idx < 0) idx = 0;
       const q = qs[idx], m = meta(q), l = last.get(q.id);
       const pager = `<div class="pager"><button class="btn" data-go="-1" ${idx === 0 ? "disabled" : ""}>◀ Previous</button><span class="pos">${idx + 1} / ${qs.length}</span><button class="btn primary" data-go="1" ${idx >= qs.length - 1 ? "disabled" : ""}>Next ▶</button></div>`;
-      $("#list").innerHTML = `${pager}<div class="one-card"><div class="row between"><span class="small muted"><span class="dot" style="background:${m.cat.color}"></span> ${m.sub}</span>${scoreBadge(l ? l.score : null)}</div><h2>${rich(q.q)}</h2>${readMode() ? `<div>${body(q)}</div>` : `<details><summary class="btn sm" style="display:inline-flex">Show answer</summary><div>${body(q)}</div></details>`}</div>${pager}`;
+      $("#list").innerHTML = `${pager}<div class="one-card"><div class="row between"><span class="small muted"><span class="dot" style="background:${m.cat.color}"></span> ${m.sub}</span>${scoreBadge(l ? l.score : null)}</div><h2>${rich(q.q)}</h2><div>${body(q)}</div></div>${pager}`;
+      wire();
       $$("[data-go]").forEach((b) => (b.onclick = () => { idx += +b.dataset.go; list(); window.scrollTo({ top: 0 }); }));
       return;
     }
     $("#list").innerHTML = qs.slice(0, shown).map((q) => {
       const m = meta(q), l = last.get(q.id);
-      return `<details class="q-card" data-id="${q.id}" ${readMode() ? "open" : ""}>
+      return `<details class="q-card" data-id="${q.id}" ${readMode() || q.o ? "open" : ""}>
         <summary class="q-head"><span class="dot" style="background:${m.cat.color};margin-top:8px" title="${esc(m.cat.name)}"></span>
           <span class="q-title">${rich(q.q)}<br><span class="small muted">${m.sub}</span></span>${scoreBadge(l ? l.score : null)}</summary>
         <div class="q-body">${body(q)}</div></details>`;
     }).join("") + (qs.length > shown ? `<button class="btn" id="more" style="margin-top:12px">Show ${Math.min(40, qs.length - shown)} more</button>` : "");
+    wire();
     const more = $("#more"); if (more) more.onclick = () => { shown += 40; list(); };
   }
 
   $("#vl").onclick = () => { setView("list"); list(); };
   $("#v1").onclick = () => { setView("one"); list(); };
   $("#shuf").onclick = () => { rank = new Map(); idx = 0; shown = 40; idx = 0; list(); };
-  $("#rd").onchange = (e) => { setReadMode(e.target.checked); list(); };
+  $("#rd").onchange = (e) => { revealed.clear(); setReadMode(e.target.checked); list(); };
   $("#tp").onchange = (e) => { filt.cat = e.target.value; shown = 40; idx = 0; list(); };
   $("#sc").onchange = (e) => { filt.src = e.target.value; shown = 40; idx = 0; list(); };
   $("#kd").onchange = (e) => { filt.kind = e.target.value; shown = 40; idx = 0; list(); };

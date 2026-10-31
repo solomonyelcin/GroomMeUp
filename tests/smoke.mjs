@@ -268,9 +268,12 @@ await page.click("#rmbad"); await page.waitForTimeout(300);
 check((await page.locator("#rmbad").count()) === 0, "badly-read old MCQs are flagged and can be removed");
 // bank: answers visible without clicking; MCQ options with the correct one marked
 await page.goto(base + "/#/bank?src=mine"); await page.waitForSelector(".q-card");
+check((await page.locator(".mcq-opt").count()) > 0 && (await page.locator(".mcq-opt.right").count()) === 0, "MCQ options first, correct one not highlighted yet");
+await page.click(".q-card:has(.mcq-opt) [data-rev]"); await page.waitForSelector(".mcq-opt.right");
+await page.check("#rd");
 check((await page.locator(".q-card[open]").count()) > 0 && (await page.locator(".mcq-opt.right").count()) > 0, "Question bank shows answers directly (options with the correct one highlighted)");
 await page.uncheck("#rd");
-check((await page.locator(".q-card[open]").count()) === 0, "'Show answers' switch collapses them");
+check((await page.locator(".mcq-opt.right").count()) === 0, "unticking Show answers hides the correct option again");
 await page.check("#rd");
 
 // quiz uses real MCQs from files, no topic picking needed
@@ -296,7 +299,7 @@ await page.waitForSelector("text=Found 9 questions", { timeout: 20000 });
 await page.click("[data-act=import]"); await page.waitForSelector("text=Imported questions-only.pdf");
 const st4 = await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")));
 check(st4.custom.filter((q) => q.ai).length === 9, "9 AI-answered questions imported and flagged as AI drafts");
-await page.goto(base + "/#/bank?src=mine"); await page.click("#fsum"); await page.fill("#s", "SOLID principles");
+await page.goto(base + "/#/bank?src=mine"); await page.click("#fsum"); await page.fill("#s", "SOLID principles"); await page.check("#rd");
 await page.waitForSelector(".q-card");
 check((await page.textContent("#list")).includes("AI draft answer"), "bank labels AI-written answers as drafts");
 aiMode = "ok";

@@ -47,7 +47,22 @@ export async function readXlsx(buffer) {
     const width = Math.min(MAX_COLS, rows.reduce((w, r) => Math.max(w, r ? r.length : 0), 0));
     const dense = [];
     for (let i = 0; i < rows.length; i++) { const r = rows[i] || []; dense.push(Array.from({ length: width }, (_, k) => (r[k] == null ? "" : String(r[k])))); }
-    sheets.push({ name, hidden: state !== "visible", rows: dense });
+    // cell notes/comments (some workbooks keep the answer in a "Show answer" note)
+    const notes = {};
+    const relPath = target.replace(/([^/]+)$/, "_rels/$1.rels");
+    const srel = await zip.text(relPath);
+    if (srel) for (const rm of srel.matchAll(/<Relationship\b[^>]*>/g)) {
+      if (!/\/comments$/.test(attr(rm[0], "Type") || "")) continue;
+      let ct = attr(rm[0], "Target") || "";
+      ct = ct.startsWith("/") ? ct.slice(1) : target.replace(/[^/]+$/, "") + ct;
+      ct = ct.split("/").reduce((a, p2) => { if (p2 === "..") a.pop(); else if (p2 !== ".") a.push(p2); return a; }, []).join("/");
+      const cx = await zip.text(ct); if (!cx) continue;
+      for (const cm of cx.matchAll(/<comment\b([^>]*)>([\s\S]*?)<\/comment>/g)) {
+        const ref = attr(" " + cm[1], "ref"); if (!ref) continue;
+        notes[parseInt(ref.replace(/[^0-9]/g, ""), 10) - 1 + ":" + colIndex(ref)] = textOf(cm[2]);
+      }
+    }
+    sheets.push({ name, hidden: state !== "visible", rows: dense, notes });
   }
   return sheets;
 }

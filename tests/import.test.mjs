@@ -93,6 +93,14 @@ if (process.env.WORKBOOK_PATH) {
   console.log(`  ${w.items.length} questions, ${Object.keys(wb.cats).length} topics, ${wb.seeds.length} confident, ${makeMcqs(wb.questions, { count: 9999 }).length} quiz questions`);
 }
 
+// ---- answers kept in cell notes ("Show answer") ----
+console.log("Answers in cell notes");
+{
+  const n = await parseFile(load("notes-answers.xlsx"));
+  ok(n.items.length === 2 && n.pending.length === 0, `notes workbook: 2 items, none pending (got ${n.items.length}/${n.pending.length}); Dashboard labels are not questions`);
+  ok(n.items[0].topic === "Demo Topic" && n.items[0].sub === "Basics" && /^Encapsulation hides internal state behind members\. It keeps data private/.test(n.items[0].a), "wrapped note text is re-joined and the wrapper lines are dropped");
+  ok(n.items[1].kind === "scenario" && /\nint Salary \{ get; private set; \}\n/.test(n.items[1].a), "code lines inside a note keep their line breaks; scenario detected from sub topic");
+}
 // ---- multiple-choice documents ----
 console.log("Multiple choice documents");
 {

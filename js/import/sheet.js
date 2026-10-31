@@ -18,13 +18,16 @@ function pick(headers, list, taken, bad) {
   return -1;
 }
 
-export function findHeader(rows) {
+export function findHeader(rows, noteCols = new Set()) {
   for (let r = 0; r < Math.min(rows.length, 25); r++) {
     const headers = (rows[r] || []).map((c) => String(c || "").trim());
     if (headers.filter(Boolean).length < 2) continue;
     const taken = new Set();
     const q = pick(headers, COL.q, taken, /^(s\.?\s?no|sr|no\.?|#|id)$/i); if (q < 0) continue; taken.add(q);
-    const a = pick(headers, COL.a, taken, BAD_A); if (a < 0) continue; taken.add(a);
+    let a = pick(headers, COL.a, taken, BAD_A);
+    // a "Show answer" column whose cells carry the answer as a note
+    if (a < 0) a = headers.findIndex((h, k) => !taken.has(k) && noteCols.has(k) && /answer|solution|hint/i.test(h));
+    if (a < 0) continue; taken.add(a);
     const sub = pick(headers, COL.sub, taken); if (sub >= 0) taken.add(sub);
     const status = pick(headers, COL.status, taken);
     return { row: r, q, a, sub, status };
@@ -53,12 +56,28 @@ export function inferColumns(rows) {
 }
 
 // header with a Question column but no Answer column: a plain list of questions
+// notes that wrap a comment body: "======", "ID#...", "<label> (date)" lines, then the text, hard-wrapped
+export function noteText(t) {
+  let lines = String(t || "").replace(/\r/g, "").split("\n");
+  if (lines[0] && /^=+$/.test(lines[0].trim())) lines.shift();
+  if (lines[0] && /^ID#/.test(lines[0].trim())) lines.shift();
+  if (lines[0] && /\(\d{4}-\d\d-\d\d[ T][\d:]+\)\s*$/.test(lines[0])) lines.shift();
+  const out = [];
+  for (const l of lines) {
+    const prev = out[out.length - 1];
+    // re-join prose that was wrapped at a fixed width; keep code and blank lines as they are
+    if (prev && prev.trim() && l.trim() && prev.length >= 40 && !/[:;{}]$/.test(prev.trim()) && !/^\s|^[-*•]|^\d+[.)]\s/.test(l) && !/[{};]\s*$/.test(l)) out[out.length - 1] = prev + " " + l;
+    else out.push(l);
+  }
+  return out.join("\n").trim();
+}
+
 function findQuestionOnly(rows) {
   for (let r = 0; r < Math.min(rows.length, 25); r++) {
     const headers = (rows[r] || []).map((c) => String(c || "").trim());
     if (!headers.some(Boolean)) continue;
     const taken = new Set();
-    const q = pick(headers, COL.q, taken, /^(s\.?\s?no|sr|no\.?|#|id)$/i); if (q < 0) continue; taken.add(q);
+    const q = pick(headers, COL.q.slice(0, 3), taken, /^(s\.?\s?no|sr|no\.?|#|id)$/i); if (q < 0) continue; taken.add(q);
     if (pick(headers, COL.a, taken, BAD_A) >= 0) continue;
     const sub = pick(headers, COL.sub, taken);
     return { row: r, q, sub };
@@ -72,8 +91,9 @@ function findQuestionOnly(rows) {
   return null;
 }
 
-export function rowsToItems(rows, topic) {
-  const h = findHeader(rows) || inferColumns(rows);
+export function rowsToItems(rows, topic, notes = {}) {
+  const noteCols = new Set(Object.keys(notes).map((k) => +k.split(":")[1]));
+  const h = findHeader(rows, noteCols) || inferColumns(rows);
   if (!h) {
     const qo = findQuestionOnly(rows);
     if (!qo) return { items: [], pending: [], used: false, reason: "no Question and Answer columns found" };
@@ -92,7 +112,11 @@ export function rowsToItems(rows, topic) {
   for (let r = h.row + 1; r < rows.length; r++) {
     const row = rows[r] || [];
     const q = String(row[h.q] || "").replace(/\s+/g, " ").trim();
-    const a = String(row[h.a] || "").replace(/\r/g, "").replace(/[ \t]+\n/g, "\n").trim();
+    let a = String(row[h.a] || "").replace(/\r/g, "").replace(/[ \t]+\n/g, "\n").trim();
+    if (!a || BAD_A.test(a) && a.length < 30) { // answer held in a cell note ("Show answer")
+      const nt = Object.entries(notes).filter(([k]) => +k.split(":")[0] === r).map(([, v]) => noteText(v)).find((v) => v && v.length > 2);
+      if (nt) a = nt;
+    }
     if (!q || q.length < 4) continue;
     if (/^questions?$/i.test(q)) continue; // repeated header
     if (!a) { noAnswer++; if (q.length >= 8 && !pending.some((p) => norm(p.q) === norm(q))) pending.push({ topic, sub: h.sub >= 0 ? String(row[h.sub] || "").trim() : "", q, a: "", status: "", kind: /scenario/i.test(topic + " " + (h.sub >= 0 ? row[h.sub] : "")) ? "scenario" : "concept" }); continue; }
@@ -110,7 +134,7 @@ export function sheetsToItems(sheets) {
   const all = [], info = [], pending = [];
   for (const s of sheets) {
     if (s.hidden) { info.push({ name: s.name, used: false, reason: "hidden sheet" }); continue; }
-    const r = rowsToItems(s.rows, s.name);
+    const r = rowsToItems(s.rows, s.name, s.notes);
     info.push({ name: s.name, used: r.used, count: r.items.length, reason: r.reason, noAnswer: r.noAnswer || 0, dup: r.dup || 0, inferred: r.inferred });
     all.push(...r.items); pending.push(...(r.pending || []));
   }

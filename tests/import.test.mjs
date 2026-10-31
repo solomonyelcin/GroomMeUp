@@ -92,5 +92,33 @@ if (process.env.WORKBOOK_PATH) {
   ok(w.items.length > 0 && new Set(wb.questions.map((q) => q.id)).size === wb.questions.length, `${w.items.length} questions, ids unique`);
   console.log(`  ${w.items.length} questions, ${Object.keys(wb.cats).length} topics, ${wb.seeds.length} confident, ${makeMcqs(wb.questions, { count: 9999 }).length} quiz questions`);
 }
+
+// ---- multiple-choice documents ----
+console.log("Multiple choice documents");
+{
+  const mk = (n) => load(n);
+  const t1 = await parseFile(mk("mcq-sample.txt"));
+  ok(t1.kind.includes("multiple choice") && t1.items.length === 3, `txt MCQs: 3 expected, got ${t1.items.length} (${t1.kind})`);
+  ok(t1.items.every((i) => i.o.length === 4), "every MCQ has 4 options");
+  ok(t1.items[0].correct === 1 && t1.items[0].o[1] === "UDP", "Ans: B -> UDP");
+  ok(t1.items[1].correct === 1 && /Host names/.test(t1.items[1].o[1]) && /DNS maps/.test(t1.items[1].e), "(B) labels, 'Answer - b' lowercase and explanation");
+  ok(t1.items[2].correct === 0 && t1.items[2].o[0] === "Authorization", "'A text' labels without a delimiter, 'Correct Answer: A'");
+  ok(t1.items.every((i) => i.topic === "Networking basics"), "heading becomes the topic");
+  const t2 = await parseFile(mk("mcq-phone.txt"));
+  ok(t2.items.length === 2 && t2.items[0].o.join(",") === "Singleton,Scoped,Transient,Pooled" && t2.items[0].correct === 1, "letter on its own line, text on the next line");
+  ok(t2.items[1].o[1] === "sealed" && t2.items[1].correct === 1, "two-space separated labels");
+}
+// ---- documents that contain only questions ----
+console.log("Questions without answers");
+{
+  const x = await parseFile(load("questions-only.xlsx"));
+  ok(x.items.length === 0 && x.pending.length === 4 && x.pending[0].topic === "Angular", `xlsx question-only column: ${x.pending.length} pending`);
+  const t = await parseFile(load("questions-only.txt"));
+  ok(t.items.length === 0 && t.pending.length === 5, `txt: 5 pending expected, got ${t.pending.length}`);
+  ok(t.pending.filter((p) => p.topic === "MICROSERVICES").length === 3 && t.pending.filter((p) => p.topic === "REST").length === 2, "headings become topics, bullets and numbers both work");
+  const d = await parseFile(load("questions-only.docx"));
+  ok(d.items.length === 0 && d.pending.length === 5, `docx: 5 pending expected, got ${d.pending.length} (items ${d.items.length})`);
+}
+
 console.log(`\n${checks} checks, ${fails} failures`);
 process.exit(fails ? 1 : 0);

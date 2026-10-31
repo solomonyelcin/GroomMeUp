@@ -32,10 +32,16 @@ export async function readPdf(buffer) {
     pages.push(out);
   }
   const med = sizes.sort((a, b) => a - b)[Math.floor(sizes.length / 2)] || 10;
-  // drop repeated headers/footers and bare page numbers
+  // Running headers/footers: only the first/last two lines of a page can be one, and only if the same text
+  // (ignoring digits) sits there on at least half the pages. Lines in the middle of a page are never dropped,
+  // and answer/option/question lines are never treated as headers ("And : C" repeats on most pages!).
+  const shape = (t) => t.toLowerCase().replace(/\d+/g, "#");
+  const edge = (pg) => [...pg.slice(0, 2), ...pg.slice(-2)];
   const freq = new Map();
-  for (const pg of pages) for (const t of new Set(pg.map((l) => l.text.toLowerCase()))) freq.set(t, (freq.get(t) || 0) + 1);
-  const repeated = (t) => pages.length >= 3 && t.length < 90 && (freq.get(t.toLowerCase()) || 0) >= Math.max(3, pages.length * 0.5);
+  for (const pg of pages) for (const t of new Set(edge(pg).map((l) => shape(l.text)))) freq.set(t, (freq.get(t) || 0) + 1);
+  const content = /^\s*(?:(?:Q(?:uestion)?\s*)?\d{1,4}\s*[.):\-–]|\(?[A-Ea-e]\s*[).:]\s|(?:and|ans(?:wer)?|correct\s+answer|key)\s*[:.\-–=])/i;
+  const isEdge = (pg, l) => pg.indexOf(l) < 2 || pg.indexOf(l) >= pg.length - 2;
+  const repeated = (pg, l) => pages.length >= 2 && l.text.length < 120 && isEdge(pg, l) && !content.test(l.text) && (freq.get(shape(l.text)) || 0) >= Math.max(2, Math.ceil(pages.length * 0.5));
   const pageNo = /^(?:page\s*)?\d{1,4}(?:\s*(?:\/|of)\s*\d{1,4})?$/i;
   const blocks = [];
   for (const pg of pages) {
@@ -43,10 +49,10 @@ export async function readPdf(buffer) {
     for (let i = 1; i < pg.length; i++) gaps.push(pg[i - 1].y - pg[i].y);
     const g = gaps.sort((a, b) => a - b)[Math.floor(gaps.length / 2)] || med * 1.3;
     pg.forEach((l) => {
-      if (repeated(l.text) || pageNo.test(l.text)) return;
+      if (repeated(pg, l) || pageNo.test(l.text)) return;
       if (prevY !== null && prevY - l.y > g * 1.7) blocks.push({ text: "" });
       prevY = l.y;
-      blocks.push({ text: l.text, heading: l.size >= med * 1.25 && l.text.length <= 90 && !/[.,;]$/.test(l.text) ? 2 : 0 });
+      blocks.push({ text: l.text, heading: l.size >= med * 1.12 && l.text.length <= 90 && !/[.,;]$/.test(l.text) ? 2 : 0 });
     });
     blocks.push({ text: "" });
   }

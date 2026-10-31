@@ -13,6 +13,7 @@ const fresh = () => ({
   code: {},            // challengeId -> {solved, tries, best, code, t}
   log: [],             // real interviews
   custom: [],          // user-added, AI generated and imported questions
+  mcqSeen: {},         // quiz question id -> { t, ok } of the last time it was asked
   daily: null,         // { date, ids } frozen set for today
   dailyAI: "",         // date of the last AI refresh
   cats: {},            // topics created by imports: key -> {name, color}
@@ -206,3 +207,7 @@ export function removeImport(id) {
 }
 
 export const importedQuestions = () => state.custom.filter((q) => q.imported);
+
+export function noteMcq(id, ok) {
+  store.update((st) => { (st.mcqSeen ||= {})[id] = { t: Date.now(), ok: !!ok }; });
+}

@@ -1,0 +1,23 @@
+Networking basics
+
+Q1. Which protocol is connectionless?
+A. TCP
+B. UDP
+C. HTTP
+D. FTP
+Ans: B
+
+Q2. What does DNS resolve?
+(A) IP addresses to MAC addresses
+(B) Host names to IP addresses
+(C) Ports to services
+(D) URLs to files
+Answer - b
+Explanation: DNS maps names to addresses.
+
+3) Which header carries a bearer token?
+A Authorization
+B Content-Type
+C Accept
+D Host
+Correct Answer: A

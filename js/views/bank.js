@@ -4,6 +4,8 @@ import { generateQuestions, aiEnabled } from "../ai.js";
 import { esc, rich, scoreBadge, toast, busy, $, $$ } from "../ui.js";
 
 const filt = { text: "", cat: "all", diff: 0, status: "all", src: "", kind: "all" };
+const readMode = () => { try { return localStorage.getItem("groommeup.read") !== "0"; } catch { return true; } };
+const setReadMode = (v) => { try { localStorage.setItem("groommeup.read", v ? "1" : "0"); } catch { /* ignore */ } };
 let shown = 40;
 
 export function view(root, ctx) {
@@ -23,13 +25,14 @@ export function view(root, ctx) {
       <div class="grid g3" style="margin-top:12px">
         <div><label for="tp">Topic</label><select id="tp"></select></div>
         <div><label for="sc">Source</label><select id="sc"></select></div>
-        <div><label for="kd">Type</label><select id="kd"><option value="all">Any</option><option value="concept">Concept</option><option value="scenario">Scenario-based</option></select></div>
+        <div><label for="kd">Type</label><select id="kd"><option value="all">Any</option><option value="concept">Concept</option><option value="scenario">Scenario-based</option><option value="mcq">Multiple choice</option></select></div>
       </div>
     </div>
-    <div class="row between" style="margin:16px 0 10px"><span id="count" class="muted" aria-live="polite"></span><div class="row"><button class="btn sm" id="add">Add your own question</button><button class="btn sm" id="gen">Generate with AI</button></div></div>
+    <div class="row between" style="margin:16px 0 10px"><span id="count" class="muted" aria-live="polite"></span><div class="row"><label class="read-toggle"><input type="checkbox" id="rd"> Show answers</label><button class="btn sm" id="add">Add your own question</button><button class="btn sm" id="gen">Generate with AI</button></div></div>
     <div id="forms"></div>
     <div id="list"></div>
   `;
+  $("#rd").checked = readMode();
   $("#d").value = String(filt.diff); $("#st").value = filt.status;
 
   const draw = () => {
@@ -60,7 +63,7 @@ export function view(root, ctx) {
       if (filt.status === "weak" && !(l && l.score < 6)) return false;
       if (filt.status === "strong" && !(l && l.score >= 8)) return false;
       if (filt.status === "due" && !(l && isDue(q.id))) return false;
-      if (t && !(q.q + " " + q.a + " " + q.kp.map((k) => k[0]).join(" ")).toLowerCase().includes(t)) return false;
+      if (t && !(q.q + " " + q.a + " " + (q.o || []).join(" ") + " " + q.kp.map((k) => k[0]).join(" ")).toLowerCase().includes(t)) return false;
       return true;
     });
     $("#count").textContent = `${qs.length} question${qs.length === 1 ? "" : "s"}`;
@@ -69,12 +72,12 @@ export function view(root, ctx) {
       const cat = CATEGORIES[q.c] || { name: "My questions", color: "#546178" };
       const tagS = q.kind === "scenario" ? " / Scenario" : "";
       const l = last.get(q.id);
-      return `<details class="q-card" data-id="${q.id}">
+      return `<details class="q-card" data-id="${q.id}" ${readMode() ? "open" : ""}>
         <summary class="q-head"><span class="dot" style="background:${cat.color};margin-top:8px" title="${esc(cat.name)}"></span>
           <span class="q-title">${rich(q.q)}<br><span class="small muted">${esc(cat.name)} / ${q.imported ? (q.sub ? esc(q.sub) : "Imported") : diffName[q.d] || "Core"}${tagS}</span></span>${scoreBadge(l ? l.score : null)}</summary>
         <div class="q-body">
-          <h4>Model answer</h4><div class="model">${rich(q.a)}</div>
-          <h4>Points interviewers listen for</h4><ul class="kp">${q.kp.map((k) => `<li>${esc(k[0])}</li>`).join("")}</ul>
+          ${q.ai ? `<p class="callout warn small" style="margin:0 0 8px"><strong>AI draft answer.</strong> Written by AI from your question, so double-check it before relying on it.</p>` : ""}${q.o ? `<h4>Options</h4><div class="mcq-opts">${q.o.map((o, k) => `<div class="mcq-opt ${k === q.ans ? "right" : ""}"><b>${"ABCDE"[k]}</b><span>${esc(o)}</span>${k === q.ans ? `<em>correct</em>` : ""}</div>`).join("")}</div>${q.e ? `<div class="model" style="margin-top:8px">${rich(q.e)}</div>` : ""}` : `<h4>Model answer</h4><div class="model">${rich(q.a)}</div>`}
+          ${q.o ? "" : `<h4>Points interviewers listen for</h4><ul class="kp">${q.kp.map((k) => `<li>${esc(k[0])}</li>`).join("")}</ul>`}
           ${q.f && q.f.length ? `<h4>Likely follow-ups</h4><ul class="kp">${q.f.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>` : ""}
           <div class="row" style="margin-top:14px"><a class="btn primary sm" href="#/practice?q=${q.id}">Practise this question</a><a class="btn sm" href="#/practice?q=${q.id}&flash=1">Flashcard</a></div>
         </div></details>`;
@@ -82,6 +85,7 @@ export function view(root, ctx) {
     const more = $("#more"); if (more) more.onclick = () => { shown += 40; list(); };
   }
 
+  $("#rd").onchange = (e) => { setReadMode(e.target.checked); list(); };
   $("#tp").onchange = (e) => { filt.cat = e.target.value; shown = 40; list(); };
   $("#sc").onchange = (e) => { filt.src = e.target.value; shown = 40; list(); };
   $("#kd").onchange = (e) => { filt.kind = e.target.value; shown = 40; list(); };

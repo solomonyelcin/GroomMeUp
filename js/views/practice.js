@@ -71,7 +71,7 @@ export function view(root, ctx) {
     </div><div id="result" style="margin-top:16px"></div>`;
     startedAt = Date.now();
     timerId = setInterval(() => { const s = (Date.now() - startedAt) / 1000; const t = $("#tm"); if (t) { t.textContent = fmtTime(s); t.classList.toggle("low", s > 180); } }, 500);
-    flash ? flashUI(q) : writeUI(q);
+    q.o ? mcqUI(q) : flash ? flashUI(q) : writeUI(q);
   }
 
   function nextBtn() { return `<button class="btn primary" id="next">${i + 1 >= pool.length ? "Finish" : "Next question"}</button>`; }
@@ -112,6 +112,19 @@ export function view(root, ctx) {
       $("#next").onclick = goNext; $("#redo").onclick = () => { $("#result").innerHTML = ""; $("#eval").disabled = false; ans.focus(); };
       $("#result").scrollIntoView({ behavior: "smooth", block: "nearest" });
     };
+  }
+
+  // multiple-choice questions imported from a file: pick an option, see the right one
+  function mcqUI(q) {
+    $("#answerArea").innerHTML = `<div role="group" aria-label="Answer options" style="margin-top:14px">${q.o.map((o, k) => `<button class="opt" data-k="${k}"><b style="margin-right:8px">${"ABCDE"[k]}</b>${esc(o)}</button>`).join("")}</div><div id="fb"></div>`;
+    stage.querySelectorAll(".opt").forEach((b) => (b.onclick = () => {
+      stopAll();
+      const k = +b.dataset.k, ok = k === q.ans;
+      recordAttempt(q, ok ? 10 : 2, "practice");
+      stage.querySelectorAll(".opt").forEach((x) => { x.disabled = true; if (+x.dataset.k === q.ans) x.classList.add("right"); else if (x === b) x.classList.add("wrong"); });
+      $("#fb").innerHTML = `<p class="callout" style="margin-top:12px"><strong>${ok ? "Correct." : "Not quite."}</strong> The answer is ${"ABCDE"[q.ans]}) ${esc(q.o[q.ans])}${q.e ? `<br>${rich(q.e)}` : ""}</p><div class="row">${nextBtn()}</div>`;
+      $("#next").onclick = goNext; $("#next").focus();
+    }));
   }
 
   function flashUI(q) {

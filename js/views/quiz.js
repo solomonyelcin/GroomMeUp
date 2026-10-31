@@ -1,41 +1,72 @@
-import { store, importedQuestions } from "../store.js";
-import { makeMcqs } from "../import/build.js";
+import { store, allQuestions, categoryStats, noteMcq } from "../store.js";
 import { MCQ, CATEGORIES } from "../data/index.js";
+import { prepPlain, makeMcqFor } from "../import/build.js";
 import { esc, rich, shuffle, fmtTime, tape, pct, $, $$ } from "../ui.js";
+
+// Every question we have can become a quiz item: hand-written MCQs, real MCQs imported from files,
+// and multiple choice generated from any question that has a model answer.
+function candidates() {
+  const qs = allQuestions();
+  const prepared = prepPlain(qs);
+  const list = [];
+  for (const m of MCQ) list.push({ id: m.id, c: m.c, kind: "written", mcq: m });
+  for (const q of qs) if (q.o) list.push({ id: "m:" + q.id, c: q.c, kind: "file", q });
+  for (const x of prepared) if (!x.o.ai) list.push({ id: "m:" + x.o.id, c: x.o.c, kind: "made", q: x.o });
+  return { list, prepared };
+}
+
+// Weakest topics (from the study plan's readiness numbers) come up more, new and missed questions come up more,
+// anything asked in the last day comes up less.
+function pickSmart(list, n, picked) {
+  const stats = categoryStats(), seen = store.get().mcqSeen || {}, now = Date.now();
+  const pool = list.filter((x) => picked.has(x.c)).map((x) => {
+    const readiness = stats[x.c]?.readiness ?? 0;
+    let w = 1 + (100 - readiness) / 50;                  // 1 .. 3
+    const s = seen[x.id];
+    if (!s) w *= 1.6; else if (!s.ok) w *= 2.4; else if (now - s.t < 864e5) w *= 0.25; else if (now - s.t < 3 * 864e5) w *= 0.6;
+    return { x, k: -Math.log(Math.random()) / w };       // weighted sampling without replacement
+  }).sort((a, b) => a.k - b.k);
+  return pool.slice(0, n).map((p) => p.x);
+}
 
 export function view(root, ctx) {
   let timerId = null;
   const mineOnly = ctx?.params?.get("mine") === "1";
-  // Multiple choice made from the person's own imported answers (distractors come from their other answers).
-  const own = importedQuestions();
-  const ownMcq = own.length ? makeMcqs(own, { count: own.length }) : [];
-  const bank = [...MCQ, ...ownMcq];
-  const picked = new Set(Object.keys(CATEGORIES).filter((k) => (mineOnly ? CATEGORIES[k].mine : true)));
+  const { list, prepared } = candidates();
+  const counts = {};
+  list.forEach((m) => (counts[m.c] = (counts[m.c] || 0) + 1));
+  const topicKeys = Object.keys(CATEGORIES).filter((k) => counts[k]);
+  const picked = new Set(topicKeys.filter((k) => (mineOnly ? CATEGORIES[k].mine : true)));
 
   const setup = () => {
-    const counts = {};
-    bank.forEach((m) => (counts[m.c] = (counts[m.c] || 0) + 1));
-    const chip = ([k, v]) => `<button class="chip" data-c="${esc(k)}" aria-pressed="${picked.has(k)}">${esc(v.name)} (${counts[k]})</button>`;
-    const ents = Object.entries(CATEGORIES).filter(([k]) => counts[k]);
-    const builtIn = ents.filter(([, v]) => !v.mine), mine = ents.filter(([, v]) => v.mine);
+    const chip = (k) => `<button class="chip" data-c="${esc(k)}" aria-pressed="${picked.has(k)}">${esc(CATEGORIES[k].name)} (${counts[k]})</button>`;
+    const builtIn = topicKeys.filter((k) => !CATEGORIES[k].mine), mine = topicKeys.filter((k) => CATEGORIES[k].mine);
+    const weakest = Object.values(categoryStats()).filter((c) => !c.mine && counts[c.key]).sort((a, b) => a.readiness - b.readiness).slice(0, 3).map((c) => c.name);
     root.innerHTML = `
-      <header class="page-head"><h1>Quick quiz</h1><p>Fast multiple choice to find blind spots. Options are shuffled every time, and each answer comes with the reasoning.</p></header>
+      <header class="page-head"><h1>Quick quiz</h1><p>Just press Start. Questions are picked for you from <strong>all</strong> topics, with your weakest areas${weakest.length ? ` (${esc(weakest.join(", "))})` : ""} and questions you missed coming up more often.</p></header>
       <div class="card">
-        <h3>Topics</h3>
-        <div id="cc" role="group" aria-label="Quiz topics">
-          <div class="chips">${builtIn.map(chip).join("")}</div>
-          ${mine.length ? `<h4 style="margin:14px 0 6px">Your material <span class="small muted">(questions made from your own answers)</span></h4><div class="chips">${mine.map(chip).join("")}</div>` : ""}
-        </div>
-        <div class="grid g3" style="margin-top:16px">
-          <div><label for="n">Questions</label><select id="n"><option>10</option><option>20</option><option value="99">All selected</option></select></div>
+        <div class="grid g3">
+          <div><label for="n">How many questions</label><select id="n"><option>10</option><option>20</option><option>30</option><option>50</option></select></div>
           <div><label for="t">Time limit</label><select id="t"><option value="0">No limit</option><option value="60">1 minute per question</option><option value="30">30 seconds per question</option></select></div>
         </div>
-        <div class="row" style="margin-top:8px"><button class="btn primary" id="start">Start quiz</button></div>
+        <div class="row" style="margin-top:12px"><button class="btn primary" id="start">Start quiz</button><span class="small muted" id="pool"></span></div>
+        <details style="margin-top:14px" ${mineOnly ? "open" : ""}><summary class="small" style="cursor:pointer;font-weight:600">Choose topics myself (optional)</summary>
+          <div class="row" style="margin:10px 0"><button class="btn sm" id="all">Select all</button><button class="btn sm" id="none">Clear</button></div>
+          <div id="cc" role="group" aria-label="Quiz topics">
+            <div class="chips">${builtIn.map(chip).join("")}</div>
+            ${mine.length ? `<h4 style="margin:14px 0 6px">Your material</h4><div class="chips">${mine.map(chip).join("")}</div>` : ""}
+          </div></details>
       </div>
       ${history()}`;
-    $("#cc").onclick = (e) => { const b = e.target.closest("[data-c]"); if (!b) return; const c = b.dataset.c; picked.has(c) ? picked.delete(c) : picked.add(c); b.setAttribute("aria-pressed", picked.has(c)); };
+    const upd = () => { const n = list.filter((m) => picked.has(m.c)).length; $("#pool").textContent = `${n} questions available${picked.size < topicKeys.length ? ` in ${picked.size} topic${picked.size === 1 ? "" : "s"}` : ""}`; $("#start").disabled = !n; };
+    upd();
+    $("#cc").onclick = (e) => { const b = e.target.closest("[data-c]"); if (!b) return; const c = b.dataset.c; picked.has(c) ? picked.delete(c) : picked.add(c); b.setAttribute("aria-pressed", picked.has(c)); upd(); };
+    $("#all").onclick = () => { topicKeys.forEach((k) => picked.add(k)); setup(); };
+    $("#none").onclick = () => { picked.clear(); setup(); };
     $("#start").onclick = () => {
-      const pool = shuffle(bank.filter((m) => picked.has(m.c))).slice(0, +$("#n").value);
+      const chosen = pickSmart(list, +$("#n").value * 2, picked);          // a few spares in case some cannot be built
+      const pool = [];
+      for (const c of chosen) { const m = c.mcq || makeMcqFor(c.q, prepared); if (m) pool.push({ ...m, id: c.id }); if (pool.length >= +$("#n").value) break; }
       if (!pool.length) return;
       run(pool, +$("#t").value);
     };
@@ -68,7 +99,7 @@ export function view(root, ctx) {
       const answer = (k) => {
         clearInterval(timerId);
         const ok = k === ci;
-        (cats[m.c] ||= [0, 0]); cats[m.c][1]++; if (ok) { correct++; cats[m.c][0]++; } else wrong.push(m);
+        noteMcq(m.id, ok); (cats[m.c] ||= [0, 0]); cats[m.c][1]++; if (ok) { correct++; cats[m.c][0]++; } else wrong.push(m);
         $$(".opt").forEach((b) => { b.disabled = true; const bk = +b.dataset.k; if (bk === ci) b.classList.add("right"); else if (bk === k) b.classList.add("wrong"); });
         $("#fb").innerHTML = `<p class="callout" style="margin-top:12px"><strong>${k === -1 ? "Time is up." : ok ? "Correct." : "Not quite."}</strong> ${rich(m.e)}</p><button class="btn primary" id="nx">${i + 1 >= items.length ? "See results" : "Next"}</button>`;
         $("#nx").focus(); $("#nx").onclick = () => { i++; step(); };

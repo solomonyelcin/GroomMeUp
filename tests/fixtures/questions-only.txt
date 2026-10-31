@@ -1,0 +1,9 @@
+MICROSERVICES
+
+1. What is the saga pattern?
+2. Explain the transactional outbox pattern and why it matters?
+3. How do you make a consumer idempotent?
+
+REST
+- What is the difference between PUT and PATCH?
+- How would you version a public API?

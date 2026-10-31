@@ -63,15 +63,21 @@ const diffOf = (it) => /senior|architect|advanced|complex|performance|scenario/i
 
 // existingCats: current state.cats, used to keep colours stable and add new topics.
 export function buildQuestions(items, { importId, existingCats = {} } = {}) {
-  const df = docFreq(items.map((i) => i.a));
+  const df = docFreq(items.filter((i) => !i.o).map((i) => i.a));
   const cats = { ...existingCats };
   const newCats = {};
   const questions = [], seeds = [];
   for (const it of items) {
     const key = catKey(it.topic);
     if (!cats[key]) { const idx = Object.keys(cats).length; cats[key] = newCats[key] = { name: it.topic, color: `hsl(${(idx * 47 + 12) % 360} 58% 42%)` }; }
+    if (it.o) { // a real multiple-choice question from the file
+      const mid = "w" + hash32(norm(it.topic) + "|" + norm(it.q) + "|" + norm(it.o.join("|")));
+      const right = it.o[it.correct];
+      questions.push({ id: mid, c: key, d: 2, q: it.q, a: it.a, o: it.o, ans: it.correct, e: it.e || "", kp: [[right.split(/\s+/).slice(0, 9).join(" "), ...tokens(right).slice(0, 3)]], f: [], imported: true, src: importId, sub: it.sub || "", kind: "mcq" });
+      continue;
+    }
     const id = "w" + hash32(norm(it.topic) + "|" + norm(it.q));
-    questions.push({ id, c: key, d: diffOf(it), q: it.q, a: it.a, kp: deriveKeyPoints(it.a, df, items.length), f: [], imported: true, src: importId, sub: it.sub || "", kind: it.kind });
+    questions.push({ id, c: key, d: diffOf(it), q: it.q, a: it.a, kp: deriveKeyPoints(it.a, df, items.length), f: [], imported: true, src: importId, sub: it.sub || "", kind: it.kind, ...(it.ai ? { ai: true } : {}) });
     if (isConfident(it.status)) seeds.push(id);
   }
   return { questions, cats, newCats, seeds };
@@ -87,26 +93,39 @@ export function optionText(a, max = 150) {
 }
 const jacc = (a, b) => { const A = new Set(tokens(a)), B = new Set(tokens(b)); if (!A.size || !B.size) return 0; let i = 0; for (const x of A) if (B.has(x)) i++; return i / (A.size + B.size - i); };
 
-export function makeMcqs(questions, { count = 20, rand = Math.random, cats = null } = {}) {
-  const pool = questions.filter((q) => q.a && q.a.length >= 30 && (!cats || cats.has(q.c)));
-  const all = questions.filter((q) => q.a && q.a.length >= 30);
-  const order = [...pool].sort(() => rand() - 0.5);
-  const out = [];
-  for (const q of order) {
-    if (out.length >= count) break;
-    const correct = optionText(q.a);
-    const cands = all.filter((o) => o.id !== q.id).map((o) => ({ o, t: optionText(o.a) }))
-      .filter((x) => norm(x.t) !== norm(correct) && jacc(x.t, correct) < 0.5);
-    const score = (x) => (x.o.c === q.c ? 0 : 100) + (x.o.sub && x.o.sub === q.sub ? 0 : 12) + Math.abs(x.t.length - correct.length) / 3 + rand() * 6;
-    const picked = [];
-    for (const x of cands.sort((a, b) => score(a) - score(b))) {
-      if (picked.length >= 3) break;
-      if (picked.some((p) => jacc(p.t, x.t) >= 0.5 || norm(p.t) === norm(x.t))) continue;
-      picked.push(x);
-    }
-    if (picked.length < 3) continue;
-    const opts = [{ t: correct, ok: true }, ...picked.map((p) => ({ t: p.t, ok: false }))].sort(() => rand() - 0.5);
-    out.push({ id: "m:" + q.id, c: q.c, q: q.q, o: opts.map((x) => x.t), a: opts.findIndex((x) => x.ok), e: q.a, imported: true });
+// Behavioural/resume answers are stories, not facts, so they make poor multiple-choice options.
+const NOT_FACTUAL = new Set(["resume", "hr"]);
+const jsets = (A, B) => { if (!A.size || !B.size) return 0; let i = 0; for (const x of A) if (B.has(x)) i++; return i / (A.size + B.size - i); };
+
+// Candidate pool for generating options: every plain Q&A, with its option text prepared once.
+export function prepPlain(list) {
+  return list.filter((q) => !q.o && q.a && q.a.length >= 30 && !NOT_FACTUAL.has(q.c)).map((o) => { const t = optionText(o.a); return { o, t, nt: norm(t), set: new Set(tokens(t)) }; });
+}
+
+// One multiple-choice question from a Q&A: the right option is the start of the model answer,
+// the wrong ones are the starts of other answers (same topic first, similar length).
+export function makeMcqFor(q, prepared, rand = Math.random) {
+  if (q.o) return { id: "m:" + q.id, c: q.c, q: q.q, o: q.o, a: q.ans, e: q.e || q.a, imported: true };
+  const me = prepared.find((x) => x.o.id === q.id) || (() => { const t = optionText(q.a); return { o: q, t, nt: norm(t), set: new Set(tokens(t)) }; })();
+  if (me.t.length < 25) return null;
+  const cands = prepared.filter((x) => x.o.id !== q.id && x.nt !== me.nt && jsets(x.set, me.set) < 0.5);
+  const score = (x) => (x.o.c === q.c ? 0 : 100) + (x.o.sub && x.o.sub === q.sub ? 0 : 12) + Math.abs(x.t.length - me.t.length) / 3 + rand() * 6;
+  const picked = [];
+  for (const x of cands.map((x) => [score(x), x]).sort((a, b) => a[0] - b[0]).map((x) => x[1])) {
+    if (picked.length >= 3) break;
+    if (picked.some((p) => jsets(p.set, x.set) >= 0.5 || p.nt === x.nt)) continue;
+    picked.push(x);
   }
-  return out;
+  if (picked.length < 3) return null;
+  const opts = [{ t: me.t, ok: true }, ...picked.map((p) => ({ t: p.t, ok: false }))].sort(() => rand() - 0.5);
+  return { id: "m:" + q.id, c: q.c, q: q.q, o: opts.map((x) => x.t), a: opts.findIndex((x) => x.ok), e: q.a, imported: true };
+}
+
+export function makeMcqs(questions, { count = 20, rand = Math.random, cats = null } = {}) {
+  const real = questions.filter((q) => q.o && (!cats || cats.has(q.c))).map((q) => makeMcqFor(q, []));
+  const prepared = prepPlain(questions);
+  const order = prepared.filter((x) => !x.o.ai && (!cats || cats.has(x.o.c))).map((x) => x.o).sort(() => rand() - 0.5);
+  const out = [];
+  for (const q of order) { if (out.length >= count) break; const m = makeMcqFor(q, prepared, rand); if (m) out.push(m); }
+  return [...real, ...out];
 }

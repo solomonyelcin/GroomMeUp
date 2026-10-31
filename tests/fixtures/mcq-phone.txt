@@ -1,0 +1,17 @@
+What is the default lifetime of a service registered with AddDbContext?
+A
+Singleton
+B
+Scoped
+C
+Transient
+D
+Pooled
+Ans : b
+
+Which keyword prevents inheritance of a class in C#?
+A  abstract
+B  sealed
+C  static
+D  partial
+Ans : B

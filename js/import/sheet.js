@@ -52,10 +52,42 @@ export function inferColumns(rows) {
   return best;
 }
 
+// header with a Question column but no Answer column: a plain list of questions
+function findQuestionOnly(rows) {
+  for (let r = 0; r < Math.min(rows.length, 25); r++) {
+    const headers = (rows[r] || []).map((c) => String(c || "").trim());
+    if (!headers.some(Boolean)) continue;
+    const taken = new Set();
+    const q = pick(headers, COL.q, taken, /^(s\.?\s?no|sr|no\.?|#|id)$/i); if (q < 0) continue; taken.add(q);
+    if (pick(headers, COL.a, taken, BAD_A) >= 0) continue;
+    const sub = pick(headers, COL.sub, taken);
+    return { row: r, q, sub };
+  }
+  // no header at all: one column that is mostly questions
+  const width = rows.reduce((w, r) => Math.max(w, r.length), 0);
+  for (let c = 0; c < width; c++) {
+    const vals = rows.map((r) => String(r[c] || "").trim()).filter(Boolean);
+    if (vals.length >= 3 && vals.filter((v) => /\?\s*$/.test(v) || /^(what|why|how|when|explain|describe|define|difference|compare|write|which|list)\b/i.test(v)).length / vals.length >= 0.6) return { row: -1, q: c, sub: -1 };
+  }
+  return null;
+}
+
 export function rowsToItems(rows, topic) {
   const h = findHeader(rows) || inferColumns(rows);
-  if (!h) return { items: [], used: false, reason: "no Question and Answer columns found" };
-  const items = []; let noAnswer = 0, dup = 0;
+  if (!h) {
+    const qo = findQuestionOnly(rows);
+    if (!qo) return { items: [], pending: [], used: false, reason: "no Question and Answer columns found" };
+    const pending = [], seenQ = new Set();
+    for (let r = qo.row + 1; r < rows.length; r++) {
+      const row = rows[r] || [], q = String(row[qo.q] || "").replace(/\s+/g, " ").trim();
+      if (q.length < 8 || /^questions?$/i.test(q) || seenQ.has(norm(q))) continue;
+      seenQ.add(norm(q));
+      const sub = qo.sub >= 0 ? String(row[qo.sub] || "").trim() : "";
+      pending.push({ topic, sub, q, a: "", status: "", kind: /scenario/i.test(sub + " " + topic) ? "scenario" : "concept" });
+    }
+    return { items: [], pending, used: pending.length > 0, noAnswer: pending.length, dup: 0, reason: pending.length ? "" : "no questions found" };
+  }
+  const items = [], pending = []; let noAnswer = 0, dup = 0;
   const seen = new Set();
   for (let r = h.row + 1; r < rows.length; r++) {
     const row = rows[r] || [];
@@ -63,7 +95,7 @@ export function rowsToItems(rows, topic) {
     const a = String(row[h.a] || "").replace(/\r/g, "").replace(/[ \t]+\n/g, "\n").trim();
     if (!q || q.length < 4) continue;
     if (/^questions?$/i.test(q)) continue; // repeated header
-    if (!a) { noAnswer++; continue; }
+    if (!a) { noAnswer++; if (q.length >= 8 && !pending.some((p) => norm(p.q) === norm(q))) pending.push({ topic, sub: h.sub >= 0 ? String(row[h.sub] || "").trim() : "", q, a: "", status: "", kind: /scenario/i.test(topic + " " + (h.sub >= 0 ? row[h.sub] : "")) ? "scenario" : "concept" }); continue; }
     const key = norm(q);
     if (seen.has(key)) { dup++; continue; }
     seen.add(key);
@@ -71,18 +103,18 @@ export function rowsToItems(rows, topic) {
     const status = h.status >= 0 ? String(row[h.status] || "").trim() : "";
     items.push({ topic, sub, q, a, status, kind: /scenario/i.test(sub + " " + topic) ? "scenario" : "concept" });
   }
-  return { items, used: true, noAnswer, dup, inferred: !!h.inferred };
+  return { items, pending, used: true, noAnswer, dup, inferred: !!h.inferred };
 }
 
 export function sheetsToItems(sheets) {
-  const all = [], info = [];
+  const all = [], info = [], pending = [];
   for (const s of sheets) {
     if (s.hidden) { info.push({ name: s.name, used: false, reason: "hidden sheet" }); continue; }
     const r = rowsToItems(s.rows, s.name);
     info.push({ name: s.name, used: r.used, count: r.items.length, reason: r.reason, noAnswer: r.noAnswer || 0, dup: r.dup || 0, inferred: r.inferred });
-    all.push(...r.items);
+    all.push(...r.items); pending.push(...(r.pending || []));
   }
-  return { items: all, info };
+  return { items: all, info, pending };
 }
 
 // ---------- CSV / TSV ----------

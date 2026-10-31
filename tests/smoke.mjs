@@ -221,6 +221,80 @@ check(!(await page.locator(".topbar").isVisible()) && !(await page.locator("#tab
 await page.evaluate(() => document.getElementById("main").focus());
 check((await page.evaluate(() => getComputedStyle(document.getElementById("main")).outlineStyle)) === "none", "no outline around the main content when focused");
 
+// ---- multiple-choice PDF, review list, questions-only PDF + AI answers ----
+await page.route(/text\.pollinations\.ai/, (r) => {
+  if (aiMode !== "answers") return r.fallback();
+  const body = JSON.parse(r.request().postData() || "{}");
+  const user = (body.messages || []).map((m) => m.content).join("\n");
+  const n = (user.match(/^\d+\. \[/gm) || []).length;
+  return r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ choices: [{ message: { content: JSON.stringify({ answers: Array.from({ length: n }, (_, i) => ({ n: i + 1, a: "A model answer that explains the idea, how it works, and one trade-off to mention in an interview." })) }) } }] }) });
+});
+await page.goto(base + "/#/import"); await page.waitForSelector("#file", { state: "attached" });
+await page.setInputFiles("#file", fx("mcq-sample.pdf"));
+await page.waitForSelector("[data-act=import]", { timeout: 20000 });
+const mcqCard = await page.textContent("#results");
+check(/Found 18 questions/.test(mcqCard) && /multiple-choice/.test(mcqCard), "MCQ PDF: 18 multiple-choice questions found (answer lines on every page survive)");
+check(/Import 12 questions/.test(mcqCard), "repeats skipped by default: 6 facts x 2 = 12");
+await page.uncheck("[data-opt=dedupe]");
+check(/Import 18 questions/.test(await page.textContent("#results")), "turning off 'skip repeats' imports all 18");
+await page.click("[data-act=import]"); await page.waitForSelector("text=Imported mcq-sample.pdf");
+const st3 = await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")));
+const mq = st3.custom.filter((q) => q.kind === "mcq");
+check(mq.length === 18 && mq.every((q) => q.o.length === 4 && q.ans >= 0 && q.ans < 4), "18 MCQs stored with options and the correct index");
+check(mq.some((q) => /429/.test(q.o[q.ans])), "correct option text is right (429 for Too Many Requests)");
+
+// practise an MCQ: options appear, a wrong choice is recorded as such
+await page.goto(base + "/#/practice?q=" + mq[0].id); await page.waitForSelector(".opt");
+check((await page.locator(".opt").count()) === 4, "practice shows 4 options for an imported MCQ");
+await page.click(".opt >> nth=0"); await page.waitForSelector("#next");
+check(/Correct|Not quite/.test(await page.textContent("#fb")), "practice reveals the correct option and explanation");
+
+// bank: answers visible without clicking; MCQ options with the correct one marked
+await page.goto(base + "/#/bank?src=mine"); await page.waitForSelector(".q-card");
+check((await page.locator(".q-card[open]").count()) > 0 && (await page.locator(".mcq-opt.right").count()) > 0, "Question bank shows answers directly (options with the correct one highlighted)");
+await page.uncheck("#rd");
+check((await page.locator(".q-card[open]").count()) === 0, "'Show answers' switch collapses them");
+await page.check("#rd");
+
+// quiz uses real MCQs from files, no topic picking needed
+await page.goto(base + "/#/quiz"); await page.waitForSelector("#start");
+check(!(await page.locator("#cc").isVisible()), "quiz topics are hidden by default (optional)");
+await page.selectOption("#n", "50");
+await page.click("#start"); await page.waitForSelector(".opt");
+const quizQs = [];
+for (let i = 0; i < 50; i++) { quizQs.push(await page.textContent("h2")); await page.click(".opt >> nth=0"); await page.click("#nx"); if (i < 49) await page.waitForSelector(".opt"); }
+await page.waitForSelector("text=By topic");
+const quizSeen = await page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem("groommeup.v1")).mcqSeen || {}).length);
+check(quizSeen >= 40, `quiz of 50 mixed built-in, imported and generated questions, ${quizSeen} recorded as asked`);
+
+// questions-only PDF -> AI writes answers -> import
+aiMode = "answers";
+await page.goto(base + "/#/import"); await page.waitForSelector("#file", { state: "attached" });
+await page.setInputFiles("#file", fx("questions-only.pdf"));
+await page.waitForSelector("[data-act=ai-answers]", { timeout: 20000 });
+const qo = await page.textContent("#results");
+check(/9 questions found without answers/.test(qo), `question-only PDF: 9 questions found without answers (${(qo.match(/(\d+) questions? found without/) || [])[1]})`);
+await page.click("[data-act=ai-answers]");
+await page.waitForSelector("text=Found 9 questions", { timeout: 20000 });
+await page.click("[data-act=import]"); await page.waitForSelector("text=Imported questions-only.pdf");
+const st4 = await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")));
+check(st4.custom.filter((q) => q.ai).length === 9, "9 AI-answered questions imported and flagged as AI drafts");
+await page.goto(base + "/#/bank?src=mine"); await page.fill("#s", "SOLID principles");
+await page.waitForSelector(".q-card");
+check((await page.textContent("#list")).includes("AI draft answer"), "bank labels AI-written answers as drafts");
+aiMode = "ok";
+
+// optional: the user's own multiple-choice PDF (never committed)
+if (process.env.MCQ_PDF_PATH) {
+  await page.goto(base + "/#/import"); await page.waitForSelector("#file", { state: "attached" });
+  await page.setInputFiles("#file", process.env.MCQ_PDF_PATH);
+  await page.waitForSelector("[data-act=import]", { timeout: 60000 });
+  const t = await page.textContent("#results");
+  check(/Found 1000 questions/.test(t), "real 1000-question PDF: all 1000 found");
+  await page.click("[data-act=import]"); await page.waitForSelector("text=Imported", { timeout: 30000 });
+  check(true, "real PDF imported");
+}
+
 // daily set
 aiMode = "gen";
 await page.route(/text\.pollinations\.ai/, (r) => aiMode === "gen" ? r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ choices: [{ message: { content: JSON.stringify({ questions: Array.from({ length: 5 }, (_, i) => ({ q: `Fresh question number ${i + 1} about Kubernetes autoscaling?`, a: "Use the horizontal pod autoscaler with sensible requests and limits, and watch the metrics server.", keyPoints: ["horizontal pod autoscaler", "requests and limits"] })) }) } }] }) }) : r.fallback());

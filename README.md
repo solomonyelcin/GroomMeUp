@@ -43,9 +43,13 @@ Open **Import material** and drop in Excel (.xlsx), Word (.docx), PDF, text, mar
 
 - Excel/CSV: one sheet per topic, with `Question` and `Answer` columns (optional `Sub Topic`, `Learning Status`). Sub topics containing "Scenario" are flagged as scenario questions; rows marked "Confident" can start as already learned.
 - Word/PDF/text: `Q:`/`A:` pairs, numbered questions with answers underneath, or question headings. Loose notes can be turned into questions with the AI option.
+- Multiple choice: files with `Question / A / B / C / D / Ans : c` blocks (any common layout, including phone-exported PDFs) are read as real MCQs with the correct option and explanation, and used as-is in Practice and Quick quiz.
+- Questions only (no answers): they are listed as pending; **Write answers with AI** drafts them in batches of 50. AI-written answers are badged "AI draft", never used as quiz source material, so check them before relying on them.
+- Review before importing: suspicious items (very short, look like another question, broken options) start unticked and can be edited. **Skip repeats** (default on) keeps at most 2 questions per identical fact per topic; untick it to import everything.
 - Imported topics appear in the Question bank, Practice, Quick quiz (multiple choice is generated from your own answers), Mock interview and Dashboard. Each import can be removed in one click.
 - Everything is parsed in your browser and stored in localStorage; nothing is uploaded. Old `.xls`/`.doc` files must be saved as `.xlsx`/`.docx`; scanned PDFs need OCR first.
-- Tests: `npm test` covers the parsers; set `WORKBOOK_PATH=/path/to/your.xlsx` to also check your own file (never commit personal files). PDF reading uses a vendored PDF.js (Apache-2.0).
+- Browse questions shows answers inline (toggle **Show answers**) with topic, source and type filters. Quick quiz uses every question, favouring weak topics and ones you missed; choosing topics is optional.
+- Tests: `npm test` covers the parsers; set `MCQ_PDF_PATH=/path/to/file.pdf` for the smoke test to check your own MCQ PDF; set `WORKBOOK_PATH=/path/to/your.xlsx` to also check your own file (never commit personal files). PDF reading uses a vendored PDF.js (Apache-2.0).
 
 ## Themes
 

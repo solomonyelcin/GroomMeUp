@@ -19,6 +19,7 @@ const fresh = () => ({
   cats: {},            // topics created by imports: key -> {name, color}
   imports: [],         // {id, name, kind, t}
   mocks: [],           // mock interview reports
+  badges: null,        // badge id -> time earned (null until first check, so old progress is not celebrated)
   settings: { provider: "pollinations", aiChoice: false, keys: {}, models: {}, target: "", pistonUrl: "", name: "" },
 });
 

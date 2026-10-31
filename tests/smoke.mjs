@@ -276,6 +276,15 @@ await page.uncheck("#rd");
 check((await page.locator(".mcq-opt.right").count()) === 0, "unticking Show answers hides the correct option again");
 await page.check("#rd");
 
+// progress: badges, challenges, page renders
+await page.goto(base + "/#/achievements"); await page.waitForSelector(".badge-grid");
+check((await page.locator(".badge").count()) >= 20 && (await page.locator(".chal").count()) === 3, "Progress page shows badges and 3 daily challenges");
+check((await page.locator(".badge:not(.locked)").count()) >= 1, "at least one badge earned from the activity so far");
+const bd = await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")).badges);
+check(bd && Object.keys(bd).length >= 1, "earned badges are recorded");
+await page.goto(base + "/#/dashboard"); await page.waitForSelector(".motive");
+check(/streak|Start a streak/.test(await page.textContent(".motive")), "home shows the streak card");
+
 // quiz uses real MCQs from files, no topic picking needed
 await page.goto(base + "/#/quiz"); await page.waitForSelector("#start");
 check(!(await page.locator("#cc").isVisible()), "quiz topics are hidden by default (optional)");

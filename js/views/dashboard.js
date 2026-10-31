@@ -1,3 +1,4 @@
+import { metrics, challenges, level } from "../progress.js";
 import { store, categoryStats, codingStats, overallReadiness, weakTopics, streak, counts, allQuestions, isDue } from "../store.js";
 import { aiEnabled, activeProvider, PROVIDERS } from "../ai.js";
 import { CATEGORIES } from "../data/index.js";
@@ -80,6 +81,7 @@ export function view(root) {
         <div class="tiles">
           ${tile("#/import", "⇪", myCount ? "Add more questions" : "Add my questions", myCount ? `${myCount} of yours added` : "Excel, Word, PDF or text", "import")}
           ${tile("#/log", "✓", "Interview log", "Record real interviews you attend")}
+          ${tile("#/achievements", "★", "Progress & badges", "Streaks, levels and challenges")}
           ${tile("#/plan", "▤", "Study plan", "A 4-week plan built for you")}
           ${tile("#/market", "↗", "Market & resume", "Trends, salary and resume tips")}
           ${tile("#/settings", "⚙", "Settings & AI", "Free AI, colours, backup")}
@@ -103,6 +105,8 @@ export function view(root) {
       </div>
       <div style="margin-top:16px">${tape(overall, { label: "Overall readiness" })}${tapeScale()}</div>
     </section>
+
+    ${(() => { const m = metrics(), c = challenges(m), l = level(m.xp), n = c.filter((x) => x.cur >= x.goal).length; return `<a class="card motive" href="#/achievements" style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-top:16px;text-decoration:none;color:inherit"><span style="font-size:1.8rem" aria-hidden="true">${m.streak ? "🔥" : "🌱"}</span><span style="flex:1;min-width:180px"><strong>${m.streak ? m.streak + "-day streak" : "Start a streak today"}</strong><br><span class="small muted">Level ${l.lv} ${esc(l.name)} · ${n}/3 daily challenges · ${m.week}/${m.goal} this week</span></span><span class="btn sm">Progress &amp; badges</span></a>`; })()}
 
     ${!aiEnabled() ? `<div class="callout" style="margin-top:16px"><strong>AI feedback is off.</strong> Answers are scored by key-point coverage only. Turn on free AI in <a href="#/settings">Settings</a>.</div>` : PROVIDERS[activeProvider()].keyless ? `<div class="callout" style="margin-top:16px"><strong>Free AI is on (no key).</strong> Your answers are sent to a free public AI service for feedback, so keep confidential employer details out. It is less consistent than a personal key: add a free Gemini or Groq key in <a href="#/settings">Settings</a> for sharper feedback. If the service is down you automatically get offline scoring.</div>` : ""}
 

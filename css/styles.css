@@ -292,3 +292,22 @@ table.tbl th { font-weight: 600; color: var(--ink-2); background: color-mix(in s
 .pager .pos { flex: 0 0 auto; min-width: 84px; text-align: center; font-weight: 600; color: var(--ink-2); }
 .one-card { border: 1px solid var(--line); border-radius: 12px; background: var(--card); padding: 16px; }
 .one-card h2 { font-size: 1.12rem; margin: 6px 0 10px; line-height: 1.4; }
+
+/* progress and badges */
+.bar { height: 10px; border-radius: 99px; background: var(--line); overflow: hidden; }
+.bar > span { display: block; height: 100%; background: var(--cobalt); border-radius: 99px; transition: width .4s ease; }
+.chal { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px dashed var(--line); }
+.chal > :nth-child(2) { flex: 1; }
+.chal .chk { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--line); display: grid; place-items: center; font-size: .8rem; color: #fff; }
+.chal.done .chk { background: var(--cobalt); border-color: var(--cobalt); }
+.chal.done > :nth-child(2) { text-decoration: line-through; color: var(--ink-3); }
+.heat { display: grid; grid-template-columns: repeat(14, 1fr); gap: 5px; max-width: 460px; }
+.heat i { aspect-ratio: 1; border-radius: 4px; background: var(--line); }
+.heat i.on { background: var(--cobalt); }
+.heat i.today { outline: 2px solid var(--ink-3); outline-offset: 1px; }
+.badge-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.badge { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); }
+.badge .b-ico { font-size: 1.8rem; line-height: 1.2; }
+.badge.locked { opacity: .55; }
+.badge.locked .b-ico { filter: grayscale(1); }
+.badge .ok { color: var(--cobalt); font-weight: 600; }

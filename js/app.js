@@ -3,6 +3,7 @@ import { activeProvider, PROVIDERS } from "./ai.js";
 import { $, $$, esc, toast } from "./ui.js";
 import { THEMES, getTheme, cycleTheme, applyTheme } from "./theme.js";
 import { startTour, maybeAutoTour } from "./tour.js";
+import { checkBadges } from "./progress.js";
 
 const ROUTES = [
   { id: "dashboard", label: "Home", ico: "◧", group: "Start", mod: "./views/dashboard.js" },
@@ -13,6 +14,7 @@ const ROUTES = [
   { id: "code", label: "Coding tests", ico: "⌘", group: "Test yourself", mod: "./views/code.js" },
   { id: "mock", label: "Mock interview", ico: "◉", group: "Test yourself", mod: "./views/mock.js" },
   { id: "log", label: "Log real interviews", ico: "✓", group: "Track", mod: "./views/log.js" },
+  { id: "achievements", label: "Progress & badges", ico: "★", group: "Track", mod: "./views/achievements.js" },
   { id: "plan", label: "Study plan", ico: "▤", group: "Track", mod: "./views/plan.js" },
   { id: "market", label: "Market & resume", ico: "↗", group: "Track", mod: "./views/market.js" },
   { id: "settings", label: "Settings & AI", ico: "⚙", group: "Settings", mod: "./views/settings.js" },
@@ -96,5 +98,6 @@ async function route() {
 applyTheme();
 addEventListener("groommeup:save-error", () => toast("Browser storage is full, so your latest changes were not saved. Export a backup in Settings and remove old imports.", true));
 addEventListener("hashchange", route);
-store.subscribe(() => renderNav(parseHash().id));
+store.subscribe(() => { renderNav(parseHash().id); checkBadges(); });
+checkBadges();
 route();

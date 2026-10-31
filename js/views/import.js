@@ -42,7 +42,7 @@ export function view(root) {
       results$.insertAdjacentHTML("afterbegin", `<div class="card" id="r${id}"><span class="spinner"></span> Reading ${esc(file.name)}...</div>`);
       try {
         const res = await parseFile(file);
-        const r0 = { id, res, opts: { seed: true, update: true, dedupe: true }, excl: new Set(), filter: "flagged", shown: 25, editing: new Set() };
+        const r0 = { id, res, opts: { seed: true, update: true, dedupe: false }, excl: new Set(), filter: "flagged", shown: 25, editing: new Set() };
         prepare(r0); results.push(r0);
         draw(results[results.length - 1]);
       } catch (e) {

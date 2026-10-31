@@ -48,6 +48,8 @@ for (const r of ["bank", "practice", "quiz", "mock", "code", "log", "market", "p
 await page.goto(base + "/#/bank");
 await page.waitForSelector(".q-card");
 const total = await page.locator(".q-card").count();
+check((await page.evaluate(() => document.querySelector("#filters").open)) === false, "bank filters start collapsed");
+await page.click("#fsum");
 await page.fill("#s", "saga");
 const afterSearch = await page.locator(".q-card").count();
 check(afterSearch > 0 && afterSearch < total, `bank search narrows ${total} -> ${afterSearch}`);
@@ -234,9 +236,11 @@ await page.setInputFiles("#file", fx("mcq-sample.pdf"));
 await page.waitForSelector("[data-act=import]", { timeout: 20000 });
 const mcqCard = await page.textContent("#results");
 check(/Found 18 questions/.test(mcqCard) && /multiple-choice/.test(mcqCard), "MCQ PDF: 18 multiple-choice questions found (answer lines on every page survive)");
-check(/Import 12 questions/.test(mcqCard), "repeats skipped by default: 6 facts x 2 = 12");
+check(/Import 18 questions/.test(mcqCard), "all questions imported by default");
+await page.check("[data-opt=dedupe]");
+check(/Import 12 questions/.test(await page.textContent("#results")), "ticking 'skip repeats' keeps 6 facts x 2 = 12");
 await page.uncheck("[data-opt=dedupe]");
-check(/Import 18 questions/.test(await page.textContent("#results")), "turning off 'skip repeats' imports all 18");
+check(/Import 18 questions/.test(await page.textContent("#results")), "unticking brings all 18 back");
 await page.click("[data-act=import]"); await page.waitForSelector("text=Imported mcq-sample.pdf");
 const st3 = await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")));
 const mq = st3.custom.filter((q) => q.kind === "mcq");
@@ -249,6 +253,14 @@ check((await page.locator(".opt").count()) === 4, "practice shows 4 options for 
 await page.click(".opt >> nth=0"); await page.waitForSelector("#next");
 check(/Correct|Not quite/.test(await page.textContent("#fb")), "practice reveals the correct option and explanation");
 
+// bank: no practise/flashcard buttons, one-by-one view, shuffle
+await page.goto(base + "/#/bank"); await page.waitForSelector(".q-card");
+check((await page.textContent("#list")).indexOf("Flashcard") < 0 && (await page.textContent("#list")).indexOf("Practise this question") < 0, "bank has no practise/flashcard buttons");
+await page.click("#v1"); await page.waitForSelector(".one-card");
+const t1 = await page.textContent(".one-card h2");
+await page.click("[data-go='1']");
+check((await page.textContent(".one-card h2")) !== t1 && /2 \//.test(await page.textContent(".pager .pos")), "one-by-one view: Next shows the next question");
+await page.click("#vl"); await page.waitForSelector(".q-card");
 // bank: answers visible without clicking; MCQ options with the correct one marked
 await page.goto(base + "/#/bank?src=mine"); await page.waitForSelector(".q-card");
 check((await page.locator(".q-card[open]").count()) > 0 && (await page.locator(".mcq-opt.right").count()) > 0, "Question bank shows answers directly (options with the correct one highlighted)");
@@ -279,7 +291,7 @@ await page.waitForSelector("text=Found 9 questions", { timeout: 20000 });
 await page.click("[data-act=import]"); await page.waitForSelector("text=Imported questions-only.pdf");
 const st4 = await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")));
 check(st4.custom.filter((q) => q.ai).length === 9, "9 AI-answered questions imported and flagged as AI drafts");
-await page.goto(base + "/#/bank?src=mine"); await page.fill("#s", "SOLID principles");
+await page.goto(base + "/#/bank?src=mine"); await page.click("#fsum"); await page.fill("#s", "SOLID principles");
 await page.waitForSelector(".q-card");
 check((await page.textContent("#list")).includes("AI draft answer"), "bank labels AI-written answers as drafts");
 aiMode = "ok";

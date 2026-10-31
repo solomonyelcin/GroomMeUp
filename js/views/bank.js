@@ -7,6 +7,11 @@ const filt = { text: "", cat: "all", diff: 0, status: "all", src: "", kind: "all
 const readMode = () => { try { return localStorage.getItem("groommeup.read") !== "0"; } catch { return true; } };
 const setReadMode = (v) => { try { localStorage.setItem("groommeup.read", v ? "1" : "0"); } catch { /* ignore */ } };
 let shown = 40;
+let rank = new Map(), idx = 0;
+const shuffleRank = (q) => { if (!rank.has(q.id)) rank.set(q.id, Math.random()); return rank.get(q.id); };
+const isPhone = () => window.matchMedia("(max-width: 860px)").matches;
+const getView = () => { try { return localStorage.getItem("groommeup.bankview") || (isPhone() ? "one" : "list"); } catch { return isPhone() ? "one" : "list"; } };
+const setView = (v) => { try { localStorage.setItem("groommeup.bankview", v); } catch { /* ignore */ } };
 
 export function view(root, ctx) {
   if (ctx.params.get("cat")) filt.cat = ctx.params.get("cat");
@@ -14,9 +19,10 @@ export function view(root, ctx) {
   root.innerHTML = `
     <header class="page-head">
       <h1>Question bank</h1>
-      <p>Search and filter every question. Open one to see the model answer and key points, or practise it with feedback.</p>
+      <p>Read questions with their answers. Filters are tucked away: open them only when you need to narrow things down.</p>
     </header>
-    <div class="card">
+    <details class="card filters" id="filters">
+      <summary id="fsum">Search and filter</summary>
       <div class="grid g3">
         <div><label for="s">Search</label><input id="s" type="search" placeholder="e.g. saga, OnPush, deadlock" value="${esc(filt.text)}"></div>
         <div><label for="d">Difficulty</label><select id="d"><option value="0">Any</option><option value="1">Warm-up</option><option value="2">Core</option><option value="3">Senior / hard</option></select></div>
@@ -27,8 +33,8 @@ export function view(root, ctx) {
         <div><label for="sc">Source</label><select id="sc"></select></div>
         <div><label for="kd">Type</label><select id="kd"><option value="all">Any</option><option value="concept">Concept</option><option value="scenario">Scenario-based</option><option value="mcq">Multiple choice</option></select></div>
       </div>
-    </div>
-    <div class="row between" style="margin:16px 0 10px"><span id="count" class="muted" aria-live="polite"></span><div class="row"><label class="read-toggle"><input type="checkbox" id="rd"> Show answers</label><button class="btn sm" id="add">Add your own question</button><button class="btn sm" id="gen">Generate with AI</button></div></div>
+    </details>
+    <div class="row between" style="margin:16px 0 10px"><span id="count" class="muted" aria-live="polite"></span><div class="row"><div class="seg" role="group" aria-label="View"><button id="vl" aria-pressed="false">List</button><button id="v1" aria-pressed="false">One by one</button></div><button class="btn sm" id="shuf">Shuffle</button><label class="read-toggle"><input type="checkbox" id="rd"> Show answers</label><button class="btn sm" id="add">Add your own question</button><button class="btn sm" id="gen">Generate with AI</button></div></div>
     <div id="forms"></div>
     <div id="list"></div>
   `;
@@ -69,34 +75,49 @@ export function view(root, ctx) {
     const all = allQuestions();
     const studiedAll = all.filter((q) => last.has(q.id)).length;
     const studiedHere = qs.filter((q) => last.has(q.id)).length;
-    const filtered = qs.length !== all.length;
-    $("#count").innerHTML = `<b>${studiedAll} of ${all.length}</b> studied` +
-      (filtered ? ` · showing ${qs.length} (${studiedHere} studied)` : "");
+    const nf = ["text", "cat", "diff", "status", "src", "kind"].filter((k) => filt[k] && filt[k] !== "all" && filt[k] !== 0).length;
+    $("#fsum").textContent = nf ? `Search and filter (${nf} active)` : "Search and filter";
+    $("#count").innerHTML = `<b>${studiedAll} of ${all.length}</b> studied` + (qs.length !== all.length ? ` · showing ${qs.length} (${studiedHere} studied)` : "");
+    qs.sort((a, b) => shuffleRank(a) - shuffleRank(b));
     const diffName = ["", "Warm-up", "Core", "Senior"];
-    $("#list").innerHTML = qs.slice(0, shown).map((q) => {
+    const view1 = getView() === "one";
+    $("#vl").setAttribute("aria-pressed", String(!view1)); $("#v1").setAttribute("aria-pressed", String(view1));
+    const meta = (q) => {
       const cat = CATEGORIES[q.c] || { name: "My questions", color: "#546178" };
-      const tagS = q.kind === "scenario" ? " / Scenario" : "";
-      const l = last.get(q.id);
-      return `<details class="q-card" data-id="${q.id}" ${readMode() ? "open" : ""}>
-        <summary class="q-head"><span class="dot" style="background:${cat.color};margin-top:8px" title="${esc(cat.name)}"></span>
-          <span class="q-title">${rich(q.q)}<br><span class="small muted">${esc(cat.name)} / ${q.imported ? (q.sub ? esc(q.sub) : "Imported") : diffName[q.d] || "Core"}${tagS}</span></span>${scoreBadge(l ? l.score : null)}</summary>
-        <div class="q-body">
-          ${q.ai ? `<p class="callout warn small" style="margin:0 0 8px"><strong>AI draft answer.</strong> Written by AI from your question, so double-check it before relying on it.</p>` : ""}${q.o ? `<h4>Options</h4><div class="mcq-opts">${q.o.map((o, k) => `<div class="mcq-opt ${k === q.ans ? "right" : ""}"><b>${"ABCDE"[k]}</b><span>${esc(o)}</span>${k === q.ans ? `<em>correct</em>` : ""}</div>`).join("")}</div>${q.e ? `<div class="model" style="margin-top:8px">${rich(q.e)}</div>` : ""}` : `<h4>Model answer</h4><div class="model">${rich(q.a)}</div>`}
+      return { cat, sub: `${esc(cat.name)} / ${q.imported ? (q.sub ? esc(q.sub) : "Imported") : diffName[q.d] || "Core"}${q.kind === "scenario" ? " / Scenario" : ""}` };
+    };
+    const body = (q) => `${q.ai ? `<p class="callout warn small" style="margin:0 0 8px"><strong>AI draft answer.</strong> Written by AI from your question, so double-check it before relying on it.</p>` : ""}${q.o ? `<h4>Options</h4><div class="mcq-opts">${q.o.map((o, k) => `<div class="mcq-opt ${k === q.ans ? "right" : ""}"><b>${"ABCDE"[k]}</b><span>${esc(o)}</span>${k === q.ans ? `<em>correct</em>` : ""}</div>`).join("")}</div>${q.e ? `<div class="model" style="margin-top:8px">${rich(q.e)}</div>` : ""}` : `<h4>Model answer</h4><div class="model">${rich(q.a)}</div>`}
           ${q.o ? "" : `<h4>Points interviewers listen for</h4><ul class="kp">${q.kp.map((k) => `<li>${esc(k[0])}</li>`).join("")}</ul>`}
-          ${q.f && q.f.length ? `<h4>Likely follow-ups</h4><ul class="kp">${q.f.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>` : ""}
-          <div class="row" style="margin-top:14px"><a class="btn primary sm" href="#/practice?q=${q.id}">Practise this question</a><a class="btn sm" href="#/practice?q=${q.id}&flash=1">Flashcard</a></div>
-        </div></details>`;
-    }).join("") + (qs.length > shown ? `<button class="btn" id="more" style="margin-top:12px">Show ${Math.min(40, qs.length - shown)} more</button>` : "") + (qs.length === 0 ? `<div class="card muted">No questions match. Clear a filter or add your own.</div>` : "");
+          ${q.f && q.f.length ? `<h4>Likely follow-ups</h4><ul class="kp">${q.f.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>` : ""}`;
+    if (!qs.length) { $("#list").innerHTML = `<div class="card muted">No questions match. Clear a filter or add your own.</div>`; return; }
+    if (view1) {
+      if (idx >= qs.length) idx = qs.length - 1; if (idx < 0) idx = 0;
+      const q = qs[idx], m = meta(q), l = last.get(q.id);
+      const pager = `<div class="pager"><button class="btn" data-go="-1" ${idx === 0 ? "disabled" : ""}>◀ Previous</button><span class="pos">${idx + 1} / ${qs.length}</span><button class="btn primary" data-go="1" ${idx >= qs.length - 1 ? "disabled" : ""}>Next ▶</button></div>`;
+      $("#list").innerHTML = `${pager}<div class="one-card"><div class="row between"><span class="small muted"><span class="dot" style="background:${m.cat.color}"></span> ${m.sub}</span>${scoreBadge(l ? l.score : null)}</div><h2>${rich(q.q)}</h2>${readMode() ? `<div>${body(q)}</div>` : `<details><summary class="btn sm" style="display:inline-flex">Show answer</summary><div>${body(q)}</div></details>`}</div>${pager}`;
+      $$("[data-go]").forEach((b) => (b.onclick = () => { idx += +b.dataset.go; list(); window.scrollTo({ top: 0 }); }));
+      return;
+    }
+    $("#list").innerHTML = qs.slice(0, shown).map((q) => {
+      const m = meta(q), l = last.get(q.id);
+      return `<details class="q-card" data-id="${q.id}" ${readMode() ? "open" : ""}>
+        <summary class="q-head"><span class="dot" style="background:${m.cat.color};margin-top:8px" title="${esc(m.cat.name)}"></span>
+          <span class="q-title">${rich(q.q)}<br><span class="small muted">${m.sub}</span></span>${scoreBadge(l ? l.score : null)}</summary>
+        <div class="q-body">${body(q)}</div></details>`;
+    }).join("") + (qs.length > shown ? `<button class="btn" id="more" style="margin-top:12px">Show ${Math.min(40, qs.length - shown)} more</button>` : "");
     const more = $("#more"); if (more) more.onclick = () => { shown += 40; list(); };
   }
 
+  $("#vl").onclick = () => { setView("list"); list(); };
+  $("#v1").onclick = () => { setView("one"); list(); };
+  $("#shuf").onclick = () => { rank = new Map(); idx = 0; shown = 40; idx = 0; list(); };
   $("#rd").onchange = (e) => { setReadMode(e.target.checked); list(); };
-  $("#tp").onchange = (e) => { filt.cat = e.target.value; shown = 40; list(); };
-  $("#sc").onchange = (e) => { filt.src = e.target.value; shown = 40; list(); };
-  $("#kd").onchange = (e) => { filt.kind = e.target.value; shown = 40; list(); };
-  $("#s").oninput = (e) => { filt.text = e.target.value; shown = 40; list(); };
-  $("#d").onchange = (e) => { filt.diff = +e.target.value; shown = 40; list(); };
-  $("#st").onchange = (e) => { filt.status = e.target.value; shown = 40; list(); };
+  $("#tp").onchange = (e) => { filt.cat = e.target.value; shown = 40; idx = 0; list(); };
+  $("#sc").onchange = (e) => { filt.src = e.target.value; shown = 40; idx = 0; list(); };
+  $("#kd").onchange = (e) => { filt.kind = e.target.value; shown = 40; idx = 0; list(); };
+  $("#s").oninput = (e) => { filt.text = e.target.value; shown = 40; idx = 0; list(); };
+  $("#d").onchange = (e) => { filt.diff = +e.target.value; shown = 40; idx = 0; list(); };
+  $("#st").onchange = (e) => { filt.status = e.target.value; shown = 40; idx = 0; list(); };
 
   $("#add").onclick = () => {
     $("#forms").innerHTML = `<div class="card"><h3>Add a question</h3>

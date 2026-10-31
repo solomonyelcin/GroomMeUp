@@ -261,6 +261,11 @@ const t1 = await page.textContent(".one-card h2");
 await page.click("[data-go='1']");
 check((await page.textContent(".one-card h2")) !== t1 && /2 \//.test(await page.textContent(".pager .pos")), "one-by-one view: Next shows the next question");
 await page.click("#vl"); await page.waitForSelector(".q-card");
+// legacy badly-read MCQs are flagged and removable
+await page.evaluate(() => { const k = "groommeup.v1", st = JSON.parse(localStorage.getItem(k)); st.custom.push({ id: "wbad1", c: st.custom[0].c, d: 2, q: "Old bad question?", a: "A) one thing here B) another thing C) third thing D) fourth", kp: [["A) one"]], f: [], imported: true, src: "x" }); localStorage.setItem(k, JSON.stringify(st)); });
+await page.goto(base + "/#/bank"); await page.reload(); await page.waitForSelector("#rmbad");
+await page.click("#rmbad"); await page.waitForTimeout(300);
+check((await page.locator("#rmbad").count()) === 0, "badly-read old MCQs are flagged and can be removed");
 // bank: answers visible without clicking; MCQ options with the correct one marked
 await page.goto(base + "/#/bank?src=mine"); await page.waitForSelector(".q-card");
 check((await page.locator(".q-card[open]").count()) > 0 && (await page.locator(".mcq-opt.right").count()) > 0, "Question bank shows answers directly (options with the correct one highlighted)");

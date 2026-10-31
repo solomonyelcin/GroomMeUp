@@ -169,6 +169,17 @@ const DAYS3 = 3 * DAY;
 export function importQuestions({ questions, cats, seeds = [], record, seedConfident = true, update = true }) {
   const res = { added: 0, updated: 0, skipped: 0, seeded: 0 };
   store.update((s) => {
+    // importing the same file again replaces its earlier import (fixes questions read badly the first time)
+    const incoming = new Set(questions.map((q) => q.id));
+    const olds = new Set(s.imports.filter((i) => i.name === record.name && i.id !== record.id).map((i) => i.id));
+    if (olds.size) {
+      const gone = new Set(s.custom.filter((q) => olds.has(q.src) && !incoming.has(q.id)).map((q) => q.id));
+      s.custom = s.custom.filter((q) => !gone.has(q.id));
+      s.attempts = s.attempts.filter((a) => !gone.has(a.qid));
+      for (const id of gone) delete s.srs[id];
+      s.imports = s.imports.filter((i) => !olds.has(i.id));
+      res.replaced = gone.size;
+    }
     for (const [k, v] of Object.entries(cats)) if (!s.cats[k]) s.cats[k] = v;
     const index = new Map(s.custom.map((q, i) => [q.id, i]));
     const seedSet = new Set(seedConfident ? seeds : []);
@@ -189,6 +200,19 @@ export function importQuestions({ questions, cats, seeds = [], record, seedConfi
     s.imports = s.imports.filter((i) => owned.has(i.id));
   });
   return res;
+}
+
+// imported questions that are really multiple-choice but were read as plain text by an older import
+export const isBrokenMcq = (q) => !!q.imported && !q.o && /(^|\s)A\)\s.+\sB\)\s.+\sC\)\s/s.test(q.a || "");
+export function removeBroken() {
+  let n = 0;
+  store.update((s) => {
+    const gone = new Set(s.custom.filter(isBrokenMcq).map((q) => q.id)); n = gone.size;
+    s.custom = s.custom.filter((q) => !gone.has(q.id));
+    s.attempts = s.attempts.filter((a) => !gone.has(a.qid));
+    for (const id of gone) delete s.srs[id];
+  });
+  return n;
 }
 
 export function removeImport(id) {

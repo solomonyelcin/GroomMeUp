@@ -1,4 +1,4 @@
-import { store, allQuestions, lastScores, isDue } from "../store.js";
+import { store, allQuestions, lastScores, isDue, isBrokenMcq, removeBroken } from "../store.js";
 import { CATEGORIES } from "../data/index.js";
 import { generateQuestions, aiEnabled } from "../ai.js";
 import { esc, rich, scoreBadge, toast, busy, $, $$ } from "../ui.js";
@@ -21,6 +21,7 @@ export function view(root, ctx) {
       <h1>Question bank</h1>
       <p>Read questions with their answers. Filters are tucked away: open them only when you need to narrow things down.</p>
     </header>
+    <div id="broken"></div>
     <details class="card filters" id="filters">
       <summary id="fsum">Search and filter</summary>
       <div class="grid g3">
@@ -41,7 +42,13 @@ export function view(root, ctx) {
   $("#rd").checked = readMode();
   $("#d").value = String(filt.diff); $("#st").value = filt.status;
 
+  const checkBroken = () => {
+    const n = allQuestions().filter(isBrokenMcq).length;
+    $("#broken").innerHTML = n ? `<div class="callout warn" style="margin-bottom:12px"><strong>${n} imported questions were read wrongly</strong> (options mixed into the answer) by an older version of the importer. Remove them, then import your file again in <a href="#/import">Add my questions</a>: multiple-choice questions will then show their options and the correct answer.<div class="row" style="margin-top:8px"><button class="btn sm primary" id="rmbad">Remove these ${n}</button></div></div>` : "";
+    const b = $("#rmbad"); if (b) b.onclick = () => { const k = removeBroken(); toast(`${k} removed. Now import your file again.`); checkBroken(); list(); };
+  };
   const draw = () => {
+    checkBroken();
     const mine = Object.entries(CATEGORIES).filter(([, v]) => v.mine);
     const opt = ([k, n]) => `<option value="${esc(k)}">${esc(n)}</option>`;
     $("#tp").innerHTML = `<option value="all">All topics</option><optgroup label="Built-in topics">${Object.entries(CATEGORIES).filter(([, v]) => !v.mine).map(([k, v]) => opt([k, v.name])).join("")}<option value="custom">My questions</option></optgroup>${mine.length ? `<optgroup label="Your material">${mine.map(([k, v]) => opt([k, v.name])).join("")}</optgroup>` : ""}`;

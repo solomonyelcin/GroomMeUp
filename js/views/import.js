@@ -190,7 +190,7 @@ export function view(root) {
     const el = $("#r" + r.id);
     const topicKeys = [...new Set(b.questions.map((q) => q.c))];
     el.innerHTML = `<h2 style="margin-top:0">Imported ${esc(r.res.name)}</h2>
-      <p><strong>${out.added} new</strong>${out.updated ? `, ${out.updated} updated` : ""}${out.skipped ? `, ${out.skipped} already there` : ""}${out.seeded ? `, ${out.seeded} started as learned` : ""}. They are now in ${topicKeys.length} topic${topicKeys.length === 1 ? "" : "s"}.</p>
+      <p><strong>${out.added} new</strong>${out.updated ? `, ${out.updated} updated` : ""}${out.skipped ? `, ${out.skipped} already there` : ""}${out.replaced ? `, ${out.replaced} from an earlier import of this file replaced` : ""}${out.seeded ? `, ${out.seeded} started as learned` : ""}. They are now in ${topicKeys.length} topic${topicKeys.length === 1 ? "" : "s"}.</p>
       ${(r.res.pending || []).length ? `<p class="small muted">${r.res.pending.length} questions without answers were not imported.</p>` : ""}
       <div class="row"><a class="btn primary" href="#/quiz?mine=1">Quiz me</a><a class="btn" href="#/practice?mine=1">Practise them</a><a class="btn" href="#/bank?src=${importId}">Browse in Question bank</a><a class="btn" href="#/mock?mine=1">Mock interview</a></div>`;
     const i = results.findIndex((x) => x.id === r.id); if (i >= 0) results.splice(i, 1);

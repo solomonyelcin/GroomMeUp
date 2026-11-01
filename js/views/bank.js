@@ -1,51 +1,68 @@
-import { store, allQuestions, lastScores, isDue, isBrokenMcq, removeBroken } from "../store.js";
+import { store, allQuestions, lastScores, isDue, isBrokenMcq, removeBroken, markStudy, toggleStar, setNote } from "../store.js";
 import { CATEGORIES } from "../data/index.js";
 import { generateQuestions, aiEnabled } from "../ai.js";
 import { esc, rich, scoreBadge, toast, busy, $, $$ } from "../ui.js";
 
-const filt = { text: "", cat: "all", diff: 0, status: "all", src: "", kind: "all" };
+const filt = { text: "", cat: "all", diff: 0, status: "all", src: "", kind: "all", ids: null };
 const readMode = () => { try { return localStorage.getItem("groommeup.read") === "1"; } catch { return false; } };
 const revealed = new Set();
 const setReadMode = (v) => { try { localStorage.setItem("groommeup.read", v ? "1" : "0"); } catch { /* ignore */ } };
 let shown = 40;
-let rank = new Map(), idx = 0;
+let rank = new Map(), idx = 0, curId = null;
 const shuffleRank = (q) => { if (!rank.has(q.id)) rank.set(q.id, Math.random()); return rank.get(q.id); };
 const isPhone = () => window.matchMedia("(max-width: 860px)").matches;
 const getView = () => { try { return localStorage.getItem("groommeup.bankview") || (isPhone() ? "one" : "list"); } catch { return isPhone() ? "one" : "list"; } };
 const setView = (v) => { try { localStorage.setItem("groommeup.bankview", v); } catch { /* ignore */ } };
+const canSpeak = () => "speechSynthesis" in window && typeof SpeechSynthesisUtterance !== "undefined";
+const plain = (t) => String(t || "").replace(/`/g, "").replace(/\*\*/g, "").replace(/\s+/g, " ").trim();
 
 export function view(root, ctx) {
   if (ctx.params.get("cat")) filt.cat = ctx.params.get("cat");
   if (ctx.params.has("src")) { filt.src = ctx.params.get("src"); filt.cat = "all"; }
+  filt.ids = ctx.params.get("ids") ? new Set(ctx.params.get("ids").split(",")) : null;
+  const onKey = (e) => {
+    if (getView() !== "one" || /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName || "")) return;
+    if (e.key === "ArrowRight") go(1); else if (e.key === "ArrowLeft") go(-1);
+  };
+  document.addEventListener("keydown", onKey);
   root.innerHTML = `
-    <header class="page-head">
+    <header class="page-head" id="bankHead">
       <h1>Question bank</h1>
-      <p>Read questions with their answers. Filters are tucked away: open them only when you need to narrow things down.</p>
+      <p>Read questions with their answers. Options and filters are tucked away: open them only when you need them.</p>
     </header>
     <div id="broken"></div>
+    <div id="idnote"></div>
+    <div class="bank-bar"><span id="count" class="small muted" aria-live="polite"></span></div>
     <details class="card filters" id="filters">
-      <summary id="fsum">Search and filter</summary>
+      <summary id="fsum">Options and filters</summary>
+      <div class="row" style="margin:12px 0 4px;gap:8px">
+        <div class="seg" role="group" aria-label="View"><button id="vl" aria-pressed="false">List</button><button id="v1" aria-pressed="false">One by one</button></div>
+        <button class="btn sm" id="shuf">Shuffle</button>
+        <label class="read-toggle"><input type="checkbox" id="rd"> Show answers</label>
+      </div>
       <div class="grid g3">
         <div><label for="s">Search</label><input id="s" type="search" placeholder="e.g. saga, OnPush, deadlock" value="${esc(filt.text)}"></div>
         <div><label for="d">Difficulty</label><select id="d"><option value="0">Any</option><option value="1">Warm-up</option><option value="2">Core</option><option value="3">Senior / hard</option></select></div>
-        <div><label for="st">Status</label><select id="st"><option value="all">All</option><option value="new">Not tried</option><option value="weak">Weak (under 6)</option><option value="due">Due for review</option><option value="strong">Strong (8+)</option></select></div>
+        <div><label for="st">Status</label><select id="st"><option value="all">All</option><option value="new">Not tried</option><option value="weak">Weak or to revise</option><option value="due">Due for review</option><option value="strong">Strong (8+)</option><option value="star">Starred</option><option value="note">With my note</option></select></div>
       </div>
       <div class="grid g3" style="margin-top:12px">
         <div><label for="tp">Topic</label><select id="tp"></select></div>
         <div><label for="sc">Source</label><select id="sc"></select></div>
         <div><label for="kd">Type</label><select id="kd"><option value="all">Any</option><option value="concept">Concept</option><option value="scenario">Scenario-based</option><option value="mcq">Multiple choice</option></select></div>
       </div>
+      <div class="row" style="margin-top:12px"><button class="btn sm" id="add">Add your own question</button><button class="btn sm" id="gen">Generate with AI</button></div>
     </details>
-    <div class="row between" style="margin:16px 0 10px"><span id="count" class="muted" aria-live="polite"></span><div class="row"><div class="seg" role="group" aria-label="View"><button id="vl" aria-pressed="false">List</button><button id="v1" aria-pressed="false">One by one</button></div><button class="btn sm" id="shuf">Shuffle</button><label class="read-toggle"><input type="checkbox" id="rd"> Show answers</label><button class="btn sm" id="add">Add your own question</button><button class="btn sm" id="gen">Generate with AI</button></div></div>
     <div id="forms"></div>
     <div id="list"></div>
+    <div class="focusbar" id="focusbar" hidden></div>
   `;
   $("#rd").checked = readMode();
   $("#d").value = String(filt.diff); $("#st").value = filt.status;
+  let cur = []; // the questions currently listed, in order
 
   const checkBroken = () => {
     const n = allQuestions().filter(isBrokenMcq).length;
-    $("#broken").innerHTML = n ? `<div class="callout warn" style="margin-bottom:12px"><strong>${n} imported questions were read wrongly</strong> (options mixed into the answer) by an older version of the importer. Remove them, then import your file again in <a href="#/import">Add my questions</a>: multiple-choice questions will then show their options and the correct answer.<div class="row" style="margin-top:8px"><button class="btn sm primary" id="rmbad">Remove these ${n}</button></div></div>` : "";
+    $("#broken").innerHTML = n ? `<div class="callout warn" style="margin-bottom:12px"><strong>${n} imported questions were read wrongly</strong> (options mixed into the answer) by an older version of the importer. Remove them, then import your file again in <a href="#/import">Add my questions</a>.<div class="row" style="margin-top:8px"><button class="btn sm primary" id="rmbad">Remove these ${n}</button></div></div>` : "";
     const b = $("#rmbad"); if (b) b.onclick = () => { const k = removeBroken(); toast(`${k} removed. Now import your file again.`); checkBroken(); list(); };
   };
   const draw = () => {
@@ -62,10 +79,18 @@ export function view(root, ctx) {
     list();
   };
 
-  function list() {
-    const last = lastScores();
+  function go(d) {
+    if (!cur.length) return;
+    const next = idx + d; if (next < 0 || next >= cur.length) return;
+    stopSpeak(); idx = next; curId = cur[idx].id; list(true);
+  }
+  function stopSpeak() { if (canSpeak()) speechSynthesis.cancel(); }
+
+  function list(scrollToCard) {
+    const last = lastScores(), s = store.get();
     const t = filt.text.trim().toLowerCase();
     const qs = allQuestions().filter((q) => {
+      if (filt.ids && !filt.ids.has(q.id)) return false;
       if (filt.cat !== "all" && q.c !== filt.cat) return false;
       if (filt.src === "builtin" && (q.imported || q.custom)) return false;
       if (filt.src === "mine" && !q.imported) return false;
@@ -77,6 +102,8 @@ export function view(root, ctx) {
       if (filt.status === "weak" && !(l && l.score < 6)) return false;
       if (filt.status === "strong" && !(l && l.score >= 8)) return false;
       if (filt.status === "due" && !(l && isDue(q.id))) return false;
+      if (filt.status === "star" && !(s.stars || {})[q.id]) return false;
+      if (filt.status === "note" && !(s.notes || {})[q.id]) return false;
       if (t && !(q.q + " " + q.a + " " + (q.o || []).join(" ") + " " + q.kp.map((k) => k[0]).join(" ")).toLowerCase().includes(t)) return false;
       return true;
     });
@@ -84,12 +111,16 @@ export function view(root, ctx) {
     const studiedAll = all.filter((q) => last.has(q.id)).length;
     const studiedHere = qs.filter((q) => last.has(q.id)).length;
     const nf = ["text", "cat", "diff", "status", "src", "kind"].filter((k) => filt[k] && filt[k] !== "all" && filt[k] !== 0).length;
-    $("#fsum").textContent = nf ? `Search and filter (${nf} active)` : "Search and filter";
+    $("#fsum").textContent = nf ? `Options and filters (${nf} active)` : "Options and filters";
     $("#count").innerHTML = `<b>${studiedAll} of ${all.length}</b> studied` + (qs.length !== all.length ? ` · showing ${qs.length} (${studiedHere} studied)` : "");
+    $("#idnote").innerHTML = filt.ids ? `<div class="callout" style="margin-bottom:10px">Showing the ${qs.length} questions matched to your job description. <a href="#/bank">Show all</a></div>` : "";
     qs.sort((a, b) => shuffleRank(a) - shuffleRank(b));
-    const diffName = ["", "Warm-up", "Core", "Senior"];
+    cur = qs;
     const view1 = getView() === "one";
     $("#vl").setAttribute("aria-pressed", String(!view1)); $("#v1").setAttribute("aria-pressed", String(view1));
+    root.classList.toggle("bank-one", view1);
+    document.body.classList.toggle("focus-mode", view1 && qs.length > 0);
+    const diffName = ["", "Warm-up", "Core", "Senior"];
     const meta = (q) => {
       const cat = CATEGORIES[q.c] || { name: "My questions", color: "#546178" };
       return { cat, sub: `${esc(cat.name)} / ${q.imported ? (q.sub ? esc(q.sub) : "Imported") : diffName[q.d] || "Core"}${q.kind === "scenario" ? " / Scenario" : ""}` };
@@ -102,38 +133,81 @@ export function view(root, ctx) {
       if (!show) return reveal;
       return `${ai}<h4>Model answer</h4><div class="model">${rich(q.a)}</div><h4>Points interviewers listen for</h4><ul class="kp">${q.kp.map((k) => `<li>${esc(k[0])}</li>`).join("")}</ul>${q.f && q.f.length ? `<h4>Likely follow-ups</h4><ul class="kp">${q.f.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>` : ""}`;
     };
-    const wire = () => $$("[data-rev]").forEach((b) => (b.onclick = (e) => { e.preventDefault(); revealed.add(b.dataset.rev); list(); }));
-    if (!qs.length) { $("#list").innerHTML = `<div class="card muted">No questions match. Clear a filter or add your own.</div>`; return; }
+    const actions = (q) => {
+      const starred = !!(s.stars || {})[q.id], note = (s.notes || {})[q.id] || "";
+      return `<div class="q-actions" data-q="${q.id}">
+        <button class="btn sm good" data-mark="know">✓ I know this</button><button class="btn sm" data-mark="revise">↻ Revise again</button>
+        <button class="btn sm" data-star aria-pressed="${starred}">${starred ? "★ Starred" : "☆ Star"}</button>${canSpeak() ? `<button class="btn sm" data-speak>🔊 Listen</button>` : ""}</div>
+        <details class="note" ${note ? "open" : ""}><summary>${note ? "My note" : "Add a note"}</summary><textarea data-note="${q.id}" placeholder="Your own words, a gotcha, an example from work…" maxlength="2000">${esc(note)}</textarea></details>`;
+    };
+    if (!qs.length) { $("#list").innerHTML = `<div class="card muted">No questions match. Clear a filter or add your own.</div>`; $("#focusbar").hidden = true; return; }
     if (view1) {
+      if (curId) { const at = qs.findIndex((q) => q.id === curId); if (at >= 0) idx = at; }
       if (idx >= qs.length) idx = qs.length - 1; if (idx < 0) idx = 0;
-      const q = qs[idx], m = meta(q), l = last.get(q.id);
+      const q = qs[idx]; curId = q.id;
+      const m = meta(q), l = last.get(q.id);
       const pager = `<div class="pager"><button class="btn" data-go="-1" ${idx === 0 ? "disabled" : ""}>◀ Previous</button><span class="pos">${idx + 1} / ${qs.length}</span><button class="btn primary" data-go="1" ${idx >= qs.length - 1 ? "disabled" : ""}>Next ▶</button></div>`;
-      $("#list").innerHTML = `${pager}<div class="one-card"><div class="row between"><span class="small muted"><span class="dot" style="background:${m.cat.color}"></span> ${m.sub}</span>${scoreBadge(l ? l.score : null)}</div><h2>${rich(q.q)}</h2><div>${body(q)}</div></div>${pager}`;
-      wire();
-      $$("[data-go]").forEach((b) => (b.onclick = () => { idx += +b.dataset.go; list(); window.scrollTo({ top: 0 }); }));
-      return;
+      $("#list").innerHTML = `<div class="one-card" id="oneCard"><div class="row between"><span class="small muted"><b>${idx + 1} / ${qs.length}</b> · <span class="dot" style="background:${m.cat.color}"></span> ${m.sub}</span>${l ? scoreBadge(l.score) : ""}</div><h2>${rich(q.q)}</h2><div>${body(q)}</div>${actions(q)}</div><div class="pager-desk">${pager}</div>`;
+      const fb = $("#focusbar"); fb.hidden = false; fb.innerHTML = pager;
+      if (scrollToCard) $("#oneCard").scrollIntoView({ block: "start" });
+      wire(); return;
     }
+    $("#focusbar").hidden = true;
     $("#list").innerHTML = qs.slice(0, shown).map((q) => {
       const m = meta(q), l = last.get(q.id);
       return `<details class="q-card" data-id="${q.id}" ${readMode() || q.o ? "open" : ""}>
         <summary class="q-head"><span class="dot" style="background:${m.cat.color};margin-top:8px" title="${esc(m.cat.name)}"></span>
           <span class="q-title">${rich(q.q)}<br><span class="small muted">${m.sub}</span></span>${scoreBadge(l ? l.score : null)}</summary>
-        <div class="q-body">${body(q)}</div></details>`;
+        <div class="q-body">${body(q)}${actions(q)}</div></details>`;
     }).join("") + (qs.length > shown ? `<button class="btn" id="more" style="margin-top:12px">Show ${Math.min(40, qs.length - shown)} more</button>` : "");
-    wire();
     const more = $("#more"); if (more) more.onclick = () => { shown += 40; list(); };
+    wire();
   }
 
-  $("#vl").onclick = () => { setView("list"); list(); };
-  $("#v1").onclick = () => { setView("one"); list(); };
-  $("#shuf").onclick = () => { rank = new Map(); idx = 0; shown = 40; idx = 0; list(); };
+  function wire() {
+    $$("[data-rev]").forEach((b) => (b.onclick = (e) => { e.preventDefault(); revealed.add(b.dataset.rev); list(); }));
+    $$("[data-go]").forEach((b) => (b.onclick = () => go(+b.dataset.go)));
+    $$(".q-actions").forEach((box) => {
+      const q = cur.find((x) => x.id === box.dataset.q); if (!q) return;
+      box.querySelectorAll("[data-mark]").forEach((b) => (b.onclick = () => {
+        markStudy(q, b.dataset.mark === "know");
+        toast(b.dataset.mark === "know" ? "Marked as known" : "Added to revise: it will come back soon");
+        if (getView() === "one" && idx < cur.length - 1) go(1); else list();
+      }));
+      const st = box.querySelector("[data-star]"); if (st) st.onclick = () => { const on = toggleStar(q.id); st.setAttribute("aria-pressed", String(on)); st.textContent = on ? "★ Starred" : "☆ Star"; };
+      const sp = box.querySelector("[data-speak]"); if (sp) sp.onclick = () => {
+        if (speechSynthesis.speaking) { stopSpeak(); sp.textContent = "🔊 Listen"; return; }
+        const show = readMode() || revealed.has(q.id);
+        const text = plain(q.q) + ". " + (q.o ? q.o.map((o, k) => `Option ${"ABCDE"[k]}. ${o}.`).join(" ") + (show ? ` The correct answer is option ${"ABCDE"[q.ans]}. ${plain(q.e)}` : "") : (show ? plain(q.a) : ""));
+        const u = new SpeechSynthesisUtterance(text); u.rate = 0.95; u.onend = () => { sp.textContent = "🔊 Listen"; };
+        speechSynthesis.speak(u); sp.textContent = "⏹ Stop";
+      };
+    });
+    $$("[data-note]").forEach((ta) => (ta.oninput = () => { clearTimeout(ta._t); ta._t = setTimeout(() => setNote(ta.dataset.note, ta.value), 500); }, ta.onblur = () => setNote(ta.dataset.note, ta.value)));
+  }
+
+  // swipe left / right on the question card (phone)
+  let sx = 0, sy = 0;
+  root.addEventListener("touchstart", (e) => { const t = e.touches[0]; sx = t.clientX; sy = t.clientY; }, { passive: true });
+  root.addEventListener("touchend", (e) => {
+    if (getView() !== "one" || e.target.closest("textarea,input,select,pre")) return;
+    const t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy;
+    if (Math.abs(dx) > 70 && Math.abs(dy) < 45) go(dx < 0 ? 1 : -1);
+  }, { passive: true });
+  document.addEventListener("click", focusbarClick);
+  function focusbarClick(e) { const b = e.target.closest("#focusbar [data-go]"); if (b) go(+b.dataset.go); }
+
+  $("#vl").onclick = () => { setView("list"); stopSpeak(); list(); };
+  $("#v1").onclick = () => { setView("one"); list(true); };
+  $("#shuf").onclick = () => { rank = new Map(); idx = 0; curId = null; shown = 40; list(); };
   $("#rd").onchange = (e) => { revealed.clear(); setReadMode(e.target.checked); list(); };
-  $("#tp").onchange = (e) => { filt.cat = e.target.value; shown = 40; idx = 0; list(); };
-  $("#sc").onchange = (e) => { filt.src = e.target.value; shown = 40; idx = 0; list(); };
-  $("#kd").onchange = (e) => { filt.kind = e.target.value; shown = 40; idx = 0; list(); };
-  $("#s").oninput = (e) => { filt.text = e.target.value; shown = 40; idx = 0; list(); };
-  $("#d").onchange = (e) => { filt.diff = +e.target.value; shown = 40; idx = 0; list(); };
-  $("#st").onchange = (e) => { filt.status = e.target.value; shown = 40; idx = 0; list(); };
+  const reset = () => { shown = 40; idx = 0; curId = null; list(); };
+  $("#tp").onchange = (e) => { filt.cat = e.target.value; reset(); };
+  $("#sc").onchange = (e) => { filt.src = e.target.value; reset(); };
+  $("#kd").onchange = (e) => { filt.kind = e.target.value; reset(); };
+  $("#s").oninput = (e) => { filt.text = e.target.value; reset(); };
+  $("#d").onchange = (e) => { filt.diff = +e.target.value; reset(); };
+  $("#st").onchange = (e) => { filt.status = e.target.value; reset(); };
 
   $("#add").onclick = () => {
     $("#forms").innerHTML = `<div class="card"><h3>Add a question</h3>
@@ -175,4 +249,5 @@ export function view(root, ctx) {
   };
 
   draw();
+  return () => { document.removeEventListener("keydown", onKey); document.removeEventListener("click", focusbarClick); document.body.classList.remove("focus-mode"); stopSpeak(); };
 }

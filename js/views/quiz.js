@@ -17,9 +17,9 @@ function candidates() {
 
 // Weakest topics (from the study plan's readiness numbers) come up more, new and missed questions come up more,
 // anything asked in the last day comes up less.
-function pickSmart(list, n, picked) {
+function pickSmart(list, n, picked, onlyMissed = false) {
   const stats = categoryStats(), seen = store.get().mcqSeen || {}, now = Date.now();
-  const pool = list.filter((x) => picked.has(x.c)).map((x) => {
+  const pool = list.filter((x) => picked.has(x.c) && (!onlyMissed || (seen[x.id] && !seen[x.id].ok))).map((x) => {
     const readiness = stats[x.c]?.readiness ?? 0;
     let w = 1 + (100 - readiness) / 50;                  // 1 .. 3
     const s = seen[x.id];
@@ -40,6 +40,7 @@ export function view(root, ctx) {
 
   const setup = () => {
     const chip = (k) => `<button class="chip" data-c="${esc(k)}" aria-pressed="${picked.has(k)}">${esc(CATEGORIES[k].name)} (${counts[k]})</button>`;
+    const seenAll = store.get().mcqSeen || {}, missedCount = list.filter((x) => seenAll[x.id] && !seenAll[x.id].ok).length;
     const builtIn = topicKeys.filter((k) => !CATEGORIES[k].mine), mine = topicKeys.filter((k) => CATEGORIES[k].mine);
     const weakest = Object.values(categoryStats()).filter((c) => !c.mine && counts[c.key]).sort((a, b) => a.readiness - b.readiness).slice(0, 3).map((c) => c.name);
     root.innerHTML = `
@@ -50,6 +51,7 @@ export function view(root, ctx) {
           <div><label for="t">Time limit</label><select id="t"><option value="0">No limit</option><option value="60">1 minute per question</option><option value="30">30 seconds per question</option></select></div>
         </div>
         <div class="row" style="margin-top:12px"><button class="btn primary" id="start">Start quiz</button><span class="small muted" id="pool"></span></div>
+        <label style="font-weight:400;display:block;margin-top:10px"><input type="checkbox" id="missed" ${missedCount ? "" : "disabled"}> Only questions I got wrong before <span class="small muted">(${missedCount} waiting)</span></label>
         <details style="margin-top:14px" ${mineOnly ? "open" : ""}><summary class="small" style="cursor:pointer;font-weight:600">Choose topics myself (optional)</summary>
           <div class="row" style="margin:10px 0"><button class="btn sm" id="all">Select all</button><button class="btn sm" id="none">Clear</button></div>
           <div id="cc" role="group" aria-label="Quiz topics">
@@ -58,13 +60,13 @@ export function view(root, ctx) {
           </div></details>
       </div>
       ${history()}`;
-    const upd = () => { const n = list.filter((m) => picked.has(m.c)).length; $("#pool").textContent = `${n} questions available${picked.size < topicKeys.length ? ` in ${picked.size} topic${picked.size === 1 ? "" : "s"}` : ""}`; $("#start").disabled = !n; };
-    upd();
+    const upd = () => { const only = $("#missed")?.checked; const n = list.filter((m) => picked.has(m.c) && (!only || (seenAll[m.id] && !seenAll[m.id].ok))).length; $("#pool").textContent = `${n} questions available${picked.size < topicKeys.length ? ` in ${picked.size} topic${picked.size === 1 ? "" : "s"}` : ""}`; $("#start").disabled = !n; };
+    upd(); $("#missed").onchange = upd;
     $("#cc").onclick = (e) => { const b = e.target.closest("[data-c]"); if (!b) return; const c = b.dataset.c; picked.has(c) ? picked.delete(c) : picked.add(c); b.setAttribute("aria-pressed", picked.has(c)); upd(); };
     $("#all").onclick = () => { topicKeys.forEach((k) => picked.add(k)); setup(); };
     $("#none").onclick = () => { picked.clear(); setup(); };
     $("#start").onclick = () => {
-      const chosen = pickSmart(list, +$("#n").value * 2, picked);          // a few spares in case some cannot be built
+      const chosen = pickSmart(list, +$("#n").value * 2, picked, $("#missed").checked);          // a few spares in case some cannot be built
       const pool = [];
       for (const c of chosen) { const m = c.mcq || makeMcqFor(c.q, prepared); if (m) pool.push({ ...m, id: c.id }); if (pool.length >= +$("#n").value) break; }
       if (!pool.length) return;
@@ -88,12 +90,18 @@ export function view(root, ctx) {
       const { m, order, correct: ci } = items[i];
       root.innerHTML = `
         <div class="card" style="max-width:760px">
-          <div class="row between small muted"><span>Question ${i + 1} of ${items.length}</span>${perQ ? `<span class="timer" id="tm">${fmtTime(perQ)}</span>` : ""}</div>
+          <div class="row between small muted"><span>Question ${i + 1} of ${items.length}</span><button class="btn sm" id="quit">End quiz</button>${perQ ? `<span class="timer" id="tm">${fmtTime(perQ)}</span>` : ""}</div>
           <div style="margin:10px 0 16px">${tape((i / items.length) * 100, { slim: true, label: "Quiz progress" })}</div>
           <h2>${rich(m.q)}</h2>
           <div role="group" aria-label="Answer options">${order.map((o, k) => `<button class="opt" data-k="${k}">${esc(m.o[o])}</button>`).join("")}</div>
           <div id="fb"></div>
         </div>`;
+      $("#quit").onclick = () => {
+        const n = Object.values(cats).reduce((a, [, t]) => a + t, 0);
+        clearInterval(timerId);
+        if (!n) return setup();
+        if (confirm(`End the quiz here? Your ${n} answer${n === 1 ? "" : "s"} so far will be saved.`)) { items.length = n; done(); }
+      };
       let left = perQ;
       if (perQ) timerId = setInterval(() => { left--; const t = $("#tm"); if (t) { t.textContent = fmtTime(Math.max(left, 0)); t.classList.toggle("low", left <= 10); } if (left <= 0) { clearInterval(timerId); answer(-1); } }, 1000);
       const answer = (k) => {
@@ -113,8 +121,9 @@ export function view(root, ctx) {
         ${tape(p, { label: "Score" })}
         <h3 style="margin-top:20px">By topic</h3>${Object.entries(cats).map(([c, [ok, t]]) => `<div class="row between small" style="padding:4px 0"><span>${esc(CATEGORIES[c]?.name || c)}</span><strong>${ok}/${t}</strong></div>`).join("")}
         ${wrong.length ? `<h3 style="margin-top:20px">Review what you missed</h3>${wrong.map((m) => `<div class="callout" style="margin-bottom:8px"><strong>${rich(m.q)}</strong><br>Answer: ${esc(m.o[m.a])}. ${rich(m.e)}</div>`).join("")}` : ""}
-        <div class="row" style="margin-top:16px"><button class="btn primary" id="again">New quiz</button><a class="btn" href="#/practice?mode=weak">Practise weak questions</a></div></div>`;
+        <div class="row" style="margin-top:16px">${wrong.length ? `<button class="btn primary" id="retry">Retry the ${wrong.length} I missed</button>` : ""}<button class="btn ${wrong.length ? "" : "primary"}" id="again">New quiz</button><a class="btn" href="#/practice?mode=weak">Practise weak questions</a></div></div>`;
       $("#again").onclick = setup;
+      if ($("#retry")) $("#retry").onclick = () => run(wrong.slice(), perQ);
     };
     step();
   }

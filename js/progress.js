@@ -31,7 +31,8 @@ export function metrics(s = store.get()) {
   const topics = new Set(graded.map((a) => a.cat)).size;
   const quizCorrect = s.quizzes.reduce((n, q) => n + q.correct, 0);
   const perfect = s.quizzes.some((q) => q.total >= 10 && q.correct === q.total);
-  const xp = graded.length * 10 + quizCorrect * 5 + s.quizzes.length * 20 + solved * 50 + (s.mocks || []).length * 40 + cur * 5;
+  const reads = graded.filter((a) => a.mode === "read").length;
+  const xp = (graded.length - reads) * 10 + reads * 4 + quizCorrect * 5 + s.quizzes.length * 20 + solved * 50 + (s.mocks || []).length * 40 + cur * 5;
   return {
     studied: studiedIds.size, total: allQuestions().length, streak: cur, best, today: countSince(sod), week: countSince(sow),
     quizzes: s.quizzes.length, perfect, solved, mocks: (s.mocks || []).length, strong, topics, xp,

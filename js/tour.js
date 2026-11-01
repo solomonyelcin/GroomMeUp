@@ -16,14 +16,15 @@ const STEPS = [
   { title: "You are ready", body: "Start with 5 practice questions today. You can reopen this tour any time from <b>Tour</b>.", route: "#/dashboard" },
 ];
 
-let i = 0, hl = null, box = null, scrim = null;
+let i = 0, hl = null, box = null, scrim = null, tourNav = false;
 
 function clear() { hl?.classList.remove("tour-hl"); hl = null; }
 async function show() {
   const s = STEPS[i];
   if (s.route && location.hash.replace(/^#\/?/, "").split("?")[0] !== s.route.slice(2)) {
-    location.hash = s.route;
+    tourNav = true; location.hash = s.route;
     await new Promise((r) => setTimeout(r, 450));
+    tourNav = false;
   }
   clear();
   const sel = s.target?.();
@@ -35,6 +36,7 @@ async function show() {
   box.querySelector("[data-t=next]").focus();
 }
 
+export function endTour() { if (box && !tourNav) end(); }
 function end() {
   clear(); box?.remove(); scrim?.remove(); box = scrim = null; set("done");
   document.removeEventListener("keydown", onKey, true);

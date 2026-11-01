@@ -8,7 +8,7 @@ export function evalPanel(ev, { showModel = true } = {}) {
       <div class="big score ${scoreClass(ev.score)}" style="padding:8px 14px">${(Math.round(ev.score * 10) / 10)}<span class="small" style="font-weight:500"> / 10</span></div>
       <div><strong>${esc(ev.verdict || "")}</strong><br><span class="small muted">${ev.source === "ai" ? "Evaluated by AI" : "Scored on key-point coverage (turn on free AI in Settings for deeper feedback)"}</span></div>
     </div>
-    ${ev.aiError ? `<p class="callout warn small" style="margin-top:12px">AI evaluation failed (${esc(ev.aiError)}), so this is the offline score.</p>` : ""}
+    ${ev.aiError ? `<p class="callout warn small" style="margin-top:12px">Could not reach the AI service just now, so this is the offline score (key-point matching). It usually works again in a minute: press Evaluate again to retry. <span class="muted">(${esc(ev.aiError)})</span></p>` : ""}
     ${ev.strengths?.length ? `<h4 style="margin:14px 0 2px">What worked</h4>${li(ev.strengths)}` : ""}
     ${ev.gaps?.length ? `<h4 style="margin:14px 0 2px">What to add</h4>${li(ev.gaps)}` : ""}
     ${ev.tips?.length ? `<h4 style="margin:14px 0 2px">Delivery tips</h4>${li(ev.tips)}` : ""}

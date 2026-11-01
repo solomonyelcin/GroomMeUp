@@ -1,6 +1,6 @@
-import { store } from "../store.js";
+import { store, categoryStats } from "../store.js";
 import { metrics, level, BADGES, challenges, nextMilestone } from "../progress.js";
-import { esc, $, fmtDate } from "../ui.js";
+import { esc, $, fmtDate, download } from "../ui.js";
 
 export function view(root) {
   const draw = () => {
@@ -37,11 +37,22 @@ export function view(root) {
       <section class="card" style="margin-top:16px"><h3 style="margin-top:0">Last 4 weeks</h3>
         <div class="heat" aria-label="Activity in the last 28 days">${cells.map((c) => `<i class="${c.on ? "on" : ""} ${c.today ? "today" : ""}" title="${esc(c.label)}${c.on ? ": studied" : ""}"></i>`).join("")}</div>
       </section>
+      <section class="card" style="margin-top:16px"><h3 style="margin-top:0">Topic strength</h3>
+        <p class="small muted" style="margin-top:0">Studied questions out of all questions, with how well you scored on them.</p>
+        ${Object.values(categoryStats()).filter((c) => c.total).sort((a, b) => a.readiness - b.readiness).map((c) => `<div class="tstr"><div class="row between small"><span>${esc(c.name)}</span><span class="muted">${c.attempted}/${c.total} studied${c.attempted ? ` · ${Math.round(c.acc)}%` : ""}</span></div><div class="bar" role="progressbar" aria-valuenow="${Math.round(c.readiness)}" aria-valuemin="0" aria-valuemax="100"><span style="width:${Math.max(2, Math.round(c.readiness))}%;background:${esc(c.color || "var(--cobalt)")}"></span></div></div>`).join("")}</section>
+      <section class="card" style="margin-top:16px"><h3 style="margin-top:0">Daily reminder</h3>
+        <p class="small muted" style="margin-top:0">GroomMeUp cannot send notifications while it is closed, so add a repeating reminder to your phone or laptop calendar.</p>
+        <div class="row" style="align-items:flex-end"><div><label for="rt">Time</label><input id="rt" type="time" value="20:00"></div><button class="btn" id="ics">Add daily reminder</button></div></section>
       <h2 style="margin:24px 0 10px">Badges <span class="small muted">${done} of ${BADGES.length}</span></h2>
       <div class="badge-grid">${BADGES.map((b) => {
         const p = b.prog(m), ok = p.cur >= p.goal, when = (s.badges || {})[b.id];
         return `<div class="badge ${ok ? "" : "locked"}"><span class="b-ico" aria-hidden="true">${b.ico}</span><strong>${esc(b.name)}</strong><span class="small muted">${esc(b.desc)}</span>${ok ? `<span class="small ok">${when ? "Earned " + fmtDate(when) : "Earned"}</span>` : `<span class="small muted">${p.cur} / ${p.goal}</span>`}</div>`;
       }).join("")}</div>`;
+    $("#ics").onclick = () => {
+      const [h, m] = ($("#rt").value || "20:00").split(":"), d = new Date(), p2 = (n) => String(n).padStart(2, "0");
+      const day = `${d.getFullYear()}${p2(d.getMonth() + 1)}${p2(d.getDate())}`, url = location.href.split("#")[0];
+      download("groommeup-daily-reminder.ics", ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//GroomMeUp//EN", "BEGIN:VEVENT", "UID:groommeup-daily@" + location.host, `DTSTAMP:${day}T000000Z`, `DTSTART:${day}T${h}${m}00`, `DTEND:${day}T${p2(+h)}${p2(Math.min(+m + 15, 59))}00`, "RRULE:FREQ=DAILY", "SUMMARY:GroomMeUp: today's 5 questions", `DESCRIPTION:Keep your streak alive. ${url}`, `URL:${url}`, "BEGIN:VALARM", "ACTION:DISPLAY", "DESCRIPTION:GroomMeUp", "TRIGGER:PT0M", "END:VALARM", "END:VEVENT", "END:VCALENDAR"].join("\r\n"), "text/calendar");
+    };
     $("#wg").onchange = (e) => { store.update((x) => { x.settings.weekly = +e.target.value; }); draw(); };
   };
   draw();

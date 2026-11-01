@@ -311,3 +311,38 @@ table.tbl th { font-weight: 600; color: var(--ink-2); background: color-mix(in s
 .badge.locked { opacity: .55; }
 .badge.locked .b-ico { filter: grayscale(1); }
 .badge .ok { color: var(--cobalt); font-weight: 600; }
+
+/* comfortable tap targets on touch screens */
+@media (max-width: 860px) {
+  .chip, .tag { display: inline-flex; align-items: center; min-height: 40px; padding: 6px 14px; }
+  main p a, main .small a, main .callout a { padding: 10px 2px; margin: -10px 0; display: inline-block; }
+}
+
+/* Browse: focus mode (one question at a time) */
+.bank-bar { margin: 10px 0 8px; }
+.q-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.q-actions .good { border-color: var(--cobalt); color: var(--cobalt); }
+.q-actions [aria-pressed="true"] { background: var(--cobalt-tint); border-color: var(--cobalt); }
+.note { margin-top: 10px; }
+.note summary { cursor: pointer; font-weight: 600; font-size: .9rem; color: var(--ink-2); }
+.note textarea { width: 100%; min-height: 70px; margin-top: 8px; }
+.focusbar { display: none; }
+.pager-desk { display: block; }
+.one-card { scroll-margin-top: calc(72px + env(safe-area-inset-top)); }
+@media (max-width: 860px) {
+  .bank-one .page-head { display: none; }
+  body.focus-mode main { padding-top: calc(66px + env(safe-area-inset-top)); padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
+  body.focus-mode main { min-height: calc(100dvh + 160px); }
+  body.focus-mode .tabbar { display: none; }
+  body.focus-mode #toasts { bottom: calc(84px + env(safe-area-inset-bottom)); }
+  .bank-one .bank-bar { margin: 0 0 6px; }
+  .bank-one .filters { padding: 10px 14px; margin-bottom: 8px; }
+  .bank-one .pager-desk { display: none; }
+  .bank-one .focusbar { display: block; position: fixed; z-index: 30; left: 0; right: 0; bottom: 0; padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); background: var(--card); border-top: 1px solid var(--line); }
+  .bank-one .focusbar[hidden] { display: none; }
+  .bank-one .focusbar .pager { margin: 0; }
+  .bank-one .focusbar .btn { min-height: 48px; }
+  .bank-one .one-card h2 { font-size: 1.1rem; }
+}
+.tstr { margin: 10px 0; }
+.tstr .bar { margin-top: 4px; }

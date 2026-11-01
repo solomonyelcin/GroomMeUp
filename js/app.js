@@ -2,7 +2,7 @@ import { store } from "./store.js";
 import { activeProvider, PROVIDERS } from "./ai.js";
 import { $, $$, esc, toast } from "./ui.js";
 import { THEMES, getTheme, cycleTheme, applyTheme } from "./theme.js";
-import { startTour, maybeAutoTour } from "./tour.js";
+import { startTour, maybeAutoTour, endTour } from "./tour.js";
 import { checkBadges } from "./progress.js";
 
 const ROUTES = [
@@ -10,6 +10,7 @@ const ROUTES = [
   { id: "import", label: "Add my questions", ico: "⇪", group: "Start", mod: "./views/import.js" },
   { id: "practice", label: "Practise answers", ico: "✎", group: "Learn", mod: "./views/practice.js" },
   { id: "bank", label: "Browse questions", ico: "☰", group: "Learn", mod: "./views/bank.js" },
+  { id: "jd", label: "Match a job", ico: "⌖", group: "Learn", mod: "./views/jd.js" },
   { id: "quiz", label: "Quick quiz", ico: "?", group: "Test yourself", mod: "./views/quiz.js" },
   { id: "code", label: "Coding tests", ico: "⌘", group: "Test yourself", mod: "./views/code.js" },
   { id: "mock", label: "Mock interview", ico: "◉", group: "Test yourself", mod: "./views/mock.js" },
@@ -78,6 +79,8 @@ async function route() {
   const r = ROUTES.find((x) => x.id === id) || ROUTES[0];
   if (cleanup) { try { cleanup(); } catch { /* ignore */ } cleanup = null; }
   setMenu(false);
+  endTour();
+  { const tt = $("#toasts"); if (tt) tt.innerHTML = ""; }
   renderNav(r.id);
   const root = $("#main");
   root.innerHTML = `<p class="muted"><span class="spinner"></span> Loading</p>`;

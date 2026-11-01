@@ -1,4 +1,5 @@
 import { store } from "../store.js";
+import { makeProgressCode, applyProgressCode } from "../transfer.js";
 import { PROVIDERS, pingAI } from "../ai.js";
 import { esc, toast, busy, download, $, $$ } from "../ui.js";
 import { THEMES, getTheme, setTheme } from "../theme.js";
@@ -31,8 +32,22 @@ export function view(root) {
     <section class="card" style="margin-top:16px"><h2>Your data</h2>
       <p class="muted">Progress, interview log and custom questions live in this browser. Export a backup now and then, and use it to move to another browser or device. API keys are never included in exports.</p>
       <div class="row"><button class="btn" id="exp">Export backup</button><label class="btn" style="margin:0">Import backup<input id="imp" type="file" accept="application/json" hidden></label><button class="btn danger" id="rst">Erase everything</button></div></section>
+
+    <section class="card" style="margin-top:16px" aria-labelledby="mv"><h2 id="mv">Move progress to another device</h2>
+      <p class="muted">Your streak, badges, scores and notes stay in each browser. To carry them to your phone or laptop: tap <strong>Copy progress code</strong> here, then paste it below on the other device and tap <strong>Merge</strong>. Nothing is overwritten: the two histories are combined. Your questions are not included, so load them from your library or files on each device.</p>
+      <div class="row"><button class="btn" id="cpc">Copy progress code</button></div>
+      <div class="field" style="margin-top:12px"><label for="pcode">Paste a progress code from another device</label><textarea id="pcode" style="min-height:70px" placeholder="GMU1...."></textarea></div>
+      <div class="row"><button class="btn primary" id="mrg">Merge</button></div><p id="pmsg" class="small" style="margin:8px 0 0" aria-live="polite"></p></section>
   `;
   $$(".theme-card").forEach((b) => (b.onclick = () => { setTheme(b.dataset.t); $$(".theme-card").forEach((x) => x.setAttribute("aria-checked", x === b)); }));
+  $("#cpc").onclick = async () => {
+    try { const c = await makeProgressCode(); try { await navigator.clipboard.writeText(c); $("#pmsg").textContent = "Copied. Paste it on your other device under Settings, Move progress."; } catch { $("#pcode").value = c; $("#pcode").select(); $("#pmsg").textContent = "Select and copy the code that appeared in the box below, then paste it on your other device."; } }
+    catch (e) { $("#pmsg").textContent = "Could not create the code: " + e.message; }
+  };
+  $("#mrg").onclick = async () => {
+    try { const r = await applyProgressCode($("#pcode").value); $("#pmsg").textContent = `Merged. ${r.added} new answer${r.added === 1 ? "" : "s"} added; badges, streak and notes combined.`; $("#pcode").value = ""; }
+    catch (e) { $("#pmsg").textContent = e.message; }
+  };
   const box = $("#pbox");
   const drawBox = () => {
     const p = $("#pv").value, meta = PROVIDERS[p];

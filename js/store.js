@@ -19,6 +19,8 @@ const fresh = () => ({
   cats: {},            // topics created by imports: key -> {name, color}
   imports: [],         // {id, name, kind, t}
   mocks: [],           // mock interview reports
+  stars: {},           // qid -> true (questions to revisit)
+  notes: {},           // qid -> your own note
   badges: null,        // badge id -> time earned (null until first check, so old progress is not celebrated)
   settings: { provider: "pollinations", aiChoice: false, keys: {}, models: {}, target: "", pistonUrl: "", name: "" },
 });
@@ -83,6 +85,10 @@ export function rateQuestion(qid, score10) {
     s.srs[qid] = { box, due: Date.now() + INTERVALS[box] * DAY };
   });
 }
+// reading a question and judging yourself counts as studying: known -> moves up, revise -> comes back soon
+export function markStudy(q, known) { recordAttempt(q, known ? 9 : 3, "read"); }
+export function toggleStar(id) { let on = false; store.update((s) => { s.stars ||= {}; if (s.stars[id]) delete s.stars[id]; else s.stars[id] = true; on = !!s.stars[id]; }); return on; }
+export function setNote(id, text) { store.update((s) => { s.notes ||= {}; const t = String(text || "").trim(); if (t) s.notes[id] = t.slice(0, 2000); else delete s.notes[id]; }); }
 export const isDue = (qid) => { const x = state.srs[qid]; return !x || x.due <= Date.now(); };
 
 export function recordAttempt(q, score, mode = "practice") {

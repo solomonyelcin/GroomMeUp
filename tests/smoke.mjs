@@ -62,7 +62,7 @@ await page.click("#eval");
 await page.waitForSelector(".eval", { timeout: 8000 });
 const scoreText = await page.textContent(".eval .big");
 check(parseFloat(scoreText) >= 7, `good answer scored ${scoreText.trim()}`);
-check((await page.textContent("#result")).includes("AI evaluation failed"), "AI service down -> falls back to offline score with a notice");
+check((await page.textContent("#result")).includes("Could not reach the AI service"), "AI service down -> falls back to offline score with a notice");
 const state = await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")));
 check(state.attempts.length === 1 && state.srs.ms03, "attempt + spaced repetition saved");
 
@@ -256,7 +256,7 @@ check(/Correct|Not quite/.test(await page.textContent("#fb")), "practice reveals
 // bank: no practise/flashcard buttons, one-by-one view, shuffle
 await page.goto(base + "/#/bank"); await page.waitForSelector(".q-card");
 check((await page.textContent("#list")).indexOf("Flashcard") < 0 && (await page.textContent("#list")).indexOf("Practise this question") < 0, "bank has no practise/flashcard buttons");
-await page.click("#v1"); await page.waitForSelector(".one-card");
+await page.click("#fsum"); await page.click("#v1"); await page.waitForSelector(".one-card");
 const t1 = await page.textContent(".one-card h2");
 await page.click("[data-go='1']");
 check((await page.textContent(".one-card h2")) !== t1 && /2 \//.test(await page.textContent(".pager .pos")), "one-by-one view: Next shows the next question");
@@ -284,7 +284,7 @@ await page.goto(base + "/#/bank"); await page.reload(); await page.waitForSelect
 await page.click("#rmbad"); await page.waitForTimeout(300);
 check((await page.locator("#rmbad").count()) === 0, "badly-read old MCQs are flagged and can be removed");
 // bank: answers visible without clicking; MCQ options with the correct one marked
-await page.goto(base + "/#/bank?src=mine"); await page.waitForSelector(".q-card");
+await page.goto(base + "/#/bank?src=mine"); await page.waitForSelector(".q-card"); await page.click("#fsum");
 check((await page.locator(".mcq-opt").count()) > 0 && (await page.locator(".mcq-opt.right").count()) === 0, "MCQ options first, correct one not highlighted yet");
 await page.click(".q-card:has(.mcq-opt) [data-rev]"); await page.waitForSelector(".mcq-opt.right");
 await page.check("#rd");
@@ -385,6 +385,53 @@ for (const r of ["dashboard", "bank", "code", "market", "import", "quiz"]) {
   await page.goto(`${base}/#/${r}`); await page.waitForTimeout(400);
   const over = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   check(over <= 1, `mobile ${r}: horizontal overflow ${over}px`);
+}
+
+{
+// ---- usability round: focus mode, marks, star, note, quiz exit, job match, progress code, reminder ----
+await page.setViewportSize({ width: 390, height: 800 });
+await page.evaluate(() => { localStorage.setItem("groommeup.bankview", "one"); localStorage.removeItem("groommeup.read"); });
+await page.goto(base + "/#/bank"); await page.reload(); await page.waitForSelector("#oneCard");
+check((await page.locator("#bankHead").isVisible()) === false && (await page.locator("#focusbar").isVisible()) && !(await page.locator(".tabbar").isVisible()), "focus mode on phone: heading and tab bar hidden, Previous/Next bar fixed at the bottom");
+const cardTop = async () => page.evaluate(() => Math.round(document.querySelector("#oneCard").getBoundingClientRect().top));
+await page.evaluate(() => window.scrollTo(0, 600));
+const uxFirstQ = await page.textContent("#oneCard h2");
+await page.click("#focusbar [data-go='1']"); await page.waitForTimeout(250);
+const cardT = await cardTop();
+check((await page.textContent("#oneCard h2")) !== uxFirstQ && cardT >= 40 && cardT <= 120, `Next lands on the question itself (card top ${cardT}px, just under the header)`);
+const uxBefore = await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")).attempts.length);
+const uxId = await page.evaluate(() => document.querySelector(".q-actions").dataset.q);
+await page.click("[data-mark=know]"); await page.waitForTimeout(250);
+const stUxA = await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")));
+check(stUxA.attempts.length === uxBefore + 1 && stUxA.attempts.at(-1).mode === "read" && stUxA.attempts.at(-1).qid === uxId, "'I know this' counts as studied and moves on to the next question");
+await page.click("[data-star]"); await page.click(".note summary"); await page.fill("[data-note]", "remember the trade-off"); await page.evaluate(() => document.activeElement.blur()); await page.waitForTimeout(200);
+const stUx = await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")));
+check(Object.keys(stUx.stars).length === 1 && Object.values(stUx.notes)[0] === "remember the trade-off", "star and note are saved");
+// quiz: end early + retry
+await page.goto(base + "/#/quiz"); await page.waitForSelector("#start"); await page.click("#start"); await page.waitForSelector("#quit");
+await page.click(".opt >> nth=0"); await page.waitForSelector("#nx");
+page.once("dialog", (d) => d.accept());
+await page.click("#quit"); await page.waitForSelector("h1");
+check(/^\d+ \/ 1$/.test((await page.textContent("main h1")).trim()), "End quiz saves the answers so far (1 answered)");
+// job match
+await page.goto(base + "/#/jd"); await page.waitForSelector("#jd");
+await page.fill("#jd", "We need a senior .NET developer with ASP.NET Core Web API, Entity Framework Core, SQL Server performance tuning, Azure, microservices and message queues like RabbitMQ and Service Bus, plus Angular.");
+await page.click("#go"); await page.waitForSelector("#out .btn.primary");
+check((await page.locator("#out .tag").count()) >= 3 && /ids=/.test(await page.getAttribute("#out .btn.primary", "href")), "job description matches questions and offers to practise them");
+// progress code round trip (merge into itself changes nothing)
+await page.goto(base + "/#/settings"); await page.waitForSelector("#cpc");
+await page.evaluate(() => { navigator.clipboard.writeText = () => Promise.reject(new Error("no clipboard")); });
+await page.click("#cpc"); await page.waitForFunction(() => document.querySelector("#pcode").value.startsWith("GMU1."));
+const uxAtt0 = await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")).attempts.length);
+await page.click("#mrg"); await page.waitForFunction(() => /Merged/.test(document.querySelector("#pmsg").textContent));
+const uxAtt1 = await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")).attempts.length);
+check(uxAtt1 === uxAtt0, "merging your own progress code adds nothing twice");
+await page.fill("#pcode", "garbage"); await page.click("#mrg");
+await page.waitForFunction(() => /not a GroomMeUp progress code/.test(document.querySelector("#pmsg").textContent));
+// progress page: topic map + reminder file
+await page.goto(base + "/#/achievements"); await page.waitForSelector(".tstr");
+const dl = page.waitForEvent("download"); await page.click("#ics"); const dlf = await dl;
+check((await page.locator(".tstr").count()) >= 5 && dlf.suggestedFilename().endsWith(".ics"), "topic strength map shown and daily reminder downloads as .ics");
 }
 
 check(errors.length === 0, "no uncaught errors" + (errors.length ? ": " + errors.join(" | ") : ""));

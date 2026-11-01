@@ -51,7 +51,7 @@ export function view(root) {
 
   root.innerHTML = `
     <header class="page-head">
-      <h1>Welcome back${name}.</h1>
+      <h1>${s.attempts.length || s.quizzes.length ? "Welcome back" : "Welcome"}${name}.</h1>
       <p>Pick what you want to do. Not sure? Use the highlighted next step.</p>
     </header>
 
@@ -70,6 +70,7 @@ export function view(root) {
         <div class="tiles">
           ${tile("#/practice", "✎", "Practise answers", "Answer in your own words, get a score")}
           ${tile("#/bank", "☰", "Question bank", "Search and read model answers")}
+          ${tile("#/jd", "⌖", "Match a job", "Paste a job ad, get the likely questions")}
         </div>
         <h3 class="tile-head">Test yourself</h3>
         <div class="tiles">

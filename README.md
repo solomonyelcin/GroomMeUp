@@ -59,6 +59,13 @@ For material you may not publish (a licensed question bank, say) the repo can ho
 
 **Progress & badges** tracks a daily streak, XP and levels, three daily challenges, a weekly question goal (adjustable), a 4-week activity map and 21 badges (study milestones, streaks, quizzes, coding, mocks). Everything is derived from your saved activity; new badges pop up as you earn them. Home shows a streak card.
 
+## Browse, study and track
+
+- **Browse questions** opens one question at a time on phones, nearly full screen: the options, filters and view switch sit in one collapsed panel, **Previous / Next** stay fixed at the bottom (also swipe or use the arrow keys), and each tap lands on the question itself. **I know this / Revise again** count as studying (streak, badges, spaced repetition), plus **Star**, **My note** and **Listen** (text to speech).
+- **Quick quiz** can be ended early, retried on the questions you missed, or limited to questions you got wrong before.
+- **Match a job**: paste a job description and get the questions that match its skills (runs on your device).
+- **Progress & badges** adds a topic strength map and a daily reminder (.ics calendar file). **Settings → Move progress** copies a progress code you can merge on another device.
+
 ## Install as an app
 
 GroomMeUp is a Progressive Web App. In Chrome/Edge on Android or desktop use **Install app** (menu or browser address bar); on iPhone use Share, then Add to Home Screen. It opens full-screen and keeps working offline after the first visit (AI features need a connection). Updates arrive on the next open.

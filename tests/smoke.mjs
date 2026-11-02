@@ -398,6 +398,7 @@ for (const r of ["dashboard", "bank", "code", "market", "import", "quiz"]) {
   await page.evaluate(() => { const k = "groommeup.v1", st = JSON.parse(localStorage.getItem(k)); st.cats["u:saikatpage"] = { name: "Saikat banerjee Page 2", color: "#888" }; st.custom.push({ id: "wbadtopic", c: "u:saikatpage", d: 2, q: "A question that landed in a bogus topic?", a: "Its answer is long enough to be a real one.", kp: [["answer"]], f: [], imported: true, src: "imp-old" }); st.imports.push({ id: "imp-old", name: "old.pdf", kind: "PDF", t: Date.now() }); localStorage.setItem(k, JSON.stringify(st)); });
   await page.goto(base + "/#/bank"); await page.reload(); await page.waitForSelector("#broken .callout");
   check(/page header, not a topic/.test(await page.textContent("#broken")), "Browse warns about a topic that is really a page header");
+  await page.evaluate(() => sessionStorage.setItem("gmu.noauto", "1"));
   await page.goto(base + "/#/import"); await page.reload(); await page.waitForSelector("[data-ren]");
   await page.click("button.primary[data-ren]"); await page.waitForSelector("dialog #tprev details");
   check(/A question that landed in a bogus topic/.test(await page.textContent("dialog #tprev")), "Topic preview lists the questions inside it");
@@ -405,9 +406,15 @@ for (const r of ["dashboard", "bank", "code", "market", "import", "quiz"]) {
   const stM = await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")));
   check(!stM.cats["u:saikatpage"] && stM.custom.find((q) => q.id === "wbadtopic").c !== "u:saikatpage", "Rename / merge moves the questions into the real topic and removes the bogus one");
   await page.evaluate(() => { const k = "groommeup.v1", st = JSON.parse(localStorage.getItem(k)); st.cats["u:sk3"] = { name: "Saikat banerjee Page 3", color: "#888" }; const base = st.custom.find((q) => q.imported); st.custom.push({ ...base, id: "wbad2", c: "u:sk3", q: "What is a C# class and how does it differ from a struct?", a: "A class is a reference type; a struct is a value type." }); localStorage.setItem(k, JSON.stringify(st)); });
+  await page.evaluate(() => sessionStorage.setItem("gmu.noauto", "1"));
   await page.goto(base + "/#/import"); await page.reload(); await page.waitForSelector("#fixOdd");
   await page.click("#fixOdd"); await page.waitForSelector("#fxok:not([hidden])");
   await page.click("#fxok"); await page.waitForTimeout(400);
+  await page.evaluate(() => sessionStorage.removeItem("gmu.noauto"));
+  await page.evaluate(() => { const k = "groommeup.v1", st = JSON.parse(localStorage.getItem(k)); st.cats["u:sk5"] = { name: "Saikat banerjee Page 5", color: "#888" }; const base = st.custom.find((q) => q.imported); st.custom.push({ ...base, id: "wbad5", c: "u:sk5", q: "What is a C# class?", a: "A class is a reference type in C#." }); localStorage.setItem(k, JSON.stringify(st)); });
+  await page.goto(base + "/#/import"); await page.reload(); await page.waitForTimeout(1500);
+  const st5 = await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")));
+  check(!st5.cats["u:sk5"] && st5.custom.find((q) => q.id === "wbad5").c !== "u:sk5", "odd topics are sorted automatically when the Import page opens");
   const st2 = await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")));
   check(!st2.cats["u:sk3"] && st2.custom.find((q) => q.id === "wbad2").c !== "u:sk3", "Fix odd topics sorts the questions of a page-header topic into real topics");
   await page.evaluate(() => { const k = "groommeup.v1", st = JSON.parse(localStorage.getItem(k)); st.cats["u:sk4"] = { name: "Wrong topic", color: "#888" }; const base = st.custom.find((q) => q.imported); st.custom.push({ ...base, id: "wbad3", c: "u:sk4", q: "Throwaway question for delete?", a: "Throwaway answer that is long enough." }); localStorage.setItem(k, JSON.stringify(st)); });

@@ -11,6 +11,8 @@ import { libraryAvailable, loadLibrary, installLibrary } from "../library.js";
 import { CATEGORIES } from "../data/index.js";
 import { esc, rich, toast, busy, fmtDate, $, $$ } from "../ui.js";
 
+const triedOdd = new Set(); // odd-topic sets already auto-sorted this session, so nothing loops
+
 export function view(root) {
   const results = []; // { id, res, opts }
   let nextId = 1;
@@ -295,6 +297,23 @@ export function view(root) {
       dlg.querySelector("#tdel").onclick = () => { if (!confirm(`Delete "${cur}" and its ${qs.length} questions? Your practice history for them is removed too. This cannot be undone.`)) return; done(`Deleted "${cur}" (${deleteTopic(key)} questions)`); };
       dlg.querySelector("#tmerge").onclick = () => { const d = dlg.querySelector("#tdst").value; if (!d) { toast("Choose a topic to merge into"); return; } const r = renameTopic(key, CATEGORIES[d]?.name || d); done(`Moved ${r.moved ?? qs.length} questions into "${CATEGORIES[d]?.name || d}"`); };
       dlg.querySelector("#tren").onclick = () => { const nv = dlg.querySelector("#tnew").value.trim(); if (!nv || nv === cur) { toast("Type a different name"); return; } const r = renameTopic(key, nv); done(r.merged ? `Merged ${r.moved} questions into "${nv}"` : `Renamed to "${nv}"`); };
+    }
+    // sort odd topics automatically, once per set of questions
+    {
+      const badKeys = new Set([...topics.keys()].filter((k) => isBogusTopic(CATEGORIES[k]?.name)));
+      const qsOdd = mine.filter((q) => badKeys.has(q.c));
+      const sig = qsOdd.map((q) => q.id).sort().join(",");
+      if (qsOdd.length && !triedOdd.has(sig) && !(() => { try { return sessionStorage.getItem("gmu.noauto"); } catch { return null; } })()) {
+        triedOdd.add(sig);
+        const real = [...topics.keys()].filter((k) => !badKeys.has(k)).map((k) => ({ key: k, name: CATEGORIES[k]?.name || k }));
+        const note = document.createElement("p"); note.className = "small muted"; note.innerHTML = `<span class="spinner"></span> Sorting ${qsOdd.length} question${qsOdd.length === 1 ? "" : "s"} from odd topics into the right subjects...`;
+        box.prepend(note);
+        proposeTopics(qsOdd, mine, real).then((r) => {
+          const n = r.map.size ? moveToTopics(new Map([...r.map].map(([id, p]) => [id, p.topic]))) : 0;
+          if (n) toast(`Sorted ${n} question${n === 1 ? "" : "s"} into the right topics${r.usedAI ? " with AI" : ""}${r.unplaced ? `; ${r.unplaced} could not be placed` : ""}`);
+          if (document.body.contains(box)) drawMine();
+        }).catch(() => note.remove());
+      }
     }
     const fix = $("#fixOdd", box);
     if (fix) fix.onclick = async () => {

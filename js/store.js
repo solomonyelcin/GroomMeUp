@@ -222,6 +222,24 @@ export function removeBroken() {
   return n;
 }
 
+// rename a topic, or merge it into another one when the new name is an existing topic
+export function renameTopic(key, name) {
+  const nm = (x) => String(x || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const clean = String(name || "").replace(/\s+/g, " ").trim().slice(0, 80);
+  let res = { merged: false, moved: 0 };
+  if (!clean) return res;
+  store.update((s) => {
+    if (!s.cats[key]) return;
+    const other = Object.entries({ ...CATEGORIES }).find(([k, v]) => k !== key && nm(v.name) === nm(clean));
+    if (other) {
+      for (const q of s.custom) if (q.c === key) { q.c = other[0]; res.moved++; }
+      for (const a of s.attempts) if (a.cat === key) a.cat = other[0];
+      delete s.cats[key]; res.merged = true;
+    } else { s.cats[key].name = clean; res.moved = s.custom.filter((q) => q.c === key).length; }
+  });
+  return res;
+}
+
 export function removeImport(id) {
   let removed = 0;
   store.update((s) => {

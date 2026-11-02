@@ -388,6 +388,22 @@ for (const r of ["dashboard", "bank", "code", "market", "import", "quiz"]) {
 }
 
 {
+// ---- page header must never become a topic; rename / merge repairs old data ----
+{
+  await page.goto(base + "/#/import"); await page.waitForSelector("#file", { state: "attached" });
+  await page.setInputFiles("#file", fx("page-header.pdf")); await page.waitForSelector("[data-act=import]", { timeout: 20000 });
+  const txt = (await page.textContent("#results")).replace(/\s+/g, " ");
+  check(/Found 6 questions in 2 topics/.test(txt) && !/Saikat/i.test(txt) && /C# Basics 4/.test(txt.replace(/(\D)(\d)/, "$1 $2")) || /C# Basics40/.test(txt), "PDF running header ('Saikat banerjee Page N') is ignored: 6 questions, 2 topics, continuation page stays in C# Basics");
+  await page.click("[data-act=import]"); await page.waitForSelector("text=Imported page-header.pdf");
+  await page.evaluate(() => { const k = "groommeup.v1", st = JSON.parse(localStorage.getItem(k)); st.cats["u:saikatpage"] = { name: "Saikat banerjee Page 2", color: "#888" }; st.custom.push({ id: "wbadtopic", c: "u:saikatpage", d: 2, q: "A question that landed in a bogus topic?", a: "Its answer is long enough to be a real one.", kp: [["answer"]], f: [], imported: true, src: "imp-old" }); st.imports.push({ id: "imp-old", name: "old.pdf", kind: "PDF", t: Date.now() }); localStorage.setItem(k, JSON.stringify(st)); });
+  await page.goto(base + "/#/bank"); await page.reload(); await page.waitForSelector("#broken .callout");
+  check(/page header, not a topic/.test(await page.textContent("#broken")), "Browse warns about a topic that is really a page header");
+  await page.goto(base + "/#/import"); await page.reload(); await page.waitForSelector("[data-ren]");
+  page.once("dialog", (d) => d.accept("C# Basics"));
+  await page.click("button.primary[data-ren]"); await page.waitForTimeout(400);
+  const stM = await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")));
+  check(!stM.cats["u:saikatpage"] && stM.custom.find((q) => q.id === "wbadtopic").c !== "u:saikatpage", "Rename / merge moves the questions into the real topic and removes the bogus one");
+}
 // ---- usability round: focus mode, marks, star, note, quiz exit, job match, progress code, reminder ----
 await page.setViewportSize({ width: 390, height: 800 });
 await page.evaluate(() => { localStorage.setItem("groommeup.bankview", "one"); localStorage.removeItem("groommeup.read"); });

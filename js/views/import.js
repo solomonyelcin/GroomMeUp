@@ -1,4 +1,5 @@
-import { store, importQuestions, removeImport, importedQuestions } from "../store.js";
+import { store, importQuestions, removeImport, importedQuestions, renameTopic } from "../store.js";
+import { isPageMarker } from "../import/clean.js";
 import { parseFile, ACCEPT } from "../import/index.js";
 import { buildQuestions, isConfident } from "../import/build.js";
 import { aiExtract, aiAnswers, MAX_CHUNKS } from "../import/ai.js";
@@ -239,7 +240,16 @@ export function view(root) {
       <div class="tbl-wrap"><table class="tbl"><thead><tr><th>File</th><th>Questions</th><th>Imported</th><th></th></tr></thead><tbody>
       ${s.imports.map((i) => `<tr><td>${esc(i.name)} <span class="small muted">${esc(i.kind || "")}</span></td><td>${mine.filter((q) => q.src === i.id).length}</td><td>${fmtDate(i.t)}</td><td><a class="btn sm" href="#/bank?src=${i.id}">Open</a> <button class="btn sm danger" data-rm="${i.id}">Remove</button></td></tr>`).join("")}
       </tbody></table></div>
-      <details style="margin-top:10px"><summary class="small" style="cursor:pointer">Topics</summary><div class="chips" style="margin-top:8px">${[...topics].map(([k, n]) => `<a class="tag" href="#/practice?cat=${encodeURIComponent(k)}"><span class="dot" style="background:${CATEGORIES[k]?.color || "#888"}"></span>${esc(CATEGORIES[k]?.name || k)} (${n})</a>`).join("")}</div></details>`;
+      <details style="margin-top:10px" ${[...topics.keys()].some((k) => isPageMarker(CATEGORIES[k]?.name)) ? "open" : ""}><summary class="small" style="cursor:pointer">Topics (rename or merge)</summary>
+        <div class="tbl-wrap"><table class="tbl"><tbody>${[...topics].map(([k, n]) => { const nm = CATEGORIES[k]?.name || k, bad = isPageMarker(nm); return `<tr><td><span class="dot" style="background:${CATEGORIES[k]?.color || "#888"}"></span> ${esc(nm)}${bad ? ` <span class="warn-tag">looks like a page header, not a topic</span>` : ""}</td><td>${n}</td><td><button class="btn sm ${bad ? "primary" : ""}" data-ren="${esc(k)}">Rename / merge</button></td></tr>`; }).join("")}</tbody></table></div></details>`;
+    $$("[data-ren]", box).forEach((b) => (b.onclick = () => {
+      const cur = CATEGORIES[b.dataset.ren]?.name || "";
+      const nv = prompt(`New name for "${cur}".\nType the name of an existing topic to merge these questions into it.`, "");
+      if (!nv || !nv.trim()) return;
+      const r = renameTopic(b.dataset.ren, nv);
+      toast(r.merged ? `Merged ${r.moved} questions into "${nv.trim()}"` : `Renamed to "${nv.trim()}"`);
+      drawMine();
+    }));
     $$("[data-rm]", box).forEach((b) => (b.onclick = () => {
       const name = s.imports.find((i) => i.id === b.dataset.rm)?.name;
       if (!confirm(`Remove everything imported from "${name}"? Your practice history for those questions is removed too.`)) return;

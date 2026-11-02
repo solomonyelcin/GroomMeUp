@@ -6,6 +6,7 @@ import { parseFile } from "../js/import/index.js";
 import { buildQuestions, makeMcqs, deriveKeyPoints, hash32, optionText } from "../js/import/build.js";
 import { offlineEvaluate } from "../js/ai.js";
 import { encryptLibrary, decryptLibrary } from "../js/library.js";
+import { isPageMarker, stripMarkers } from "../js/import/clean.js";
 
 const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures");
 let fails = 0, checks = 0;
@@ -101,6 +102,13 @@ console.log("Answers in cell notes");
   ok(n.items.length === 2 && n.pending.length === 0, `notes workbook: 2 items, none pending (got ${n.items.length}/${n.pending.length}); Dashboard labels are not questions`);
   ok(n.items[0].topic === "Demo Topic" && n.items[0].sub === "Basics" && /^Encapsulation hides internal state behind members\. It keeps data private/.test(n.items[0].a), "wrapped note text is re-joined and the wrapper lines are dropped");
   ok(n.items[1].kind === "scenario" && /\nint Salary \{ get; private set; \}\n/.test(n.items[1].a), "code lines inside a note keep their line breaks; scenario detected from sub topic");
+}
+// ---- page headers / footers ----
+console.log("Page markers");
+{
+  for (const t of ["Saikat banerjee Page 3", "Saikat Banerjee Page *", "Page 4 of 20", "page 7", "Interview Notes | Page 12", "- 7 -", "12"]) ok(isPageMarker(t), `page marker: "${t}"`);
+  for (const t of ["Q3. What happens when a page fault occurs in virtual memory?", "How does paging work on page 2 of the guide?", "Explain page lifecycle events in ASP.NET Web Forms and the order they fire in", "C# Basics", "3. What is boxing?", "Pagination in EF Core"]) ok(!isPageMarker(t), `kept: "${t}"`);
+  ok(stripMarkers([{ text: "Saikat banerjee Page 2" }, { text: "What is DI?" }, { type: "table", rows: [] }]).length === 2, "stripMarkers removes only the marker");
 }
 // ---- encrypted library ----
 console.log("Encrypted library");

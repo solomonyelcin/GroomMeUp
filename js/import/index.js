@@ -5,6 +5,7 @@ import { sheetsToItems, rowsToItems, parseCsv } from "./sheet.js";
 import { parseBlocks, parseDocBlocks, textToBlocks } from "./text.js";
 import { extractQuestionList, pendingFrom } from "./questions-only.js";
 import { parseMcq } from "./mcq.js";
+import { stripMarkers } from "./clean.js";
 import { flag } from "./quality.js";
 import { norm } from "./sheet.js";
 
@@ -34,7 +35,7 @@ export async function parseFile(file) {
     out.items = r.items; out.pending = r.pending || []; out.kind = "Spreadsheet text"; out.skipped = r.noAnswer || 0; out.text = text;
     out.info = [{ name: stem(name), used: r.used, count: r.items.length, reason: r.reason }];
   } else if (ext === "docx") {
-    const blocks = await readDocx(buf);
+    const blocks = stripMarkers(await readDocx(buf));
     out._blocks = blocks;
     const r = parseDocBlocks(blocks, { fallbackTopic: stem(name) });
     out.items = r.items; out.info = r.info; out.kind = "Word document"; out.skipped = r.skipped;
@@ -42,7 +43,7 @@ export async function parseFile(file) {
     out.text = blocks.map((b) => (b.type === "table" ? b.rows.map((x) => x.join(" | ")).join("\n") : b.text)).join("\n");
   } else if (ext === "pdf") {
     const { readPdf } = await import("./pdf.js");
-    const { blocks } = await readPdf(buf);
+    const blocks = stripMarkers((await readPdf(buf)).blocks);
     out._blocks = blocks;
     const r = parseBlocks(blocks, { fallbackTopic: stem(name), softWrap: true });
     out.items = r.items; out.kind = "PDF"; out.skipped = r.skipped;
@@ -51,7 +52,7 @@ export async function parseFile(file) {
     if (!out.text.trim()) out.warnings.push("No text could be read from this PDF. It may be a scan (images only). Run OCR first or export the text.");
   } else if (ext === "txt" || ext === "md" || ext === "markdown") {
     const text = await file.text();
-    out._blocks = textToBlocks(text);
+    out._blocks = stripMarkers(textToBlocks(text));
     const r = parseBlocks(out._blocks, { fallbackTopic: stem(name) });
     out.items = r.items; out.kind = ext === "txt" ? "Text file" : "Markdown"; out.skipped = r.skipped; out.text = text;
     out._qlist = extractQuestionList(out._blocks, stem(name));

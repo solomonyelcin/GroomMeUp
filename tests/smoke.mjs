@@ -399,10 +399,24 @@ for (const r of ["dashboard", "bank", "code", "market", "import", "quiz"]) {
   await page.goto(base + "/#/bank"); await page.reload(); await page.waitForSelector("#broken .callout");
   check(/page header, not a topic/.test(await page.textContent("#broken")), "Browse warns about a topic that is really a page header");
   await page.goto(base + "/#/import"); await page.reload(); await page.waitForSelector("[data-ren]");
-  page.once("dialog", (d) => d.accept("C# Basics"));
-  await page.click("button.primary[data-ren]"); await page.waitForTimeout(400);
+  await page.click("button.primary[data-ren]"); await page.waitForSelector("dialog #tprev details");
+  check(/A question that landed in a bogus topic/.test(await page.textContent("dialog #tprev")), "Topic preview lists the questions inside it");
+  await page.selectOption("dialog #tdst", { label: "C# Basics" }); await page.click("dialog #tmerge"); await page.waitForTimeout(400);
   const stM = await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")));
   check(!stM.cats["u:saikatpage"] && stM.custom.find((q) => q.id === "wbadtopic").c !== "u:saikatpage", "Rename / merge moves the questions into the real topic and removes the bogus one");
+}
+// ---- paste text: Q&A, MCQ and notes ----
+{
+  await page.goto(base + "/#/import"); await page.reload(); await page.waitForSelector("#pgo");
+  await page.fill("#ptopic", "Pasted Demo");
+  await page.fill("#ptext", "Q: What is a primary key?\nA: A column that uniquely identifies each row in a table.\n\nQ: What is a foreign key?\nA: A column that references the primary key of another table.");
+  await page.click("#pgo"); await page.waitForSelector("[data-act=import]");
+  check(/2 questions/.test(await page.textContent("#results")), "pasted Q&A is read as 2 questions");
+  await page.click("[data-act=import]"); await page.waitForSelector("text=Imported Pasted");
+  await page.fill("#ptopic", "Pasted Notes"); await page.selectOption("#pmode", "notes");
+  await page.fill("#ptext", "Normalization\n\nNormalization removes redundancy by splitting data into related tables.\n\nDenormalization\n\nIt adds redundancy back on purpose to make reads faster.");
+  await page.click("#pgo"); await page.waitForTimeout(500);
+  check(/2 questions/.test(await page.textContent("#results")), "pasted paragraphs become 2 Explain: questions");
 }
 // ---- usability round: focus mode, marks, star, note, quiz exit, job match, progress code, reminder ----
 await page.setViewportSize({ width: 390, height: 800 });

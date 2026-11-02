@@ -1,6 +1,6 @@
 import { store, importQuestions, removeImport, importedQuestions, renameTopic } from "../store.js";
 import { isBogusTopic } from "../import/clean.js";
-import { parseFile, ACCEPT } from "../import/index.js";
+import { parseFile, parsePasted, ACCEPT } from "../import/index.js";
 import { buildQuestions, isConfident } from "../import/build.js";
 import { aiExtract, aiAnswers, MAX_CHUNKS } from "../import/ai.js";
 import { flag } from "../import/quality.js";
@@ -23,6 +23,13 @@ export function view(root) {
       <span class="muted small">Excel (.xlsx), Word (.docx), PDF, text, markdown or CSV. Files are read in your browser and never uploaded.</span>
       <input id="file" type="file" accept="${ACCEPT}" multiple hidden>
     </label>
+    <section class="card" style="margin-top:16px" aria-labelledby="pst"><h2 id="pst">Paste text</h2>
+      <p class="small muted" style="margin-top:0">Copy and paste content straight in. Choose what kind of content it is, check the result below, then import it.</p>
+      <div class="grid g2"><div><label for="pmode">Kind of content</label><select id="pmode"><option value="qa">Descriptive questions and answers</option><option value="mcq">Multiple choice questions (MCQ)</option><option value="notes">Paragraphs or notes</option></select></div>
+      <div><label for="ptopic">Topic name</label><input id="ptopic" list="ptopics" placeholder="e.g. SQL Server" autocomplete="off"><datalist id="ptopics"></datalist></div></div>
+      <label for="ptext" style="margin-top:8px">Content</label><textarea id="ptext" rows="8" style="width:100%"></textarea>
+      <p class="small muted" id="phint" style="margin:6px 0"></p>
+      <button class="btn primary" id="pgo">Read this text</button></section>
     <section class="card" id="libCard" style="margin-top:16px" hidden aria-labelledby="lib"><h2 id="lib">My library (encrypted)</h2>
       <p class="small muted" style="margin-top:0">Your saved question library is stored on this site in locked form. Enter your passphrase to unlock and add it to this device. It is decrypted here in your browser and never sent anywhere.</p>
       <div class="row" style="align-items:flex-end;gap:10px"><div style="flex:1;min-width:200px"><label for="libpass">Passphrase</label><input id="libpass" type="password" autocomplete="current-password" inputmode="text"></div><button class="btn primary" id="libgo">Load library</button></div>
@@ -41,6 +48,33 @@ export function view(root) {
   `;
 
   const results$ = $("#results");
+
+  // ---------- pasted text ----------
+  const HINTS = {
+    qa: 'Write each question as "Q: ..." followed by "A: ...", or number the questions ("1. What is ...?") with the answer underneath.',
+    mcq: 'Each question followed by options "A) ... B) ... C) ... D) ..." and an answer line like "Ans: C". Add "Explanation: ..." if you have one.',
+    notes: "Separate paragraphs with a blank line. A short line on its own becomes the heading, and each paragraph is turned into an \"Explain: ...\" question with your text as the answer.",
+  };
+  const pm = () => $("#pmode").value;
+  const fillTopics = () => { $("#ptopics").innerHTML = [...new Set(importedQuestions().map((q) => CATEGORIES[q.c]?.name).filter(Boolean))].map((n) => `<option value="${esc(n)}">`).join(""); };
+  $("#pmode").onchange = () => { $("#phint").textContent = HINTS[pm()]; };
+  $("#phint").textContent = HINTS.qa; fillTopics();
+  $("#pgo").onclick = async () => {
+    const text = $("#ptext").value;
+    if (text.trim().length < 8) { toast("Paste some text first"); return; }
+    const topic = $("#ptopic").value.trim();
+    if (!topic) { toast("Give it a topic name"); $("#ptopic").focus(); return; }
+    const id = nextId++;
+    results$.insertAdjacentHTML("afterbegin", `<div class="card" id="r${id}"><span class="spinner"></span> Reading pasted text...</div>`);
+    try {
+      const res = await parsePasted(text, { mode: pm(), topic });
+      const r0 = { id, res, opts: { seed: true, update: true, dedupe: false }, excl: new Set(), filter: "flagged", shown: 25, editing: new Set() };
+      prepare(r0); results.push(r0); draw(r0);
+      $("#ptext").value = "";
+    } catch (e) {
+      $("#r" + id).innerHTML = `<div class="callout warn"><strong>Could not read that text.</strong> ${esc(e.message)}</div>`;
+    }
+  };
 
   // ---------- file handling ----------
   async function handle(files) {
@@ -241,15 +275,24 @@ export function view(root) {
       ${s.imports.map((i) => `<tr><td>${esc(i.name)} <span class="small muted">${esc(i.kind || "")}</span></td><td>${mine.filter((q) => q.src === i.id).length}</td><td>${fmtDate(i.t)}</td><td><a class="btn sm" href="#/bank?src=${i.id}">Open</a> <button class="btn sm danger" data-rm="${i.id}">Remove</button></td></tr>`).join("")}
       </tbody></table></div>
       <details style="margin-top:10px" ${[...topics.keys()].some((k) => isBogusTopic(CATEGORIES[k]?.name)) ? "open" : ""}><summary class="small" style="cursor:pointer">Topics (rename or merge)</summary>
-        <div class="tbl-wrap"><table class="tbl"><tbody>${[...topics].map(([k, n]) => { const nm = CATEGORIES[k]?.name || k, bad = isBogusTopic(nm); return `<tr><td><span class="dot" style="background:${CATEGORIES[k]?.color || "#888"}"></span> ${esc(nm)}${bad ? ` <span class="warn-tag">looks like a question, code or page header, not a topic</span>` : ""}</td><td>${n}</td><td><button class="btn sm ${bad ? "primary" : ""}" data-ren="${esc(k)}">Rename / merge</button></td></tr>`; }).join("")}</tbody></table></div></details>`;
-    $$("[data-ren]", box).forEach((b) => (b.onclick = () => {
-      const cur = CATEGORIES[b.dataset.ren]?.name || "";
-      const nv = prompt(`New name for "${cur}".\nType the name of an existing topic to merge these questions into it.`, "");
-      if (!nv || !nv.trim()) return;
-      const r = renameTopic(b.dataset.ren, nv);
-      toast(r.merged ? `Merged ${r.moved} questions into "${nv.trim()}"` : `Renamed to "${nv.trim()}"`);
-      drawMine();
-    }));
+        <div class="tbl-wrap"><table class="tbl"><tbody>${[...topics].map(([k, n]) => { const nm = CATEGORIES[k]?.name || k, bad = isBogusTopic(nm); return `<tr><td><span class="dot" style="background:${CATEGORIES[k]?.color || "#888"}"></span> ${esc(nm)}${bad ? ` <span class="warn-tag">looks like a question, code or page header, not a topic</span>` : ""}</td><td>${n}</td><td><button class="btn sm ${bad ? "primary" : ""}" data-ren="${esc(k)}">Preview / merge</button></td></tr>`; }).join("")}</tbody></table></div></details>`;
+    $$("[data-ren]", box).forEach((b) => (b.onclick = () => openTopic(b.dataset.ren)));
+    function openTopic(key) {
+      const cur = CATEGORIES[key]?.name || key, qs = importedQuestions().filter((q) => q.c === key);
+      const others = [...new Set(importedQuestions().map((q) => q.c))].filter((k) => k !== key);
+      const dlg = document.createElement("dialog"); dlg.className = "card"; dlg.style.cssText = "max-width:720px;width:94vw;max-height:88vh;overflow:auto;padding:16px";
+      dlg.innerHTML = `<h2 style="margin-top:0">${esc(cur)}</h2><p class="small muted">${qs.length} question${qs.length === 1 ? "" : "s"} in this topic. Look through them, then rename the topic or move everything into another one.</p>
+        <div class="grid g2"><div><label for="tdst">Move all into an existing topic</label><select id="tdst"><option value="">Choose a topic...</option>${others.map((k) => `<option value="${esc(k)}">${esc(CATEGORIES[k]?.name || k)}</option>`).join("")}</select><button class="btn primary sm" id="tmerge" style="margin-top:6px">Merge</button></div>
+        <div><label for="tnew">Or rename it to</label><input id="tnew" value="${esc(cur)}"><button class="btn sm" id="tren" style="margin-top:6px">Rename</button></div></div>
+        <h3>Preview</h3><div id="tprev">${qs.slice(0, 60).map((q) => `<details style="margin:4px 0"><summary>${esc(q.q)}</summary><div class="small muted" style="margin:6px 0 6px 14px">${rich(String(q.a || "").slice(0, 600) || "(no answer)")}</div></details>`).join("")}${qs.length > 60 ? `<p class="small muted">Showing the first 60 of ${qs.length}.</p>` : ""}</div>
+        <div class="row" style="margin-top:12px"><button class="btn" id="tclose">Close</button></div>`;
+      document.body.appendChild(dlg); dlg.showModal();
+      const done = (msg) => { dlg.close(); dlg.remove(); toast(msg); fillTopics(); drawMine(); };
+      dlg.querySelector("#tclose").onclick = () => { dlg.close(); dlg.remove(); };
+      dlg.addEventListener("cancel", () => dlg.remove());
+      dlg.querySelector("#tmerge").onclick = () => { const d = dlg.querySelector("#tdst").value; if (!d) { toast("Choose a topic to merge into"); return; } const r = renameTopic(key, CATEGORIES[d]?.name || d); done(`Moved ${r.moved ?? qs.length} questions into "${CATEGORIES[d]?.name || d}"`); };
+      dlg.querySelector("#tren").onclick = () => { const nv = dlg.querySelector("#tnew").value.trim(); if (!nv || nv === cur) { toast("Type a different name"); return; } const r = renameTopic(key, nv); done(r.merged ? `Merged ${r.moved} questions into "${nv}"` : `Renamed to "${nv}"`); };
+    }
     $$("[data-rm]", box).forEach((b) => (b.onclick = () => {
       const name = s.imports.find((i) => i.id === b.dataset.rm)?.name;
       if (!confirm(`Remove everything imported from "${name}"? Your practice history for those questions is removed too.`)) return;

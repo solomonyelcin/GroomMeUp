@@ -86,3 +86,30 @@ export function summarise(items) {
   for (const it of items) m.set(it.topic, (m.get(it.topic) || 0) + 1);
   return [...m.entries()].map(([name, count]) => ({ name, used: true, count }));
 }
+
+// Text pasted by hand. mode: "qa" (questions with answers), "mcq" (multiple choice) or "notes" (plain paragraphs).
+export async function parsePasted(text, { mode = "qa", topic = "Pasted notes" } = {}) {
+  topic = String(topic || "").replace(/[\\/:*?"<>|]+/g, " ").trim() || "Pasted notes";
+  const stamp = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const unique = `Pasted: ${topic} (${stamp})`; // a different name each time, so pasting never replaces an earlier import
+  if (mode === "notes") {
+    const paras = String(text).replace(/\r/g, "").split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+    const items = []; let head = "";
+    for (const p of paras) {
+      const lines = p.split("\n").map((x) => x.trim()).filter(Boolean);
+      if (lines.length === 1 && lines[0].length <= 80 && !/[.!?]$/.test(lines[0])) { head = lines[0].replace(/^#+\s*/, "").replace(/:$/, ""); continue; }
+      const body = lines.join(" ").replace(/\s+/g, " ");
+      const first = body.split(/(?<=[.!?])\s+/)[0] || body;
+      const q = head ? `Explain: ${head}` : `Explain: ${first.split(/\s+/).slice(0, 10).join(" ").replace(/[.,;:]+$/, "")}${first.split(/\s+/).length > 10 ? "…" : ""}`;
+      items.push({ topic, sub: "", q, a: lines.join("\n"), status: "", kind: "concept" });
+      head = "";
+    }
+    return { name: unique, ext: "txt", kind: "Pasted notes", items, pending: [], info: summarise(items), warnings: items.length ? [] : ["Nothing to import. Paste at least a paragraph of text."], text, skipped: 0 };
+  }
+  const res = await parseFile(new File([text], `${topic}.txt`));
+  res.name = unique;
+  res.kind = mode === "mcq" ? "Pasted multiple choice" : "Pasted Q&A";
+  if (mode === "mcq" && !res.items.some((i) => i.kind === "mcq")) res.warnings.push('No multiple-choice questions were found. Each question needs options like "A) ... B) ..." and an answer line such as "Ans: C".');
+  if (mode === "qa" && !res.items.length && !res.pending.length) res.warnings.push('No questions were found. Use "Q: ... A: ..." or numbered questions with the answer underneath.');
+  return res;
+}

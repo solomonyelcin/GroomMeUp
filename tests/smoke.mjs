@@ -427,6 +427,9 @@ for (const r of ["dashboard", "bank", "code", "market", "import", "quiz"]) {
   await page.evaluate(() => document.querySelector("[data-ren]").click()); await page.waitForSelector("dialog #tren");
   await page.fill("dialog #tnew", "Renamed Topic X"); await page.click("dialog #tren"); await page.waitForTimeout(400);
   check(await page.evaluate(() => document.querySelector("#topicsDet").open), "Topics panel stays open after a rename/merge");
+  await page.selectOption("#tsort", "most"); await page.waitForTimeout(300);
+  const nums = await page.$$eval("#topicsDet tbody tr td:nth-child(2)", (t) => t.map((x) => +x.textContent));
+  check(nums.length > 1 && nums.every((n, i) => !i || nums[i - 1] >= n) && await page.evaluate(() => document.querySelector("#topicsDet").open) && /From:/.test(await page.textContent("#topicsDet")), "topics can be sorted (most questions) and show which import they came from");
 }
 // ---- paste text: Q&A, MCQ and notes ----
 {
@@ -440,6 +443,17 @@ for (const r of ["dashboard", "bank", "code", "market", "import", "quiz"]) {
   await page.fill("#ptext", "Normalization\n\nNormalization removes redundancy by splitting data into related tables.\n\nDenormalization\n\nIt adds redundancy back on purpose to make reads faster.");
   await page.click("#pgo"); await page.waitForTimeout(500);
   check(/2 questions/.test(await page.textContent("#results")), "pasted paragraphs become 2 Explain: questions");
+}
+// ---- search: home screen and Add my questions ----
+{
+  await page.setViewportSize({ width: 1100, height: 900 });
+  await page.goto(base + "/#/"); await page.reload(); await page.waitForSelector("#homeSearch input");
+  await page.fill("#homeSearch input", "deadlock"); await page.waitForSelector("#homeSearch .sr-hit");
+  check((await page.$$("#homeSearch .sr-hit")).length > 0, "home search finds questions");
+  check(/Connect a free AI/.test(await page.textContent("#homeSearch")) || !!(await page.$("#homeSearch button")), "home search shows the AI extended option or how to enable it");
+  await page.goto(base + "/#/import"); await page.reload(); await page.waitForSelector("#mineSearch input");
+  await page.fill("#mineSearch input", "primary key"); await page.waitForTimeout(500);
+  check(/primary key/i.test(await page.textContent("#mineSearch")) && (await page.$$("#mineSearch .sr-hit")).length > 0, "search inside Add my questions finds imported questions");
 }
 // ---- usability round: focus mode, marks, star, note, quiz exit, job match, progress code, reminder ----
 await page.setViewportSize({ width: 390, height: 800 });

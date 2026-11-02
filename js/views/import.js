@@ -9,6 +9,7 @@ import { reduceRepeats } from "../import/mcq.js";
 import { aiEnabled } from "../ai.js";
 import { libraryAvailable, loadLibrary, installLibrary } from "../library.js";
 import { CATEGORIES } from "../data/index.js";
+import { mountSearch } from "../search.js";
 import { esc, rich, toast, busy, fmtDate, $, $$ } from "../ui.js";
 
 const triedOdd = new Set(); // odd-topic sets already auto-sorted this session, so nothing loops
@@ -40,7 +41,7 @@ export function view(root) {
       <p id="libmsg" class="small" style="margin:8px 0 0" aria-live="polite"></p></section>
     <div id="results" style="margin-top:16px"></div>
 
-    <section class="card" style="margin-top:16px" aria-labelledby="mine"><h2 id="mine">Your imported material</h2><div id="mineBody"></div></section>
+    <section class="card" style="margin-top:16px" aria-labelledby="mine"><h2 id="mine">Your imported material</h2><div id="mineSearch" style="margin-bottom:12px"></div><div id="mineBody"></div></section>
 
     <section class="card" style="margin-top:16px" aria-labelledby="fmt"><h2 id="fmt">How to lay out your files</h2>
       <div class="grid g2">
@@ -50,6 +51,7 @@ export function view(root) {
       <p class="small muted" style="margin-bottom:0">Old .xls and .doc files need Save As .xlsx or .docx first. Scanned PDFs (pictures of text) cannot be read without OCR.</p></section>
   `;
 
+  let topicsSort = "name";
   let topicsOpen = false; // keeps the Topics panel open across redraws
   const results$ = $("#results");
 
@@ -280,8 +282,15 @@ export function view(root) {
       ${s.imports.map((i) => `<tr><td>${esc(i.name)} <span class="small muted">${esc(i.kind || "")}</span></td><td>${mine.filter((q) => q.src === i.id).length}</td><td>${fmtDate(i.t)}</td><td><a class="btn sm" href="#/bank?src=${i.id}">Open</a> <button class="btn sm danger" data-rm="${i.id}">Remove</button></td></tr>`).join("")}
       </tbody></table></div>
       <details id="topicsDet" style="margin-top:10px" ${topicsOpen || [...topics.keys()].some((k) => isBogusTopic(CATEGORIES[k]?.name)) ? "open" : ""}><summary class="small" style="cursor:pointer">Topics (rename or merge)</summary>
-        ${[...topics.keys()].some((k) => isBogusTopic(CATEGORIES[k]?.name)) ? `<div class="callout warn" style="margin:8px 0"><strong>Some topics are really page headers, questions or code.</strong> Sort their questions into the right subjects automatically${aiEnabled() ? " with your connected AI" : " (offline guess; connect an AI in Settings for better results)"}. You see the plan before anything changes.<div style="margin-top:8px"><button class="btn primary sm" id="fixOdd">Fix odd topics</button></div></div>` : ""}
-        <div class="tbl-wrap"><table class="tbl"><tbody>${[...topics].map(([k, n]) => { const nm = CATEGORIES[k]?.name || k, bad = isBogusTopic(nm); return `<tr><td><span class="dot" style="background:${CATEGORIES[k]?.color || "#888"}"></span> ${esc(nm)}${bad ? ` <span class="warn-tag">looks like a question, code or page header, not a topic</span>` : ""}</td><td>${n}</td><td><button class="btn sm ${bad ? "primary" : ""}" data-ren="${esc(k)}">Preview / merge</button></td></tr>`; }).join("")}</tbody></table></div></details>`;
+        ${[...topics.keys()].some((k) => isBogusTopic(CATEGORIES[k]?.name)) ? `<div class="callout warn" style="margin:8px 0"><strong>Some topics are really page headers, questions or code.</strong> Sort their questions into the right subjects automatically${aiEnabled() ? " with your connected AI" : " (offline guess; connect an AI in Settings for better results)"}. They are also sorted automatically; use this to retry.<div style="margin-top:8px"><button class="btn primary sm" id="fixOdd">Fix odd topics</button></div></div>` : ""}
+        <div class="row" style="margin:8px 0;gap:8px;align-items:center"><label for="tsort" class="small" style="margin:0">Sort by</label><select id="tsort"><option value="name">Name (A to Z)</option><option value="most">Most questions</option><option value="fewest">Fewest questions</option><option value="new">Newest import</option><option value="old">Oldest import</option><option value="file">Import file</option><option value="odd">Odd topics first</option></select></div>
+        <div class="tbl-wrap"><table class="tbl"><tbody>${(() => {
+          const imp = new Map(s.imports.map((x) => [x.id, x]));
+          const info = new Map([...topics.keys()].map((k) => { const ids = [...new Set(mine.filter((q) => q.c === k).map((q) => q.src))]; const files = ids.map((id) => imp.get(id)).filter(Boolean); return [k, { files, t: Math.max(0, ...files.map((f) => f.t || 0)), first: files.map((f) => f.name).sort()[0] || "" }]; }));
+          const name = (k) => (CATEGORIES[k]?.name || k).toLowerCase();
+          const cmp = { name: (a, b) => name(a[0]).localeCompare(name(b[0])), most: (a, b) => b[1] - a[1] || name(a[0]).localeCompare(name(b[0])), fewest: (a, b) => a[1] - b[1] || name(a[0]).localeCompare(name(b[0])), new: (a, b) => info.get(b[0]).t - info.get(a[0]).t, old: (a, b) => info.get(a[0]).t - info.get(b[0]).t, file: (a, b) => info.get(a[0]).first.localeCompare(info.get(b[0]).first) || name(a[0]).localeCompare(name(b[0])), odd: (a, b) => Number(isBogusTopic(CATEGORIES[b[0]]?.name)) - Number(isBogusTopic(CATEGORIES[a[0]]?.name)) || name(a[0]).localeCompare(name(b[0])) }[topicsSort] || (() => 0);
+          return [...topics].sort(cmp).map(([k, n]) => { const nm = CATEGORIES[k]?.name || k, bad = isBogusTopic(nm), f = info.get(k).files; return `<tr><td><span class="dot" style="background:${CATEGORIES[k]?.color || "#888"}"></span> ${esc(nm)}${bad ? ` <span class="warn-tag">looks like a question, code or page header, not a topic</span>` : ""}<div class="small muted">From: ${f.length ? f.map((x) => esc(x.name)).join(", ") : "added by hand"}</div></td><td>${n}</td><td><button class="btn sm ${bad ? "primary" : ""}" data-ren="${esc(k)}">Preview / merge</button></td></tr>`; }).join("");
+        })()}</tbody></table></div></details>`;
     $$("[data-ren]", box).forEach((b) => (b.onclick = () => openTopic(b.dataset.ren)));
     function openTopic(key) {
       const cur = CATEGORIES[key]?.name || key, qs = importedQuestions().filter((q) => q.c === key);
@@ -317,6 +326,7 @@ export function view(root) {
         }).catch(() => note.remove());
       }
     }
+    const ts = $("#tsort", box); if (ts) { ts.value = topicsSort; ts.onchange = () => { topicsSort = ts.value; topicsOpen = true; drawMine(); }; }
     const td = $("#topicsDet", box); if (td) td.addEventListener("toggle", () => { topicsOpen = td.open; });
     const fix = $("#fixOdd", box);
     if (fix) fix.onclick = async () => {
@@ -343,5 +353,6 @@ export function view(root) {
       const n = removeImport(b.dataset.rm); toast(`Removed ${n} questions`); drawMine();
     }));
   }
+  mountSearch($("#mineSearch"), { title: "Search my questions", placeholder: "Search your imported questions and answers", pool: importedQuestions });
   drawMine();
 }

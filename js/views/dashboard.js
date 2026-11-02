@@ -3,6 +3,7 @@ import { store, categoryStats, codingStats, overallReadiness, weakTopics, streak
 import { aiEnabled, activeProvider, PROVIDERS } from "../ai.js";
 import { CATEGORIES } from "../data/index.js";
 import { todaySet, dailyProgress, freshAvailable, freshTopic, addFreshAI, todayKey } from "../daily.js";
+import { mountSearch } from "../search.js";
 import { esc, toast, busy, $, tape, tapeScale, pct, fmtDate } from "../ui.js";
 
 export function view(root) {
@@ -65,6 +66,7 @@ export function view(root) {
           ${aiEnabled() && freshAvailable() ? `<button class="btn" id="fresh">Add 5 fresh AI questions</button>` : ""}</div>
         ${aiEnabled() && freshAvailable() ? `<p class="small muted" style="margin:8px 0 0">Today's AI topic: ${esc(freshTopic(todayKey()))}</p>` : ""}
       </div>
+      <div class="card" id="homeSearch" style="margin-bottom:14px"></div>
       <div id="startgrid">
         <h3 class="tile-head">Learn</h3>
         <div class="tiles">
@@ -146,6 +148,7 @@ export function view(root) {
       <details><summary class="small" style="cursor:pointer;margin-bottom:10px">${mineRows.length} topics, ${mineRows.reduce((a, r) => a + r.total, 0)} questions</summary><div class="stack">${mineRows.map(rowHtml).join("")}</div></details>
     </section>` : ""}
   `;
+  mountSearch($("#homeSearch"), { title: "Search all questions", placeholder: "e.g. saga, OnPush, deadlock, indexes" });
   const fb = $("#fresh");
   if (fb) fb.onclick = async (e) => {
     const btn = e.currentTarget; busy(btn, true, "Writing questions");

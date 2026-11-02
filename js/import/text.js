@@ -8,6 +8,12 @@ const NUMBERED = /^\s*(?:\d{1,3}|[a-z])\s*[.)]\s+(\S.*)$/i;
 const BULLET = /^\s*(?:[-*•▪◦●]|\d+[.)])\s+/;
 const INTERROG = /^(what|why|how|when|where|which|who|explain|describe|define|differentiate|difference|compare|list|write|can|is|are|do|does|should|name|state|give|discuss|illustrate|tell|mention|elaborate|outline)\b/i;
 const looksLikeQuestion = (t) => /\?\s*["')]*$/.test(t) || INTERROG.test(t);
+const LEVEL = /^\(\s*[BIA]\s*\)\s*/i;
+const SQL_KW = "(?:set|select|insert|update|delete|create|alter|drop|begin|commit|rollback|declare|exec|execute|grant|truncate|use|with|print|return)";
+const SQL_UP = new RegExp("^" + SQL_KW.toUpperCase() + "\\b\\s+\\S"), SQL_LOW = new RegExp("^" + SQL_KW + "\\b.*[;=(*@]", "i");
+const SQL_STMT = { test: (t) => SQL_UP.test(t) || SQL_LOW.test(t) };
+export const isQuestionish = (t) => LEVEL.test(t) || looksLikeQuestion(t);
+export const isCodeLine = (t) => SQL_STMT.test(t) && !/\?\s*$/.test(t);
 const isShoutHeading = (t) => t.length >= 3 && t.length <= 60 && /[A-Z]/.test(t) && t === t.toUpperCase() && !/[.?!:]$/.test(t) && !/\d{3,}/.test(t);
 
 function joinAnswer(lines, softWrap) {
@@ -34,6 +40,18 @@ export function parseBlocks(blocks, { fallbackTopic = "Imported questions", soft
       lines.push({ t: t.trim(), raw: t, h });
     }
   }
+  // heading-sized question lines that wrap over several lines: join them, strip "(B)/(I)/(A)" level markers
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
+    if (!l.h || !l.t || !isQuestionish(l.t) || isCodeLine(l.t)) continue;
+    l.t = l.t.replace(LEVEL, "");
+    let n = 0;
+    while (!/\?\s*["')]*$/.test(l.t) && n < 3 && lines[i + 1] && lines[i + 1].h && lines[i + 1].t && !isCodeLine(lines[i + 1].t) && lines[i + 1].t.length < 120) {
+      l.t += " " + lines[i + 1].t; lines.splice(i + 1, 1); n++;
+    }
+    l.raw = l.t; l.q = true;
+  }
+  for (const l of lines) if (l.h && l.t && !l.q && isCodeLine(l.t)) l.h = 0; // SQL/code shown in a bold or large font is answer text
   const markerMode = lines.filter((l) => A_MARK.test(l.t) && l.t.length > 2).length >= 2 && lines.filter((l) => Q_MARK.test(l.t)).length >= 2;
 
   const items = []; let topic = fallbackTopic, cur = null, skipped = 0;
@@ -48,6 +66,7 @@ export function parseBlocks(blocks, { fallbackTopic = "Imported questions", soft
   for (const l of lines) {
     const t = l.t;
     if (!t) { if (cur && (cur.inA || !markerMode)) cur.a.push(""); continue; }
+    if (l.q) { flush(); cur = { q: t, a: [], inA: false }; continue; }
     if (l.h && !(l.h >= 2 && looksLikeQuestion(t) && /\?\s*$/.test(t))) {
       flush(); topic = t.replace(/[:\s]+$/, "") || topic; continue;
     }
@@ -55,7 +74,7 @@ export function parseBlocks(blocks, { fallbackTopic = "Imported questions", soft
     let m;
     if ((m = Q_MARK.exec(t))) { flush(); cur = { q: m[1], a: [], inA: false }; continue; }
     if (cur && markerMode && !cur.inA && (m = A_MARK.exec(t))) { cur.inA = true; if (m[1]) cur.a.push(m[1]); continue; }
-    if (!l.h && isShoutHeading(t) && (!cur || cur.a.length)) { flush(); topic = t; continue; }
+    if (!l.h && isShoutHeading(t) && !isCodeLine(t) && (!cur || cur.a.length)) { flush(); topic = t; continue; }
     const num = NUMBERED.exec(t);
     if (num && looksLikeQuestion(num[1]) && (!markerMode || /\?\s*$/.test(num[1]))) { flush(); cur = { q: num[1], a: [], inA: false }; continue; }
     if (!markerMode && /\?\s*["')]*$/.test(t) && t.length <= 300 && /^[A-Z0-9"'(]/.test(t) && (!cur || cur.a.some((x) => x.trim()) || !cur.a.length)) {

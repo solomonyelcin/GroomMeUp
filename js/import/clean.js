@@ -14,3 +14,14 @@ export function isPageMarker(text) {
 export function stripMarkers(blocks) {
   return blocks.filter((b) => b.type === "table" || !isPageMarker(b.text));
 }
+
+// A topic name that is really a question, a level-marked line, a SQL statement or a page header.
+export function isBogusTopic(name) {
+  const t = String(name || "").trim();
+  if (!t) return false;
+  if (isPageMarker(t)) return true;
+  if (/^\(\s*[BIA]\s*\)/i.test(t) || /\?\s*$/.test(t)) return true;
+  if (/^(?:SET|SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|BEGIN|COMMIT|ROLLBACK|DECLARE|EXEC|EXECUTE|GRANT|TRUNCATE)\s+\S/.test(t)) return true;
+  if (/^(?:what|why|how|when|where|which|who|explain|describe|define|differentiate|difference|compare|can|is|are|do|does)\b/i.test(t) && t.split(/\s+/).length >= 5) return true;
+  return t.split(/\s+/).length > 10;
+}

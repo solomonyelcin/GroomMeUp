@@ -104,6 +104,28 @@ console.log("Answers in cell notes");
   ok(n.items[1].kind === "scenario" && /\nint Salary \{ get; private set; \}\n/.test(n.items[1].a), "code lines inside a note keep their line breaks; scenario detected from sub topic");
 }
 // ---- page headers / footers ----
+console.log("Questions and SQL are not topics");
+{
+  const { parseBlocks } = await import("../js/import/text.js");
+  const B = (text, heading = 0) => ({ text, heading });
+  const r = parseBlocks([
+    B("Database", 2), B(""),
+    B("(B) What is normalization? What are different types of", 2), B("normalization?", 2),
+    B("Normalization removes redundancy by splitting tables."), B("It has several normal forms like 1NF, 2NF and 3NF."), B(""),
+    B("(I)What are indexes? What is the difference between", 2), B("clustered and non-clustered?", 2),
+    B("Indexes speed up reads. A clustered index sorts the table rows."), B(""),
+    B("What is the strictest isolation level in SQL Server?", 2),
+    B("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE", 2),
+    B("This is the strictest isolation level and prevents phantom reads."), B(""),
+    B("(A) What is the difference between Stored Procedure (SP)", 2), B("and User Defined Function (UDF)?", 2),
+    B("A stored procedure can return multiple results while a UDF returns one value."),
+  ]);
+  const topics = [...new Set(r.items.map((i) => i.topic))];
+  ok(topics.every((t) => !/\?|^\(|SET TRANSACTION/i.test(t)), "no question/SQL topics: " + topics.join(" | "));
+  ok(r.items.length >= 3, "questions kept: " + r.items.length);
+  ok(r.items.some((i) => /^What is normalization\? What are different types of normalization\?$/.test(i.q)), "wrapped question joined, marker stripped");
+  ok(r.items.some((i) => /SET TRANSACTION/.test(i.a)), "SQL line stays in the answer");
+}
 console.log("Page markers");
 {
   for (const t of ["Saikat banerjee Page 3", "Saikat Banerjee Page *", "Page 4 of 20", "page 7", "Interview Notes | Page 12", "- 7 -", "12"]) ok(isPageMarker(t), `page marker: "${t}"`);

@@ -2,7 +2,7 @@ import { store, allQuestions, lastScores, isDue, isBrokenMcq, removeBroken, mark
 import { CATEGORIES } from "../data/index.js";
 import { generateQuestions, aiEnabled } from "../ai.js";
 import { esc, rich, scoreBadge, toast, busy, $, $$ } from "../ui.js";
-import { isPageMarker } from "../import/clean.js";
+import { isBogusTopic } from "../import/clean.js";
 
 const filt = { text: "", cat: "all", diff: 0, status: "all", src: "", kind: "all", ids: null };
 const readMode = () => { try { return localStorage.getItem("groommeup.read") === "1"; } catch { return false; } };
@@ -63,7 +63,7 @@ export function view(root, ctx) {
 
   const checkBroken = () => {
     const n = allQuestions().filter(isBrokenMcq).length;
-    const badTopics = Object.values(CATEGORIES).filter((v) => v.mine && isPageMarker(v.name)).map((v) => v.name);
+    const badTopics = Object.values(CATEGORIES).filter((v) => v.mine && isBogusTopic(v.name)).map((v) => v.name);
     $("#idnote").dataset.bad = badTopics.length;
     $("#broken").innerHTML = badTopics.length ? `<div class="callout warn" style="margin-bottom:12px"><strong>"${esc(badTopics[0])}"${badTopics.length > 1 ? ` and ${badTopics.length - 1} more` : ""} ${badTopics.length > 1 ? "are" : "is"} a page header, not a topic.</strong> <a href="#/import">Open Add my questions</a> and use Rename / merge under Topics to move those questions to the right topic, or import the file again (the importer now ignores page headers).</div>` : n ? `<div class="callout warn" style="margin-bottom:12px"><strong>${n} imported questions were read wrongly</strong> (options mixed into the answer) by an older version of the importer. Remove them, then import your file again in <a href="#/import">Add my questions</a>.<div class="row" style="margin-top:8px"><button class="btn sm primary" id="rmbad">Remove these ${n}</button></div></div>` : "";
     const b = $("#rmbad"); if (b) b.onclick = () => { const k = removeBroken(); toast(`${k} removed. Now import your file again.`); checkBroken(); list(); };

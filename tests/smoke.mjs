@@ -410,6 +410,12 @@ for (const r of ["dashboard", "bank", "code", "market", "import", "quiz"]) {
   await page.click("#fxok"); await page.waitForTimeout(400);
   const st2 = await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")));
   check(!st2.cats["u:sk3"] && st2.custom.find((q) => q.id === "wbad2").c !== "u:sk3", "Fix odd topics sorts the questions of a page-header topic into real topics");
+  await page.evaluate(() => { const k = "groommeup.v1", st = JSON.parse(localStorage.getItem(k)); st.cats["u:sk4"] = { name: "Wrong topic", color: "#888" }; const base = st.custom.find((q) => q.imported); st.custom.push({ ...base, id: "wbad3", c: "u:sk4", q: "Throwaway question for delete?", a: "Throwaway answer that is long enough." }); localStorage.setItem(k, JSON.stringify(st)); });
+  await page.goto(base + "/#/import"); await page.reload(); await page.waitForSelector("[data-ren]", { state: "attached" });
+  await page.evaluate(() => [...document.querySelectorAll("[data-ren]")].find((b) => b.dataset.ren === "u:sk4").click());
+  await page.waitForSelector("dialog #tdel"); page.once("dialog", (d) => d.accept()); await page.click("dialog #tdel"); await page.waitForTimeout(400);
+  const st3 = await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")));
+  check(!st3.cats["u:sk4"] && !st3.custom.some((q) => q.id === "wbad3"), "Delete topic removes the topic and its questions");
 }
 // ---- paste text: Q&A, MCQ and notes ----
 {

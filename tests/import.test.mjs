@@ -2,7 +2,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseFile } from "../js/import/index.js";
+import { parseFile, parsePasted } from "../js/import/index.js";
 import { buildQuestions, makeMcqs, deriveKeyPoints, hash32, optionText } from "../js/import/build.js";
 import { offlineEvaluate } from "../js/ai.js";
 import { encryptLibrary, decryptLibrary } from "../js/library.js";
@@ -125,6 +125,13 @@ console.log("Questions and SQL are not topics");
   ok(r.items.length >= 3, "questions kept: " + r.items.length);
   ok(r.items.some((i) => /^What is normalization\? What are different types of normalization\?$/.test(i.q)), "wrapped question joined, marker stripped");
   ok(r.items.some((i) => /SET TRANSACTION/.test(i.a)), "SQL line stays in the answer");
+}
+console.log("Pasted numbered questions");
+{
+  const q = await parsePasted("1. What is a primary key?\nA column that uniquely identifies each row.\n\n2. What is a foreign key?\nA column that references another table's key.\n3. What is an index?\nA structure that speeds up reads.", { mode: "qa", topic: "T" });
+  ok(q.items.length === 3 && q.items[0].q === "What is a primary key?" && /uniquely/.test(q.items[0].a), "numbered descriptive Q&A: " + q.items.length);
+  const m = await parsePasted("1. Which removes duplicates?\nA) UNIQUE\nB) DISTINCT\nC) NONE\nD) ALL\nAns: B\n2. Which is DDL?\nA) SELECT\nB) ALTER\nC) INSERT\nD) UPDATE\nAns: B", { mode: "mcq", topic: "T" });
+  ok(m.items.length === 2 && m.items.every((i) => i.kind === "mcq"), "numbered MCQs: " + m.items.length);
 }
 console.log("Page markers");
 {

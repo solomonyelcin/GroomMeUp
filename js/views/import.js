@@ -1,4 +1,4 @@
-import { store, importQuestions, removeImport, importedQuestions, renameTopic, moveToTopics } from "../store.js";
+import { store, importQuestions, removeImport, importedQuestions, renameTopic, moveToTopics, deleteTopic } from "../store.js";
 import { proposeTopics } from "../import/retopic.js";
 import { isBogusTopic } from "../import/clean.js";
 import { parseFile, parsePasted, ACCEPT } from "../import/index.js";
@@ -287,11 +287,12 @@ export function view(root) {
         <div class="grid g2"><div><label for="tdst">Move all into an existing topic</label><select id="tdst"><option value="">Choose a topic...</option>${others.map((k) => `<option value="${esc(k)}">${esc(CATEGORIES[k]?.name || k)}</option>`).join("")}</select><button class="btn primary sm" id="tmerge" style="margin-top:6px">Merge</button></div>
         <div><label for="tnew">Or rename it to</label><input id="tnew" value="${esc(cur)}"><button class="btn sm" id="tren" style="margin-top:6px">Rename</button></div></div>
         <h3>Preview</h3><div id="tprev">${qs.slice(0, 60).map((q) => `<details style="margin:4px 0"><summary>${esc(q.q)}</summary><div class="small muted" style="margin:6px 0 6px 14px">${rich(String(q.a || "").slice(0, 600) || "(no answer)")}</div></details>`).join("")}${qs.length > 60 ? `<p class="small muted">Showing the first 60 of ${qs.length}.</p>` : ""}</div>
-        <div class="row" style="margin-top:12px"><button class="btn" id="tclose">Close</button></div>`;
+        <div class="row" style="margin-top:12px"><button class="btn" id="tclose">Close</button><button class="btn danger" id="tdel">Delete this topic and its ${qs.length} question${qs.length === 1 ? "" : "s"}</button></div>`;
       document.body.appendChild(dlg); dlg.showModal();
       const done = (msg) => { dlg.close(); dlg.remove(); toast(msg); fillTopics(); drawMine(); };
       dlg.querySelector("#tclose").onclick = () => { dlg.close(); dlg.remove(); };
       dlg.addEventListener("cancel", () => dlg.remove());
+      dlg.querySelector("#tdel").onclick = () => { if (!confirm(`Delete "${cur}" and its ${qs.length} questions? Your practice history for them is removed too. This cannot be undone.`)) return; done(`Deleted "${cur}" (${deleteTopic(key)} questions)`); };
       dlg.querySelector("#tmerge").onclick = () => { const d = dlg.querySelector("#tdst").value; if (!d) { toast("Choose a topic to merge into"); return; } const r = renameTopic(key, CATEGORIES[d]?.name || d); done(`Moved ${r.moved ?? qs.length} questions into "${CATEGORIES[d]?.name || d}"`); };
       dlg.querySelector("#tren").onclick = () => { const nv = dlg.querySelector("#tnew").value.trim(); if (!nv || nv === cur) { toast("Type a different name"); return; } const r = renameTopic(key, nv); done(r.merged ? `Merged ${r.moved} questions into "${nv}"` : `Renamed to "${nv}"`); };
     }

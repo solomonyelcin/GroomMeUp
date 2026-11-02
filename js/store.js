@@ -261,6 +261,20 @@ export function moveToTopics(map) {
   return moved;
 }
 
+// Delete an imported topic and the questions in it (and their practice history).
+export function deleteTopic(key) {
+  let n = 0;
+  store.update((s) => {
+    const gone = new Set(s.custom.filter((q) => q.c === key && q.imported).map((q) => q.id));
+    n = gone.size;
+    s.custom = s.custom.filter((q) => !gone.has(q.id));
+    s.attempts = s.attempts.filter((a) => !gone.has(a.qid));
+    for (const id of gone) delete s.srs[id];
+    if (!s.custom.some((q) => q.c === key)) delete s.cats[key];
+  });
+  return n;
+}
+
 export function removeImport(id) {
   let removed = 0;
   store.update((s) => {

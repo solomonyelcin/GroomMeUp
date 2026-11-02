@@ -13,7 +13,7 @@ export const ACCEPT = ".xlsx,.xlsm,.csv,.tsv,.docx,.pdf,.txt,.md,.markdown";
 const MAX_BYTES = 30 * 1024 * 1024;
 const stem = (n) => n.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim() || "Imported questions";
 
-export async function parseFile(file) {
+export async function parseFile(file, { trustPairs = false } = {}) {
   const name = file.name || "file";
   const ext = (name.split(".").pop() || "").toLowerCase();
   if (file.size > MAX_BYTES) throw new Error(`${name} is larger than 30 MB.`);
@@ -66,7 +66,7 @@ export async function parseFile(file) {
   }
   // In a plain list of questions the "answer" of one question is often just the next question:
   // drop those pairs and take the questions from the dedicated list reader instead.
-  if (out._qlist && !out.kind.includes("multiple choice")) {
+  if (out._qlist && !trustPairs && !out.kind.includes("multiple choice")) {
     const inList = new Set(out._qlist.map((x) => norm(x.q)));
     // an item whose "answer" is a question, a heading or a stray line is really a question with no answer
     // mostly short "answers" next to a clear list of questions: this is a questions-only document
@@ -106,7 +106,7 @@ export async function parsePasted(text, { mode = "qa", topic = "Pasted notes" } 
     }
     return { name: unique, ext: "txt", kind: "Pasted notes", items, pending: [], info: summarise(items), warnings: items.length ? [] : ["Nothing to import. Paste at least a paragraph of text."], text, skipped: 0 };
   }
-  const res = await parseFile(new File([text], `${topic}.txt`));
+  const res = await parseFile(new File([text], `${topic}.txt`), { trustPairs: true });
   res.name = unique;
   res.kind = mode === "mcq" ? "Pasted multiple choice" : "Pasted Q&A";
   if (mode === "mcq" && !res.items.some((i) => i.kind === "mcq")) res.warnings.push('No multiple-choice questions were found. Each question needs options like "A) ... B) ..." and an answer line such as "Ans: C".');

@@ -404,6 +404,12 @@ for (const r of ["dashboard", "bank", "code", "market", "import", "quiz"]) {
   await page.selectOption("dialog #tdst", { label: "C# Basics" }); await page.click("dialog #tmerge"); await page.waitForTimeout(400);
   const stM = await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")));
   check(!stM.cats["u:saikatpage"] && stM.custom.find((q) => q.id === "wbadtopic").c !== "u:saikatpage", "Rename / merge moves the questions into the real topic and removes the bogus one");
+  await page.evaluate(() => { const k = "groommeup.v1", st = JSON.parse(localStorage.getItem(k)); st.cats["u:sk3"] = { name: "Saikat banerjee Page 3", color: "#888" }; const base = st.custom.find((q) => q.imported); st.custom.push({ ...base, id: "wbad2", c: "u:sk3", q: "What is a C# class and how does it differ from a struct?", a: "A class is a reference type; a struct is a value type." }); localStorage.setItem(k, JSON.stringify(st)); });
+  await page.goto(base + "/#/import"); await page.reload(); await page.waitForSelector("#fixOdd");
+  await page.click("#fixOdd"); await page.waitForSelector("#fxok:not([hidden])");
+  await page.click("#fxok"); await page.waitForTimeout(400);
+  const st2 = await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")));
+  check(!st2.cats["u:sk3"] && st2.custom.find((q) => q.id === "wbad2").c !== "u:sk3", "Fix odd topics sorts the questions of a page-header topic into real topics");
 }
 // ---- paste text: Q&A, MCQ and notes ----
 {

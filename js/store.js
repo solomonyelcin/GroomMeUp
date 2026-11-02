@@ -240,6 +240,27 @@ export function renameTopic(key, name) {
   return res;
 }
 
+// Move questions into topics by name (creating a topic when the name is new). map: Map(questionId -> topic name).
+export function moveToTopics(map) {
+  const nm = (x) => String(x || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  let moved = 0;
+  store.update((s) => {
+    const byName = new Map(Object.entries({ ...CATEGORIES, ...s.cats }).map(([k, v]) => [nm(v.name), k]));
+    const from = new Set();
+    for (const q of s.custom) {
+      const name = map.get(q.id); if (!name) continue;
+      let key = byName.get(nm(name));
+      if (!key) { key = "u:" + (nm(name).replace(/\s+/g, "-").slice(0, 40) || "topic"); s.cats[key] = { name, color: `hsl(${(Object.keys(s.cats).length * 47 + 12) % 360} 58% 42%)` }; byName.set(nm(name), key); }
+      if (q.c === key) continue;
+      from.add(q.c); const old = q.c; q.c = key; moved++;
+      for (const a of s.attempts) if (a.qid === q.id && a.cat === old) a.cat = key;
+    }
+    const live = new Set(s.custom.map((q) => q.c));
+    for (const k of from) if (s.cats[k] && !live.has(k)) delete s.cats[k];
+  });
+  return moved;
+}
+
 export function removeImport(id) {
   let removed = 0;
   store.update((s) => {

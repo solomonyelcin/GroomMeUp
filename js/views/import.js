@@ -1,4 +1,5 @@
-import { store, importQuestions, removeImport, importedQuestions, renameTopic } from "../store.js";
+import { store, importQuestions, removeImport, importedQuestions, renameTopic, moveToTopics } from "../store.js";
+import { proposeTopics } from "../import/retopic.js";
 import { isBogusTopic } from "../import/clean.js";
 import { parseFile, parsePasted, ACCEPT } from "../import/index.js";
 import { buildQuestions, isConfident } from "../import/build.js";
@@ -275,6 +276,7 @@ export function view(root) {
       ${s.imports.map((i) => `<tr><td>${esc(i.name)} <span class="small muted">${esc(i.kind || "")}</span></td><td>${mine.filter((q) => q.src === i.id).length}</td><td>${fmtDate(i.t)}</td><td><a class="btn sm" href="#/bank?src=${i.id}">Open</a> <button class="btn sm danger" data-rm="${i.id}">Remove</button></td></tr>`).join("")}
       </tbody></table></div>
       <details style="margin-top:10px" ${[...topics.keys()].some((k) => isBogusTopic(CATEGORIES[k]?.name)) ? "open" : ""}><summary class="small" style="cursor:pointer">Topics (rename or merge)</summary>
+        ${[...topics.keys()].some((k) => isBogusTopic(CATEGORIES[k]?.name)) ? `<div class="callout warn" style="margin:8px 0"><strong>Some topics are really page headers, questions or code.</strong> Sort their questions into the right subjects automatically${aiEnabled() ? " with your connected AI" : " (offline guess; connect an AI in Settings for better results)"}. You see the plan before anything changes.<div style="margin-top:8px"><button class="btn primary sm" id="fixOdd">Fix odd topics</button></div></div>` : ""}
         <div class="tbl-wrap"><table class="tbl"><tbody>${[...topics].map(([k, n]) => { const nm = CATEGORIES[k]?.name || k, bad = isBogusTopic(nm); return `<tr><td><span class="dot" style="background:${CATEGORIES[k]?.color || "#888"}"></span> ${esc(nm)}${bad ? ` <span class="warn-tag">looks like a question, code or page header, not a topic</span>` : ""}</td><td>${n}</td><td><button class="btn sm ${bad ? "primary" : ""}" data-ren="${esc(k)}">Preview / merge</button></td></tr>`; }).join("")}</tbody></table></div></details>`;
     $$("[data-ren]", box).forEach((b) => (b.onclick = () => openTopic(b.dataset.ren)));
     function openTopic(key) {
@@ -293,6 +295,25 @@ export function view(root) {
       dlg.querySelector("#tmerge").onclick = () => { const d = dlg.querySelector("#tdst").value; if (!d) { toast("Choose a topic to merge into"); return; } const r = renameTopic(key, CATEGORIES[d]?.name || d); done(`Moved ${r.moved ?? qs.length} questions into "${CATEGORIES[d]?.name || d}"`); };
       dlg.querySelector("#tren").onclick = () => { const nv = dlg.querySelector("#tnew").value.trim(); if (!nv || nv === cur) { toast("Type a different name"); return; } const r = renameTopic(key, nv); done(r.merged ? `Merged ${r.moved} questions into "${nv}"` : `Renamed to "${nv}"`); };
     }
+    const fix = $("#fixOdd", box);
+    if (fix) fix.onclick = async () => {
+      const mineQs = importedQuestions();
+      const badKeys = new Set([...topics.keys()].filter((k) => isBogusTopic(CATEGORIES[k]?.name)));
+      const real = [...topics.keys()].filter((k) => !badKeys.has(k)).map((k) => ({ key: k, name: CATEGORIES[k]?.name || k }));
+      const qs = mineQs.filter((q) => badKeys.has(q.c));
+      const dlg = document.createElement("dialog"); dlg.className = "card"; dlg.style.cssText = "max-width:680px;width:94vw;max-height:88vh;overflow:auto;padding:16px";
+      dlg.innerHTML = `<h2 style="margin-top:0">Fix odd topics</h2><p id="fxs"><span class="spinner"></span> Working out where ${qs.length} question${qs.length === 1 ? "" : "s"} belong...</p><div id="fxb"></div><div class="row" style="margin-top:12px"><button class="btn primary" id="fxok" hidden>Apply</button><button class="btn" id="fxno">Cancel</button></div>`;
+      document.body.appendChild(dlg); dlg.showModal();
+      const close = () => { dlg.close(); dlg.remove(); };
+      dlg.querySelector("#fxno").onclick = close; dlg.addEventListener("cancel", () => dlg.remove());
+      const r = await proposeTopics(qs, mineQs, real, { onProgress: (a, b) => { dlg.querySelector("#fxs").innerHTML = `<span class="spinner"></span> Asking the AI... ${a} of ${b}`; } });
+      const groups = new Map();
+      for (const q of qs) { const p = r.map.get(q.id); if (!p) continue; const g = groups.get(p.topic) || { n: 0, isNew: p.isNew, ex: [] }; g.n++; if (g.ex.length < 3) g.ex.push(q.q); groups.set(p.topic, g); }
+      dlg.querySelector("#fxs").innerHTML = `${r.map.size} of ${qs.length} questions placed${r.usedAI ? " by AI" : " by an offline guess"}${r.unplaced ? `; ${r.unplaced} left where they are (no clear match)` : ""}.${r.aiFailed ? " Some AI requests failed, those used the offline guess." : ""}${r.usedAI ? ` <span class="muted small">The question text was sent to your AI provider. Skip this for confidential material.</span>` : ""}`;
+      dlg.querySelector("#fxb").innerHTML = `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Move into</th><th>Questions</th><th>For example</th></tr></thead><tbody>${[...groups].sort((a, b) => b[1].n - a[1].n).map(([t, g]) => `<tr><td>${esc(t)}${g.isNew ? ` <span class="small muted">(new)</span>` : ""}</td><td>${g.n}</td><td class="small muted">${g.ex.map(esc).join("<br>")}</td></tr>`).join("")}</tbody></table></div>`;
+      const ok = dlg.querySelector("#fxok");
+      if (r.map.size) { ok.hidden = false; ok.onclick = () => { const m = new Map([...r.map].map(([id, p]) => [id, p.topic])); const n = moveToTopics(m); close(); toast(`Moved ${n} questions into the right topics`); fillTopics(); drawMine(); }; }
+    };
     $$("[data-rm]", box).forEach((b) => (b.onclick = () => {
       const name = s.imports.find((i) => i.id === b.dataset.rm)?.name;
       if (!confirm(`Remove everything imported from "${name}"? Your practice history for those questions is removed too.`)) return;

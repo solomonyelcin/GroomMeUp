@@ -50,6 +50,7 @@ export function view(root) {
       <p class="small muted" style="margin-bottom:0">Old .xls and .doc files need Save As .xlsx or .docx first. Scanned PDFs (pictures of text) cannot be read without OCR.</p></section>
   `;
 
+  let topicsOpen = false; // keeps the Topics panel open across redraws
   const results$ = $("#results");
 
   // ---------- pasted text ----------
@@ -265,6 +266,7 @@ export function view(root) {
 
   // ---------- imported material list ----------
   function drawMine() {
+    const y = window.scrollY; requestAnimationFrame(() => window.scrollTo(0, y));
     const s = store.get(), mine = importedQuestions();
     const box = $("#mineBody");
     if (!mine.length) { box.innerHTML = `<p class="muted">Nothing imported yet. Drop a file above to get started.</p>`; return; }
@@ -277,7 +279,7 @@ export function view(root) {
       <div class="tbl-wrap"><table class="tbl"><thead><tr><th>File</th><th>Questions</th><th>Imported</th><th></th></tr></thead><tbody>
       ${s.imports.map((i) => `<tr><td>${esc(i.name)} <span class="small muted">${esc(i.kind || "")}</span></td><td>${mine.filter((q) => q.src === i.id).length}</td><td>${fmtDate(i.t)}</td><td><a class="btn sm" href="#/bank?src=${i.id}">Open</a> <button class="btn sm danger" data-rm="${i.id}">Remove</button></td></tr>`).join("")}
       </tbody></table></div>
-      <details style="margin-top:10px" ${[...topics.keys()].some((k) => isBogusTopic(CATEGORIES[k]?.name)) ? "open" : ""}><summary class="small" style="cursor:pointer">Topics (rename or merge)</summary>
+      <details id="topicsDet" style="margin-top:10px" ${topicsOpen || [...topics.keys()].some((k) => isBogusTopic(CATEGORIES[k]?.name)) ? "open" : ""}><summary class="small" style="cursor:pointer">Topics (rename or merge)</summary>
         ${[...topics.keys()].some((k) => isBogusTopic(CATEGORIES[k]?.name)) ? `<div class="callout warn" style="margin:8px 0"><strong>Some topics are really page headers, questions or code.</strong> Sort their questions into the right subjects automatically${aiEnabled() ? " with your connected AI" : " (offline guess; connect an AI in Settings for better results)"}. You see the plan before anything changes.<div style="margin-top:8px"><button class="btn primary sm" id="fixOdd">Fix odd topics</button></div></div>` : ""}
         <div class="tbl-wrap"><table class="tbl"><tbody>${[...topics].map(([k, n]) => { const nm = CATEGORIES[k]?.name || k, bad = isBogusTopic(nm); return `<tr><td><span class="dot" style="background:${CATEGORIES[k]?.color || "#888"}"></span> ${esc(nm)}${bad ? ` <span class="warn-tag">looks like a question, code or page header, not a topic</span>` : ""}</td><td>${n}</td><td><button class="btn sm ${bad ? "primary" : ""}" data-ren="${esc(k)}">Preview / merge</button></td></tr>`; }).join("")}</tbody></table></div></details>`;
     $$("[data-ren]", box).forEach((b) => (b.onclick = () => openTopic(b.dataset.ren)));
@@ -315,6 +317,7 @@ export function view(root) {
         }).catch(() => note.remove());
       }
     }
+    const td = $("#topicsDet", box); if (td) td.addEventListener("toggle", () => { topicsOpen = td.open; });
     const fix = $("#fixOdd", box);
     if (fix) fix.onclick = async () => {
       const mineQs = importedQuestions();

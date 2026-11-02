@@ -423,6 +423,10 @@ for (const r of ["dashboard", "bank", "code", "market", "import", "quiz"]) {
   await page.waitForSelector("dialog #tdel"); page.once("dialog", (d) => d.accept()); await page.click("dialog #tdel"); await page.waitForTimeout(400);
   const st3 = await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")));
   check(!st3.cats["u:sk4"] && !st3.custom.some((q) => q.id === "wbad3"), "Delete topic removes the topic and its questions");
+  await page.evaluate(() => { document.querySelector("#topicsDet").open = true; }); await page.waitForTimeout(100);
+  await page.evaluate(() => document.querySelector("[data-ren]").click()); await page.waitForSelector("dialog #tren");
+  await page.fill("dialog #tnew", "Renamed Topic X"); await page.click("dialog #tren"); await page.waitForTimeout(400);
+  check(await page.evaluate(() => document.querySelector("#topicsDet").open), "Topics panel stays open after a rename/merge");
 }
 // ---- paste text: Q&A, MCQ and notes ----
 {

@@ -25,3 +25,19 @@ export function isBogusTopic(name) {
   if (/^(?:what|why|how|when|where|which|who|explain|describe|define|differentiate|difference|compare|can|is|are|do|does)\b/i.test(t) && t.split(/\s+/).length >= 5) return true;
   return t.split(/\s+/).length > 10;
 }
+
+// Question text without the numbering or level marker it had in the source document:
+// "(A) What is ...", "(b) ...", "(1) ...", "12. ...", "Q3: ...", "1) ...", "[4] ..." -> "What is ..."
+const LEAD = /^\s*(?:\(\s*(?:[A-Za-z]|\d{1,4})\s*\)|\[\s*\d{1,4}\s*\]|(?:Q(?:uestion)?\s*\.?\s*)?\d{1,4}\s*[.):\-–—]|[A-Za-z]\s?[.)](?=\s))\s*/i;
+export function cleanQuestion(text) {
+  let t = String(text || "").replace(/\s+/g, " ").trim();
+  for (let i = 0; i < 3; i++) { // markers can stack: "1. (B) What is ..."
+    const m = LEAD.exec(t);
+    if (!m) break;
+    const rest = t.slice(m[0].length).trim();
+    if (rest.length < 4 || !/[A-Za-z]/.test(rest)) break;
+    t = rest;
+  }
+  t = t.replace(/^[\s\-–—:.,;]+/, "");
+  return t ? t[0].toUpperCase() + t.slice(1) : t;
+}

@@ -1,5 +1,6 @@
 // Turn parsed items into app questions: stable ids, categories, key points for scoring, and quiz questions.
 import { norm } from "./sheet.js";
+import { cleanQuestion } from "./clean.js";
 
 export const hash32 = (str) => { let h = 0x811c9dc5; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193); } return (h >>> 0).toString(36); };
 export const slug = (s) => norm(s).replace(/\s+/g, "-").slice(0, 40) || "topic";
@@ -80,6 +81,8 @@ export function buildQuestions(items, { importId, existingCats = {} } = {}) {
     questions.push({ id, c: key, d: diffOf(it), q: it.q, a: it.a, kp: deriveKeyPoints(it.a, df, items.length), f: [], imported: true, src: importId, sub: it.sub || "", kind: it.kind, ...(it.ai ? { ai: true } : {}) });
     if (isConfident(it.status)) seeds.push(id);
   }
+  // ids above come from the original wording; what people see has the document's numbering/level marker removed
+  for (const q of questions) q.q = cleanQuestion(q.q);
   return { questions, cats, newCats, seeds };
 }
 

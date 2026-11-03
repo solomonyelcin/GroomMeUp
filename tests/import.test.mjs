@@ -6,7 +6,7 @@ import { parseFile, parsePasted } from "../js/import/index.js";
 import { buildQuestions, makeMcqs, deriveKeyPoints, hash32, optionText } from "../js/import/build.js";
 import { offlineEvaluate } from "../js/ai.js";
 import { encryptLibrary, decryptLibrary } from "../js/library.js";
-import { isPageMarker, stripMarkers } from "../js/import/clean.js";
+import { isPageMarker, stripMarkers, cleanQuestion } from "../js/import/clean.js";
 
 const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures");
 let fails = 0, checks = 0;
@@ -132,6 +132,17 @@ console.log("Pasted numbered questions");
   ok(q.items.length === 3 && q.items[0].q === "What is a primary key?" && /uniquely/.test(q.items[0].a), "numbered descriptive Q&A: " + q.items.length);
   const m = await parsePasted("1. Which removes duplicates?\nA) UNIQUE\nB) DISTINCT\nC) NONE\nD) ALL\nAns: B\n2. Which is DDL?\nA) SELECT\nB) ALTER\nC) INSERT\nD) UPDATE\nAns: B", { mode: "mcq", topic: "T" });
   ok(m.items.length === 2 && m.items.every((i) => i.kind === "mcq"), "numbered MCQs: " + m.items.length);
+}
+console.log("Question numbering removed");
+{
+  const c = cleanQuestion;
+  ok(c("(A) What is normalization?") === "What is normalization?" && c("(b)What are indexes?") === "What are indexes?", "(A) / (b) markers removed");
+  ok(c("(1) Define REST") === "Define REST" && c("12. Explain DI") === "Explain DI" && c("Q3: What is CQRS?") === "What is CQRS?" && c("1) why use Redis") === "Why use Redis", "numbers removed, first letter capitalised");
+  ok(c("1. (B) What is a view?") === "What is a view?", "stacked markers removed");
+  ok(c("5 Whys technique") === "5 Whys technique" && c("C# generics explained") === "C# generics explained" && c("U.S. history rules") === "U.S. history rules", "real titles untouched");
+  const r = await parseFile(new File(["(B) What is a primary key?\nA column that uniquely identifies each row in a table.\n\n(I) What is a foreign key?\nA column that references the key of another table."], "numbered.txt"));
+  const b = buildQuestions(r.items, { importId: "t1" });
+  ok(b.questions.length >= 1 && b.questions.every((q) => !/^\(|^\d/.test(q.q)), "imported questions have no marker: " + b.questions.map((q) => q.q).join(" | "));
 }
 console.log("Page markers");
 {

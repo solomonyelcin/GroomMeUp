@@ -1,10 +1,10 @@
-import { store, allQuestions, lastScores, isDue, isBrokenMcq, removeBroken, markStudy, toggleStar, setNote } from "../store.js";
+import { store, allQuestions, lastScores, isDue, isBrokenMcq, removeBroken, markStudy, toggleStar, setNote, updateQuestion, deleteQuestion } from "../store.js";
 import { CATEGORIES } from "../data/index.js";
 import { generateQuestions, aiEnabled } from "../ai.js";
 import { esc, rich, scoreBadge, toast, busy, $, $$ } from "../ui.js";
 import { isBogusTopic } from "../import/clean.js";
 
-const filt = { text: "", cat: "all", diff: 0, status: "all", src: "", kind: "all", ids: null };
+const filt = { text: "", cat: "all", diff: 0, status: "all", src: "", kind: "all", ids: null, sort: "topic" };
 const readMode = () => { try { return localStorage.getItem("groommeup.read") === "1"; } catch { return false; } };
 const revealed = new Set();
 const setReadMode = (v) => { try { localStorage.setItem("groommeup.read", v ? "1" : "0"); } catch { /* ignore */ } };
@@ -29,20 +29,23 @@ export function view(root, ctx) {
   root.innerHTML = `
     <header class="page-head" id="bankHead">
       <h1>Question bank</h1>
-      <p>Read questions with their answers. Options and filters are tucked away: open them only when you need them.</p>
+      <p>Search, filter and read questions with their answers. Pick a topic, or open Options for more filters.</p>
     </header>
     <div id="broken"></div>
     <div id="idnote"></div>
-    <div class="bank-bar"><span id="count" class="small muted" aria-live="polite"></span></div>
+    <div class="bank-tools">
+      <input id="s" type="search" placeholder="Search questions and answers" aria-label="Search questions" value="${esc(filt.text)}">
+      <select id="so" aria-label="Sort questions"><option value="topic">Sort: topic order</option><option value="az">Sort: A to Z</option><option value="weak">Sort: weakest first</option><option value="hard">Sort: hardest first</option><option value="easy">Sort: easiest first</option><option value="new">Sort: newest added</option><option value="shuffle">Sort: shuffled</option></select>
+      <div class="seg" role="group" aria-label="View"><button id="vl" aria-pressed="false">List</button><button id="v1" aria-pressed="false">One by one</button></div>
+    </div>
+    <div class="bank-bar row between"><span id="count" class="small muted" aria-live="polite"></span><button class="btn sm" id="xall" type="button">Expand all</button></div>
     <details class="card filters" id="filters">
       <summary id="fsum">Options and filters</summary>
       <div class="row" style="margin:12px 0 4px;gap:8px">
-        <div class="seg" role="group" aria-label="View"><button id="vl" aria-pressed="false">List</button><button id="v1" aria-pressed="false">One by one</button></div>
         <button class="btn sm" id="shuf">Shuffle</button>
         <label class="read-toggle"><input type="checkbox" id="rd"> Show answers</label>
       </div>
       <div class="grid g3">
-        <div><label for="s">Search</label><input id="s" type="search" placeholder="e.g. saga, OnPush, deadlock" value="${esc(filt.text)}"></div>
         <div><label for="d">Difficulty</label><select id="d"><option value="0">Any</option><option value="1">Warm-up</option><option value="2">Core</option><option value="3">Senior / hard</option></select></div>
         <div><label for="st">Status</label><select id="st"><option value="all">All</option><option value="new">Not tried</option><option value="weak">Weak or to revise</option><option value="due">Due for review</option><option value="strong">Strong (8+)</option><option value="star">Starred</option><option value="note">With my note</option></select></div>
       </div>
@@ -53,12 +56,12 @@ export function view(root, ctx) {
       </div>
       <div class="row" style="margin-top:12px"><button class="btn sm" id="add">Add your own question</button><button class="btn sm" id="gen">Generate with AI</button></div>
     </details>
-    <div id="forms"></div>
-    <div id="list"></div>
+    <div class="bank-layout"><aside class="trail" id="trail" aria-label="Topics"></aside>
+      <div class="bank-main"><div id="forms"></div><div id="list"></div></div></div>
     <div class="focusbar" id="focusbar" hidden></div>
   `;
   $("#rd").checked = readMode();
-  $("#d").value = String(filt.diff); $("#st").value = filt.status;
+  $("#d").value = String(filt.diff); $("#st").value = filt.status; $("#so").value = filt.sort;
   let cur = []; // the questions currently listed, in order
 
   const checkBroken = () => {
@@ -92,9 +95,9 @@ export function view(root, ctx) {
   function list(scrollToCard) {
     const last = lastScores(), s = store.get();
     const t = filt.text.trim().toLowerCase();
-    const qs = allQuestions().filter((q) => {
+    const pass = (q, skipCat) => {
       if (filt.ids && !filt.ids.has(q.id)) return false;
-      if (filt.cat !== "all" && q.c !== filt.cat) return false;
+      if (!skipCat && filt.cat !== "all" && q.c !== filt.cat) return false;
       if (filt.src === "builtin" && (q.imported || q.custom)) return false;
       if (filt.src === "mine" && !q.imported) return false;
       if (filt.src && filt.src !== "builtin" && filt.src !== "mine" && q.src !== filt.src) return false;
@@ -109,7 +112,8 @@ export function view(root, ctx) {
       if (filt.status === "note" && !(s.notes || {})[q.id]) return false;
       if (t && !(q.q + " " + q.a + " " + (q.o || []).join(" ") + " " + q.kp.map((k) => k[0]).join(" ")).toLowerCase().includes(t)) return false;
       return true;
-    });
+    };
+    const qs = allQuestions().filter((q) => pass(q, false));
     const all = allQuestions();
     const studiedAll = all.filter((q) => last.has(q.id)).length;
     const studiedHere = qs.filter((q) => last.has(q.id)).length;
@@ -117,11 +121,30 @@ export function view(root, ctx) {
     $("#fsum").textContent = nf ? `Options and filters (${nf} active)` : "Options and filters";
     $("#count").innerHTML = `<b>${studiedAll} of ${all.length}</b> studied` + (qs.length !== all.length ? ` · showing ${qs.length} (${studiedHere} studied)` : "");
     $("#idnote").innerHTML = filt.ids ? `<div class="callout" style="margin-bottom:10px">Showing the ${qs.length} questions matched to your job description. <a href="#/bank">Show all</a></div>` : "";
-    qs.sort((a, b) => shuffleRank(a) - shuffleRank(b));
+    {
+      const pos = new Map(allQuestions().map((q, i) => [q.id, i])), nm = (q) => (CATEGORIES[q.c]?.name || "My questions");
+      const sc = (q) => { const l = last.get(q.id); return l ? l.score : 5.5; };
+      const by = {
+        topic: (a, b) => nm(a).localeCompare(nm(b)) || pos.get(a.id) - pos.get(b.id),
+        az: (a, b) => a.q.localeCompare(b.q),
+        weak: (a, b) => sc(a) - sc(b) || pos.get(a.id) - pos.get(b.id),
+        hard: (a, b) => (b.d || 2) - (a.d || 2) || pos.get(a.id) - pos.get(b.id),
+        easy: (a, b) => (a.d || 2) - (b.d || 2) || pos.get(a.id) - pos.get(b.id),
+        new: (a, b) => pos.get(b.id) - pos.get(a.id),
+        shuffle: (a, b) => shuffleRank(a) - shuffleRank(b),
+      };
+      qs.sort(by[filt.sort] || by.topic);
+      // topic sidebar: counts with every filter except the topic itself
+      const cnt = new Map(); let tot = 0;
+      for (const q of allQuestions()) if (pass(q, true)) { cnt.set(q.c, (cnt.get(q.c) || 0) + 1); tot++; }
+      const items = [...cnt].sort((a, b) => b[1] - a[1] || nm({ c: a[0] }).localeCompare(nm({ c: b[0] })));
+      $("#trail").innerHTML = `<div class="trail-h">Topics</div><button class="trail-item" data-cat="all" aria-pressed="${filt.cat === "all"}"><span>All topics</span><b>${tot}</b></button>` + items.map(([k, n]) => `<button class="trail-item" data-cat="${esc(k)}" aria-pressed="${filt.cat === k}"><span class="dot" style="background:${(CATEGORIES[k] || {}).color || "#546178"}"></span><span class="trail-n">${esc(nm({ c: k }))}</span><b>${n}</b></button>`).join("");
+      $$("#trail [data-cat]").forEach((b) => (b.onclick = () => { filt.cat = b.dataset.cat; $("#tp").value = filt.cat; shown = 40; idx = 0; curId = null; list(); }));
+    }
     cur = qs;
     const view1 = getView() === "one";
     $("#vl").setAttribute("aria-pressed", String(!view1)); $("#v1").setAttribute("aria-pressed", String(view1));
-    root.classList.toggle("bank-one", view1);
+    root.classList.toggle("bank-one", view1); $("#xall").hidden = view1;
     document.body.classList.toggle("focus-mode", view1 && qs.length > 0);
     const diffName = ["", "Warm-up", "Core", "Senior"];
     const meta = (q) => {
@@ -140,7 +163,7 @@ export function view(root, ctx) {
       const starred = !!(s.stars || {})[q.id], note = (s.notes || {})[q.id] || "";
       return `<div class="q-actions" data-q="${q.id}">
         <button class="btn sm good" data-mark="know">✓ I know this</button><button class="btn sm" data-mark="revise">↻ Revise again</button>
-        <button class="btn sm" data-star aria-pressed="${starred}">${starred ? "★ Starred" : "☆ Star"}</button>${canSpeak() ? `<button class="btn sm" data-speak>🔊 Listen</button>` : ""}</div>
+        <button class="btn sm" data-star aria-pressed="${starred}">${starred ? "★ Starred" : "☆ Star"}</button>${canSpeak() ? `<button class="btn sm" data-speak>🔊 Listen</button>` : ""}<button class="btn sm" data-copy>⧉ Copy</button>${q.imported || q.custom ? `<button class="btn sm" data-edit>✎ Edit</button><button class="btn sm danger" data-del>🗑 Delete</button>` : ""}</div>
         <details class="note" ${note ? "open" : ""}><summary>${note ? "My note" : "Add a note"}</summary><textarea data-note="${q.id}" placeholder="Your own words, a gotcha, an example from work…" maxlength="2000">${esc(note)}</textarea></details>`;
     };
     if (!qs.length) { $("#list").innerHTML = `<div class="card muted">No questions match. Clear a filter or add your own.</div>`; $("#focusbar").hidden = true; return; }
@@ -158,7 +181,7 @@ export function view(root, ctx) {
     $("#focusbar").hidden = true;
     $("#list").innerHTML = qs.slice(0, shown).map((q) => {
       const m = meta(q), l = last.get(q.id);
-      return `<details class="q-card" data-id="${q.id}" ${readMode() || q.o ? "open" : ""}>
+      return `<details class="q-card" data-id="${q.id}" style="border-left:4px solid ${m.cat.color}" ${readMode() || q.o ? "open" : ""}>
         <summary class="q-head"><span class="dot" style="background:${m.cat.color};margin-top:8px" title="${esc(m.cat.name)}"></span>
           <span class="q-title">${rich(q.q)}<br><span class="small muted">${m.sub}</span></span>${scoreBadge(l ? l.score : null)}</summary>
         <div class="q-body">${body(q)}${actions(q)}</div></details>`;
@@ -178,6 +201,12 @@ export function view(root, ctx) {
         if (getView() === "one" && idx < cur.length - 1) go(1); else list();
       }));
       const st = box.querySelector("[data-star]"); if (st) st.onclick = () => { const on = toggleStar(q.id); st.setAttribute("aria-pressed", String(on)); st.textContent = on ? "★ Starred" : "☆ Star"; };
+      const cp = box.querySelector("[data-copy]"); if (cp) cp.onclick = async () => {
+        const txt = plain(q.q) + (q.o ? "\n" + q.o.map((o, k) => `${"ABCDE"[k]}) ${o}`).join("\n") + `\nAnswer: ${"ABCDE"[q.ans]}` : "\n" + plain(q.a));
+        try { await navigator.clipboard.writeText(txt); toast("Copied"); } catch { toast("Could not copy on this browser", true); }
+      };
+      const ed = box.querySelector("[data-edit]"); if (ed) ed.onclick = () => openEdit(q);
+      const dl = box.querySelector("[data-del]"); if (dl) dl.onclick = () => { if (!confirm("Delete this question? Your practice history for it is removed too.")) return; deleteQuestion(q.id); curId = null; toast("Deleted"); draw(); };
       const sp = box.querySelector("[data-speak]"); if (sp) sp.onclick = () => {
         if (speechSynthesis.speaking) { stopSpeak(); sp.textContent = "🔊 Listen"; return; }
         const show = readMode() || revealed.has(q.id);
@@ -187,6 +216,25 @@ export function view(root, ctx) {
       };
     });
     $$("[data-note]").forEach((ta) => (ta.oninput = () => { clearTimeout(ta._t); ta._t = setTimeout(() => setNote(ta.dataset.note, ta.value), 500); }, ta.onblur = () => setNote(ta.dataset.note, ta.value)));
+  }
+
+  function openEdit(q) {
+    const topics = Object.entries(CATEGORIES).filter(([k, v]) => v.mine || k === "custom");
+    const dlg = document.createElement("dialog"); dlg.className = "card"; dlg.style.cssText = "max-width:680px;width:94vw;max-height:90vh;overflow:auto;padding:16px";
+    dlg.innerHTML = `<h2 style="margin-top:0">Edit question</h2>
+      <div class="field"><label for="eq">Question</label><textarea id="eq" style="min-height:70px">${esc(q.q)}</textarea></div>
+      ${q.o ? `<div class="field"><label for="ee">Explanation</label><textarea id="ee" style="min-height:80px">${esc(q.e || "")}</textarea></div><p class="small muted">The options and the correct answer cannot be edited here.</p>` : `<div class="field"><label for="ea">Answer</label><textarea id="ea" style="min-height:140px">${esc(q.a || "")}</textarea></div>`}
+      <div class="field"><label for="et">Topic</label><input id="et" list="etl" value="${esc(CATEGORIES[q.c]?.name || "My questions")}"><datalist id="etl">${topics.map(([, v]) => `<option value="${esc(v.name)}">`).join("")}</datalist></div>
+      <div class="row"><button class="btn primary" id="esave">Save</button><button class="btn" id="ecancel">Cancel</button></div>`;
+    document.body.appendChild(dlg); dlg.showModal();
+    const close = () => { dlg.close(); dlg.remove(); };
+    dlg.querySelector("#ecancel").onclick = close; dlg.addEventListener("cancel", () => dlg.remove());
+    dlg.querySelector("#esave").onclick = () => {
+      const nq = dlg.querySelector("#eq").value.trim(); if (!nq) return toast("The question cannot be empty", true);
+      const t = dlg.querySelector("#et").value.trim();
+      updateQuestion(q.id, { q: nq, a: dlg.querySelector("#ea")?.value, e: dlg.querySelector("#ee")?.value, topic: t && t !== (CATEGORIES[q.c]?.name || "") ? t : "" });
+      close(); toast("Saved"); draw();
+    };
   }
 
   // swipe left / right on the question card (phone)
@@ -202,7 +250,9 @@ export function view(root, ctx) {
 
   $("#vl").onclick = () => { setView("list"); stopSpeak(); list(); };
   $("#v1").onclick = () => { setView("one"); list(true); };
-  $("#shuf").onclick = () => { rank = new Map(); idx = 0; curId = null; shown = 40; list(); };
+  $("#shuf").onclick = () => { rank = new Map(); filt.sort = "shuffle"; $("#so").value = "shuffle"; idx = 0; curId = null; shown = 40; list(); };
+  $("#so").onchange = (e) => { filt.sort = e.target.value; shown = 40; idx = 0; curId = null; list(); };
+  $("#xall").onclick = (e) => { const open = e.target.textContent === "Expand all"; $$(".q-card").forEach((d) => (d.open = open)); e.target.textContent = open ? "Collapse all" : "Expand all"; };
   $("#rd").onchange = (e) => { revealed.clear(); setReadMode(e.target.checked); list(); };
   const reset = () => { shown = 40; idx = 0; curId = null; list(); };
   $("#tp").onchange = (e) => { filt.cat = e.target.value; reset(); };

@@ -455,6 +455,32 @@ for (const r of ["dashboard", "bank", "code", "market", "import", "quiz"]) {
   await page.fill("#mineSearch input", "primary key"); await page.waitForTimeout(500);
   check(/primary key/i.test(await page.textContent("#mineSearch")) && (await page.$$("#mineSearch .sr-hit")).length > 0, "search inside Add my questions finds imported questions");
 }
+// ---- Browse: numbering cleanup, topic sidebar, sort, edit, delete ----
+{
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.evaluate(() => { const k = "groommeup.v1", st = JSON.parse(localStorage.getItem(k)); st.cats["u:numtest"] = { name: "Numbering Test", color: "#3a7" }; st.custom.push({ id: "wnum1", c: "u:numtest", d: 2, imported: true, src: "x", q: "(A) What is zebra normalisation?", a: "Zebra answer long enough to be a real answer.", kp: [["zebra"]], f: [] }, { id: "wnum2", c: "u:numtest", d: 2, imported: true, src: "x", q: "12. Why use aardvark caching?", a: "Aardvark answer long enough to be a real answer.", kp: [["aardvark"]], f: [] }); delete st.qclean; localStorage.setItem(k, JSON.stringify(st)); });
+  await page.goto(base + "/#/bank"); await page.reload(); await page.waitForSelector(".q-card");
+  const cleaned = await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")).custom.filter((q) => q.id.startsWith("wnum")).map((q) => q.q));
+  check(cleaned.join("|") === "What is zebra normalisation?|Why use aardvark caching?", "existing imported questions lose '(A)' / '12.' numbering: " + cleaned.join("|"));
+  await page.waitForSelector("#trail .trail-item");
+  check((await page.$$("#trail .trail-item")).length > 3 && (await page.isVisible("#trail")), "topic sidebar is shown on desktop");
+  await page.click('#trail [data-cat="u:numtest"]'); await page.waitForTimeout(200);
+  check((await page.$$(".q-card")).length === 2, "clicking a topic in the sidebar filters the list");
+  await page.selectOption("#so", "az"); await page.waitForTimeout(200);
+  const titles = await page.$$eval(".q-title", (t) => t.map((x) => x.textContent.trim()));
+  check(titles[0].startsWith("What is zebra") && titles[1].startsWith("Why use"), "sort A to Z orders the list");
+  await page.evaluate(() => { document.querySelector(".q-card").open = true; });
+  await page.click(".q-card:first-of-type [data-edit]"); await page.waitForSelector("dialog #eq");
+  await page.fill("dialog #eq", "What is zebra normalisation exactly?"); await page.click("dialog #esave"); await page.waitForTimeout(300);
+  { const got = await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")).custom.filter((q) => q.id.startsWith("wnum")).map((q) => q.id + ":" + q.q)); check(got.includes("wnum1:What is zebra normalisation exactly?"), "Edit saves the changed question: " + got.join(" | ")); }
+  await page.click('#trail [data-cat="u:numtest"]'); await page.waitForTimeout(200);
+  await page.evaluate(() => { document.querySelector(".q-card").open = true; });
+  page.once("dialog", (d) => d.accept()); await page.click(".q-card:first-of-type [data-del]"); await page.waitForTimeout(300);
+  check(!(await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")).custom.some((q) => q.id === "wnum1"))), "Delete removes the question");
+  await page.screenshot({ path: process.env.SHOT_DIR ? process.env.SHOT_DIR + "/bank-desktop.png" : "/tmp/bank-desktop.png" });
+  await page.setViewportSize({ width: 390, height: 800 }); await page.goto(base + "/#/bank"); await page.reload(); await page.waitForSelector(".q-card, .one-card");
+  await page.screenshot({ path: process.env.SHOT_DIR ? process.env.SHOT_DIR + "/bank-mobile.png" : "/tmp/bank-mobile.png" });
+}
 // ---- usability round: focus mode, marks, star, note, quiz exit, job match, progress code, reminder ----
 await page.setViewportSize({ width: 390, height: 800 });
 await page.evaluate(() => { localStorage.setItem("groommeup.bankview", "one"); localStorage.removeItem("groommeup.read"); });

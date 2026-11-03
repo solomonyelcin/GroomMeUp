@@ -1,6 +1,7 @@
 // Local-first storage. Everything lives in the browser's localStorage; nothing is sent anywhere
 // except the AI calls you explicitly enable in Settings.
 import { QUESTIONS, CATEGORIES, MCQ, JS_CHALLENGES, SQL_CHALLENGES, CS_CHALLENGES } from "./data/index.js";
+import { cleanQuestion } from "./import/clean.js";
 
 const KEY = "groommeup.v1";
 const DAY = 86400000;
@@ -21,11 +22,13 @@ const fresh = () => ({
   mocks: [],           // mock interview reports
   stars: {},           // qid -> true (questions to revisit)
   notes: {},           // qid -> your own note
+  qclean: 1,           // question text had its document numbering removed
   badges: null,        // badge id -> time earned (null until first check, so old progress is not celebrated)
   settings: { provider: "pollinations", aiChoice: false, keys: {}, models: {}, target: "", pistonUrl: "", name: "" },
 });
 
 let state = load();
+if (state.__migrated) { delete state.__migrated; try { localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* ignore */ } }
 const listeners = new Set();
 
 // Imported topics join the shared CATEGORIES object so every page sees them.
@@ -44,7 +47,9 @@ function load() {
     const settings = { ...f.settings, ...(parsed.settings || {}) };
     // one-time migration: people who never chose a provider get the free keyless AI
     if (!settings.aiChoice && settings.provider === "offline") settings.provider = "pollinations";
-    return { ...f, ...parsed, settings };
+    const st = { ...f, ...parsed, settings };
+    if (!parsed.qclean) { for (const q of st.custom || []) if (q.imported && q.q) q.q = cleanQuestion(q.q); st.qclean = 1; st.__migrated = true; } // one-time: drop "(A)", "(1)", "12." etc. from imported questions
+    return st;
   } catch { return fresh(); }
 }
 function persist() {
@@ -259,6 +264,38 @@ export function moveToTopics(map) {
     for (const k of from) if (s.cats[k] && !live.has(k)) delete s.cats[k];
   });
   return moved;
+}
+
+// Edit a question you added or imported (built-in questions are read-only). patch: {q, a, e, topic}
+export function updateQuestion(id, patch) {
+  let ok = false;
+  store.update((s) => {
+    const q = s.custom.find((x) => x.id === id); if (!q) return;
+    if (patch.q != null && patch.q.trim()) q.q = patch.q.replace(/\s+/g, " ").trim();
+    if (patch.a != null && !q.o) q.a = patch.a.trim();
+    if (patch.e != null && q.o) q.e = patch.e.trim();
+    if (patch.topic) {
+      const nm = (x) => String(x || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+      let key = patch.topic in { ...CATEGORIES, ...s.cats } ? patch.topic : Object.entries({ ...CATEGORIES, ...s.cats }).find(([, v]) => nm(v.name) === nm(patch.topic))?.[0];
+      if (!key) { key = "u:" + (nm(patch.topic).replace(/\s+/g, "-").slice(0, 40) || "topic"); s.cats[key] = { name: patch.topic.trim().slice(0, 80), color: `hsl(${(Object.keys(s.cats).length * 47 + 12) % 360} 58% 42%)` }; }
+      if (q.c !== key) { const old = q.c; q.c = key; for (const a of s.attempts) if (a.qid === id && a.cat === old) a.cat = key; if (s.cats[old] && !s.custom.some((x) => x.c === old)) delete s.cats[old]; }
+    }
+    ok = true;
+  });
+  return ok;
+}
+
+export function deleteQuestion(id) {
+  let ok = false;
+  store.update((s) => {
+    const q = s.custom.find((x) => x.id === id); if (!q) return;
+    s.custom = s.custom.filter((x) => x.id !== id);
+    s.attempts = s.attempts.filter((a) => a.qid !== id);
+    delete s.srs[id]; if (s.stars) delete s.stars[id]; if (s.notes) delete s.notes[id];
+    if (s.cats[q.c] && !s.custom.some((x) => x.c === q.c)) delete s.cats[q.c];
+    ok = true;
+  });
+  return ok;
 }
 
 // Delete an imported topic and the questions in it (and their practice history).

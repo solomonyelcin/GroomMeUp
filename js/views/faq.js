@@ -56,7 +56,7 @@ export function view(root, ctx) {
           <button class="btn sm primary" id="addTopic" type="button">Add to my questions</button></div>
           ${DIAGRAMS[cur.diagram] ? `<div class="faq-fig">${DIAGRAMS[cur.diagram]()}</div>` : ""}
           <div class="callout" style="margin-top:10px"><strong>What interviewers listen for.</strong> ${esc(cur.tip || "")}</div></section>
-        <div class="row between" style="margin:14px 0 8px"><div style="flex:1;max-width:340px"><div class="bar" aria-hidden="true"><span style="width:${Math.round((d / n) * 100)}%"></span></div><span class="small muted" data-prog>${d} of ${n} understood</span></div><button class="btn sm" id="fx" type="button">Expand all</button></div>
+        <div class="row between" style="margin:14px 0 8px"><div style="flex:1;max-width:340px"><div class="bar" aria-hidden="true"><span style="width:${Math.round((d / n) * 100)}%"></span></div><span class="small muted">${d} of ${n} understood</span></div><button class="btn sm" id="fx" type="button">Expand all</button></div>
         ${cur.qa.map(([a, b], k) => card(cur, { a, b, i: k }, false)).join("")}
         <div class="row" style="margin-top:14px;gap:8px">${i < FAQS.length - 1 ? `<button class="btn primary" data-go="${FAQS[i + 1].id}">Next: ${esc(FAQS[i + 1].title)} ▶</button>` : ""}<button class="btn" id="addAll" type="button">Add all topics to my questions</button></div>`;
       $("#addTopic").onclick = () => addToBank([cur]);
@@ -81,17 +81,7 @@ export function view(root, ctx) {
     const g = e.target.closest("[data-go]"); if (g && g.dataset.go) return select(FAQS.find((f) => f.id === g.dataset.go));
     const o = e.target.closest("[data-open]"); if (o) return select(FAQS.find((f) => f.id === o.dataset.open));
     const dn = e.target.closest("[data-done]");
-    if (dn) { // update in place so nothing closes or jumps: the answer stays visible, it just counts as read
-      const k = dn.dataset.done; st.done[k] ? delete st.done[k] : (st.done[k] = 1); save(st);
-      const on = !!st.done[k], det = dn.closest(".faq-q"), num = det.querySelector(".faq-num"), [fid, i] = k.split(":");
-      dn.textContent = on ? "↺ Mark as not done" : "✓ Got it"; dn.classList.toggle("good", !on);
-      num.classList.toggle("ok", on); num.textContent = on ? "✓" : +i + 1;
-      const f = FAQS.find((x) => x.id === fid), d = doneCount(f), tab = tabs.querySelector(`[data-id="${fid}"] i`);
-      if (tab) tab.textContent = `${f.companies ? f.companies + " companies · " : ""}${d}/${f.qa.length} done`;
-      const bar = main.querySelector(".bar span"), lbl = main.querySelector("[data-prog]");
-      if (bar && f === cur) { bar.style.width = Math.round((d / f.qa.length) * 100) + "%"; if (lbl) lbl.textContent = `${d} of ${f.qa.length} understood`; }
-      return;
-    }
+    if (dn) { const k = dn.dataset.done; st.done[k] ? delete st.done[k] : (st.done[k] = 1); save(st); openId = k; const y = window.scrollY; draw(); window.scrollTo(0, y); return; }
     const cp = e.target.closest("[data-copy]");
     if (cp) { const [fid, i] = cp.dataset.copy.split(":"); const f = FAQS.find((x) => x.id === fid), [a, b] = f.qa[+i]; navigator.clipboard?.writeText(a + "\n\n" + b).then(() => toast("Copied"), () => toast("Could not copy on this browser", true)); }
   };

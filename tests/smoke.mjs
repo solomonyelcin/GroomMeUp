@@ -37,7 +37,7 @@ await page.goto(base + "/#/dashboard");
 await page.waitForSelector("h1");
 check((await page.textContent("h1")).includes("Welcome"), "dashboard renders");
 
-for (const r of ["bank", "practice", "quiz", "mock", "code", "log", "market", "plan", "settings", "dashboard"]) {
+for (const r of ["bank", "practice", "quiz", "mock", "code", "log", "market", "plan", "settings", "dashboard", "faq"]) {
   await page.goto(`${base}/#/${r}`);
   await page.waitForFunction(() => !document.querySelector("#main .spinner") || document.querySelector("#main h1"), null, { timeout: 8000 });
   const h = await page.textContent("#main h1, #main h2");
@@ -511,6 +511,27 @@ for (const r of ["dashboard", "bank", "code", "market", "import", "quiz"]) {
   await page.screenshot({ path: process.env.SHOT_DIR ? process.env.SHOT_DIR + "/bank-desktop.png" : "/tmp/bank-desktop.png" });
   await page.setViewportSize({ width: 390, height: 800 }); await page.goto(base + "/#/bank"); await page.reload(); await page.waitForSelector(".q-card, .one-card");
   await page.screenshot({ path: process.env.SHOT_DIR ? process.env.SHOT_DIR + "/bank-mobile.png" : "/tmp/bank-mobile.png" });
+}
+// ---- FAQs ----
+{
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto(base + "/#/faq"); await page.reload(); await page.waitForSelector(".faq-tab");
+  check((await page.$$(".faq-tab")).length === 10, "FAQs lists the 10 topics");
+  check(!!(await page.$(".faq-fig svg")) && (await page.$$(".faq-q")).length >= 6, "a topic shows an illustration and its questions");
+  await page.click('.faq-tab[data-id="middleware"]'); await page.waitForTimeout(150);
+  check(/Middleware/.test(await page.textContent(".faq-hero h2")), "switching topic works");
+  await page.fill("#fq", "short-circuit"); await page.waitForTimeout(200);
+  check((await page.$$(".faq-q")).length >= 1 && (await page.$$(".faq-q")).length < 7, "filter narrows the questions");
+  const before = await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")).custom.length);
+  await page.click("#addTopic"); await page.waitForTimeout(300);
+  const after = await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")).custom.length);
+  check(after - before === 7, `"Add to my questions" adds the 7 questions of the topic (${after - before})`);
+  await page.click("#addTopic"); await page.waitForTimeout(300);
+  check(await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")).custom.length) === after, "adding the same topic again does not duplicate");
+  for (const id of ["di", "jwt-skip"]) { /* screenshots below */ }
+  const SD = process.env.SHOT_DIR || "/tmp";
+  await page.fill("#fq", ""); await page.click('.faq-tab[data-id="di"]'); await page.waitForTimeout(200); await page.screenshot({ path: SD + "/faq-desktop.png" });
+  await page.setViewportSize({ width: 390, height: 800 }); await page.goto(base + "/#/faq?t=microservices"); await page.reload(); await page.waitForSelector(".faq-fig svg"); await page.screenshot({ path: SD + "/faq-mobile.png" });
 }
 // ---- usability round: focus mode, marks, star, note, quiz exit, job match, progress code, reminder ----
 await page.setViewportSize({ width: 390, height: 800 });

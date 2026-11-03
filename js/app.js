@@ -10,6 +10,7 @@ const ROUTES = [
   { id: "import", label: "Add my questions", ico: "⇪", group: "Start", mod: "./views/import.js" },
   { id: "practice", label: "Practise answers", ico: "✎", group: "Learn", mod: "./views/practice.js" },
   { id: "bank", label: "Browse questions", ico: "☰", group: "Learn", mod: "./views/bank.js" },
+  { id: "faq", label: "FAQs", ico: "❓", group: "Learn", mod: "./views/faq.js" },
   { id: "jd", label: "Match a job", ico: "⌖", group: "Learn", mod: "./views/jd.js" },
   { id: "quiz", label: "Quick quiz", ico: "?", group: "Test yourself", mod: "./views/quiz.js" },
   { id: "code", label: "Coding tests", ico: "⌘", group: "Test yourself", mod: "./views/code.js" },

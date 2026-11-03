@@ -379,3 +379,16 @@ table.tbl th { font-weight: 600; color: var(--ink-2); background: color-mix(in s
   .bank-one .bank-tools { margin: 0 0 6px; }
   .q-actions .btn { flex: 1 1 auto; justify-content: center; }
 }
+
+/* FAQs */
+.faq-tabs { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 8px; scrollbar-width: thin; -webkit-overflow-scrolling: touch; }
+.faq-tab { flex: none; display: grid; grid-template-columns: auto 1fr; column-gap: 8px; align-items: center; text-align: left; max-width: 230px; min-height: 52px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); color: var(--ink); font: 600 .84rem var(--font-body); cursor: pointer; }
+.faq-tab b { grid-row: span 2; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--cobalt-tint); color: var(--cobalt-d); font-size: .8rem; }
+.faq-tab i { font-style: normal; font-weight: 500; font-size: .74rem; color: var(--ink-3); }
+.faq-tab[aria-selected="true"] { background: var(--cobalt); border-color: var(--cobalt); color: #fff; }
+.faq-tab[aria-selected="true"] b { background: #fff; color: var(--cobalt); }
+.faq-tab[aria-selected="true"] i { color: #fff; opacity: .85; }
+.faq-fig { margin: 12px 0 4px; display: flex; justify-content: center; }
+.faq-q + .faq-q { margin-top: 10px; }
+.faq-num { flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--cobalt-tint); color: var(--cobalt-d); font-size: .8rem; font-weight: 700; display: grid; place-items: center; }
+@media (min-width: 1000px) { .faq-tabs { flex-wrap: wrap; overflow: visible; } }

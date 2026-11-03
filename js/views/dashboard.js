@@ -72,6 +72,7 @@ export function view(root) {
         <div class="tiles">
           ${tile("#/practice", "✎", "Practise answers", "Answer in your own words, get a score")}
           ${tile("#/bank", "☰", "Question bank", "Search and read model answers")}
+          ${tile("#/faq", "❓", "FAQs", "Top 10 .NET topics with diagrams")}
           ${tile("#/jd", "⌖", "Match a job", "Paste a job ad, get the likely questions")}
         </div>
         <h3 class="tile-head">Test yourself</h3>

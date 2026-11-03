@@ -91,6 +91,11 @@ Deploys to GitHub Pages through `.github/workflows/pages.yml` (enable Pages: Set
 Progress, logs and custom questions are stored in your browser (localStorage). Use Settings > Export backup to
 move between devices. Nothing is collected by any server of ours: there isn't one.
 
+## FAQs: adding a topic
+The FAQs page reads `js/data/faqs.js`. To add a topic, append one object to `FAQS`:
+`{ id, n, companies, title, sub, diagram, tip, qa: [[question, answer], ...] }`. Answers can use `` `code` `` and `**bold**`, and `\n` for line breaks.
+`diagram` names an illustration in `js/views/faq-diagrams.js` (add a function there, or leave it unset for none). List any new source guides in `FAQ_SOURCES`. The page, the tabs and "Add to my questions" pick the new topic up automatically.
+
 ## Extending
 
 - Questions: `js/data/questions-*.js` use `mk(id, category, difficulty, question, answer, keyPoints, followUps)`.

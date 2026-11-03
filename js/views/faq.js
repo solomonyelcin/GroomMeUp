@@ -4,43 +4,67 @@ import { store, importQuestions } from "../store.js";
 import { buildQuestions } from "../import/build.js";
 import { esc, rich, toast, $, $$ } from "../ui.js";
 
+const KEY = "groommeup.faq";
+const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } };
+const save = (v) => { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch { /* ignore */ } };
+const qid = (f, i) => f.id + ":" + i;
 const answer = (a) => `<div class="model" style="white-space:pre-wrap">${rich(a)}</div>`;
 
 export function view(root, ctx) {
-  let cur = FAQS.find((f) => f.id === ctx?.params?.get("t")) || FAQS[0];
-  let q = "";
+  const st = load(); st.done ||= {};
+  let cur = FAQS.find((f) => f.id === ctx?.params?.get("t")) || FAQS.find((f) => f.id === st.last) || FAQS[0];
+  let q = "", openId = null;
+  const doneCount = (f) => f.qa.filter((_, i) => st.done[qid(f, i)]).length;
+
   root.innerHTML = `
     <header class="page-head"><h1>FAQs</h1>
-      <p>The ten most asked .NET interview topics, each with the questions that come up again and again, a picture to anchor the idea, and what interviewers listen for.</p></header>
+      <p>The most asked interview topics: the questions that keep coming up, a picture to anchor the idea, and what interviewers listen for.</p></header>
     <div class="callout" style="margin-bottom:12px"><strong>Study drafts.</strong> Questions follow themes from public interview guides; the answers were written for GroomMeUp, so check them against the official docs before relying on them in an interview. <a href="#faqsrc" id="srcLink">Sources</a></div>
-    <div class="faq-tabs" id="tabs" role="tablist" aria-label="Interview topics"></div>
-    <div class="row" style="margin:10px 0;gap:8px;align-items:flex-end"><div style="flex:1;min-width:200px"><input id="fq" type="search" placeholder="Filter the questions in this topic" aria-label="Filter questions"></div>
-      <button class="btn sm" id="fx" type="button">Expand all</button></div>
-    <div id="body"></div>
+    <div class="faq-layout">
+      <aside class="faq-side" aria-label="Topics">
+        <input id="fq" type="search" placeholder="Search all topics and questions" aria-label="Search all FAQs" autocomplete="off">
+        <div class="faq-tabs" id="faqtabs" role="tablist" aria-label="Interview topics"></div>
+      </aside>
+      <div class="faq-main" id="faqmain"></div>
+    </div>
     <section class="card" id="faqsrc" style="margin-top:18px"><h2>Sources</h2><p class="small muted" style="margin-top:0">Public guides used to see which questions come up. The wording and answers here are original.</p>
       <ul class="small">${FAQ_SOURCES.map(([t, u]) => `<li><a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(t)}</a></li>`).join("")}</ul></section>`;
 
-  const tabs = $("#tabs");
+  const tabs = $("#faqtabs"), main = $("#faqmain");
   const drawTabs = () => {
-    tabs.innerHTML = FAQS.map((f) => `<button class="faq-tab" role="tab" data-id="${f.id}" aria-selected="${f.id === cur.id}"><b>${f.n}</b><span>${esc(f.title)}</span><i>${f.companies} companies</i></button>`).join("");
+    const needle = q.trim().toLowerCase();
+    const list = FAQS.filter((f) => !needle || (f.title + " " + f.sub).toLowerCase().includes(needle) || f.qa.some(([a, b]) => (a + " " + b).toLowerCase().includes(needle)));
+    tabs.innerHTML = list.map((f) => { const d = doneCount(f); return `<button class="faq-tab" role="tab" data-id="${f.id}" aria-selected="${!needle && f.id === cur.id}"><b>${f.n || "•"}</b><span>${esc(f.title)}</span><i>${f.companies ? f.companies + " companies · " : ""}${d}/${f.qa.length} done</i></button>`; }).join("") || `<p class="small muted">No topic matches.</p>`;
   };
-  const body = $("#body");
+  const card = (f, x, showTopic) => {
+    const key = qid(f, x.i), d = !!st.done[key];
+    return `<details class="q-card faq-q" data-key="${key}" ${openId === key ? "open" : ""}><summary class="q-head"><span class="faq-num ${d ? "ok" : ""}">${d ? "✓" : x.i + 1}</span><span class="q-title">${esc(x.a)}${showTopic ? `<br><span class="small muted">${esc(f.title)}</span>` : ""}</span></summary>
+      <div class="q-body">${answer(x.b)}<div class="q-actions"><button class="btn sm ${d ? "" : "good"}" data-done="${key}">${d ? "↺ Mark as not done" : "✓ Got it"}</button><button class="btn sm" data-copy="${key}">⧉ Copy</button>${showTopic ? `<button class="btn sm" data-open="${f.id}">Open topic</button>` : ""}</div></div></details>`;
+  };
   const draw = () => {
     drawTabs();
     const needle = q.trim().toLowerCase();
-    const items = cur.qa.map(([a, b], i) => ({ a, b, i })).filter((x) => !needle || (x.a + " " + x.b).toLowerCase().includes(needle));
-    body.innerHTML = `
-      <section class="card faq-hero"><div class="row between" style="align-items:flex-start;gap:10px"><div><h2 style="margin:0">${cur.n}. ${esc(cur.title)}</h2><p class="small muted" style="margin:2px 0 0">${esc(cur.sub)} · asked at ${cur.companies} companies</p></div>
-        <button class="btn sm primary" id="addTopic" type="button">Add to my questions</button></div>
-        <div class="faq-fig" aria-hidden="false">${DIAGRAMS[cur.diagram] ? DIAGRAMS[cur.diagram]() : ""}</div>
-        <div class="callout" style="margin-top:10px"><strong>What interviewers listen for.</strong> ${esc(cur.tip)}</div></section>
-      <div style="margin-top:12px">${items.length ? items.map((x) => `<details class="q-card faq-q"><summary class="q-head"><span class="faq-num">${x.i + 1}</span><span class="q-title">${esc(x.a)}</span></summary><div class="q-body">${answer(x.b)}</div></details>`).join("") : `<div class="card muted">No questions match "${esc(q)}".</div>`}</div>
-      <div class="row" style="margin-top:14px;gap:8px">${(() => { const i = FAQS.indexOf(cur); return (i > 0 ? `<button class="btn" data-go="${FAQS[i - 1].id}">◀ ${esc(FAQS[i - 1].title)}</button>` : "") + (i < FAQS.length - 1 ? `<button class="btn primary" data-go="${FAQS[i + 1].id}">${esc(FAQS[i + 1].title)} ▶</button>` : ""); })()}<button class="btn" id="addAll" type="button">Add all 10 topics to my questions</button></div>`;
-    $("#addTopic").onclick = () => addToBank([cur]);
-    $("#addAll").onclick = () => addToBank(FAQS);
-    $$("[data-go]", body).forEach((b) => (b.onclick = () => { cur = FAQS.find((f) => f.id === b.dataset.go); q = ""; $("#fq").value = ""; draw(); window.scrollTo({ top: 0 }); }));
-    $("#fx").textContent = "Expand all";
+    if (needle) {
+      const hits = FAQS.flatMap((f) => f.qa.map(([a, b], i) => ({ f, x: { a, b, i } })).filter(({ x }) => (x.a + " " + x.b).toLowerCase().includes(needle)));
+      main.innerHTML = `<div class="row between" style="margin-bottom:8px"><p class="small muted" style="margin:0">${hits.length} match${hits.length === 1 ? "" : "es"} for "${esc(q.trim())}" across all topics</p><button class="btn sm" id="clr" type="button">Clear search</button></div>${hits.length ? hits.slice(0, 40).map(({ f, x }) => card(f, x, true)).join("") : `<div class="card muted">Nothing found. Try a shorter word.</div>`}`;
+      $("#clr").onclick = () => { q = ""; $("#fq").value = ""; draw(); };
+    } else {
+      const i = FAQS.indexOf(cur), d = doneCount(cur), n = cur.qa.length;
+      const nav = `<div class="faq-nav"><button class="btn sm" data-go="${i > 0 ? FAQS[i - 1].id : ""}" ${i > 0 ? "" : "disabled"} aria-label="Previous topic">◀</button><span class="faq-nav-t"><b>${esc(cur.title)}</b><span class="small muted">${i + 1} of ${FAQS.length}</span></span><button class="btn sm" data-go="${i < FAQS.length - 1 ? FAQS[i + 1].id : ""}" ${i < FAQS.length - 1 ? "" : "disabled"} aria-label="Next topic">▶</button></div>`;
+      main.innerHTML = `${nav}
+        <section class="card faq-hero"><div class="row between" style="align-items:flex-start;gap:10px"><div><h2 style="margin:0">${cur.n ? cur.n + ". " : ""}${esc(cur.title)}</h2><p class="small muted" style="margin:2px 0 0">${esc(cur.sub || "")}${cur.companies ? ` · asked at ${cur.companies} companies` : ""}</p></div>
+          <button class="btn sm primary" id="addTopic" type="button">Add to my questions</button></div>
+          ${DIAGRAMS[cur.diagram] ? `<div class="faq-fig">${DIAGRAMS[cur.diagram]()}</div>` : ""}
+          <div class="callout" style="margin-top:10px"><strong>What interviewers listen for.</strong> ${esc(cur.tip || "")}</div></section>
+        <div class="row between" style="margin:14px 0 8px"><div style="flex:1;max-width:340px"><div class="bar" aria-hidden="true"><span style="width:${Math.round((d / n) * 100)}%"></span></div><span class="small muted">${d} of ${n} understood</span></div><button class="btn sm" id="fx" type="button">Expand all</button></div>
+        ${cur.qa.map(([a, b], k) => card(cur, { a, b, i: k }, false)).join("")}
+        <div class="row" style="margin-top:14px;gap:8px">${i < FAQS.length - 1 ? `<button class="btn primary" data-go="${FAQS[i + 1].id}">Next: ${esc(FAQS[i + 1].title)} ▶</button>` : ""}<button class="btn" id="addAll" type="button">Add all topics to my questions</button></div>`;
+      $("#addTopic").onclick = () => addToBank([cur]);
+      $("#addAll").onclick = () => addToBank(FAQS);
+      $("#fx").onclick = (e) => { const o = e.target.textContent === "Expand all"; $$(".faq-q", main).forEach((x) => (x.open = o)); e.target.textContent = o ? "Collapse all" : "Expand all"; };
+    }
   };
+  const select = (f) => { cur = f; q = ""; openId = null; $("#fq").value = ""; st.last = f.id; save(st); draw(); main.scrollIntoView({ block: "start" }); };
   function addToBank(list) {
     let n = 0;
     for (const f of list) {
@@ -52,9 +76,16 @@ export function view(root, ctx) {
     }
     toast(`${n} questions added. Find them in Browse, Practise and Quiz under "${list.length === 1 ? list[0].title : "the FAQ topics"}".`);
   }
-  tabs.onclick = (e) => { const b = e.target.closest("[data-id]"); if (!b) return; cur = FAQS.find((f) => f.id === b.dataset.id); q = ""; $("#fq").value = ""; draw(); };
-  $("#fq").oninput = (e) => { q = e.target.value; draw(); $("#fq").focus(); };
-  $("#fx").onclick = (e) => { const open = e.target.textContent === "Expand all"; $$(".faq-q").forEach((d) => (d.open = open)); e.target.textContent = open ? "Collapse all" : "Expand all"; };
+  tabs.onclick = (e) => { const b = e.target.closest("[data-id]"); if (b) select(FAQS.find((f) => f.id === b.dataset.id)); };
+  main.onclick = (e) => {
+    const g = e.target.closest("[data-go]"); if (g && g.dataset.go) return select(FAQS.find((f) => f.id === g.dataset.go));
+    const o = e.target.closest("[data-open]"); if (o) return select(FAQS.find((f) => f.id === o.dataset.open));
+    const dn = e.target.closest("[data-done]");
+    if (dn) { const k = dn.dataset.done; st.done[k] ? delete st.done[k] : (st.done[k] = 1); save(st); openId = k; const y = window.scrollY; draw(); window.scrollTo(0, y); return; }
+    const cp = e.target.closest("[data-copy]");
+    if (cp) { const [fid, i] = cp.dataset.copy.split(":"); const f = FAQS.find((x) => x.id === fid), [a, b] = f.qa[+i]; navigator.clipboard?.writeText(a + "\n\n" + b).then(() => toast("Copied"), () => toast("Could not copy on this browser", true)); }
+  };
+  $("#fq").oninput = (e) => { q = e.target.value; draw(); };
   $("#srcLink").onclick = (e) => { e.preventDefault(); $("#faqsrc").scrollIntoView({ behavior: "smooth" }); };
   draw();
 }

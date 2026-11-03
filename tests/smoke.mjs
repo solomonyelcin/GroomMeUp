@@ -515,23 +515,33 @@ for (const r of ["dashboard", "bank", "code", "market", "import", "quiz"]) {
 // ---- FAQs ----
 {
   await page.setViewportSize({ width: 1280, height: 900 });
+  await page.evaluate(() => localStorage.removeItem("groommeup.faq"));
   await page.goto(base + "/#/faq"); await page.reload(); await page.waitForSelector(".faq-tab");
   check((await page.$$(".faq-tab")).length === 10, "FAQs lists the 10 topics");
   check(!!(await page.$(".faq-fig svg")) && (await page.$$(".faq-q")).length >= 6, "a topic shows an illustration and its questions");
+  check(await page.evaluate(() => { const r = document.querySelector(".faq-side").getBoundingClientRect(); return r.width > 200 && r.left < document.querySelector(".faq-main").getBoundingClientRect().left; }), "desktop shows the topic list as a side column");
   await page.click('.faq-tab[data-id="middleware"]'); await page.waitForTimeout(150);
   check(/Middleware/.test(await page.textContent(".faq-hero h2")), "switching topic works");
   await page.fill("#fq", "short-circuit"); await page.waitForTimeout(200);
-  check((await page.$$(".faq-q")).length >= 1 && (await page.$$(".faq-q")).length < 7, "filter narrows the questions");
+  const hits = (await page.$$(".faq-q")).length;
+  check(hits >= 1 && hits < 15 && /across all topics/.test(await page.textContent("#faqmain")), "search looks through all topics: " + hits);
+  await page.fill("#fq", ""); await page.waitForTimeout(150);
+  await page.click('.faq-tab[data-id="middleware"]'); await page.waitForTimeout(150);
+  await page.evaluate(() => { document.querySelector(".faq-q").open = true; });
+  await page.click(".faq-q [data-done]"); await page.waitForTimeout(150);
+  check(/1 of 7 understood/.test(await page.textContent("#faqmain")) && /1\/7 done/.test(await page.textContent('.faq-tab[data-id="middleware"]')), "'Got it' marks progress and shows it in the topic list");
   const before = await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")).custom.length);
   await page.click("#addTopic"); await page.waitForTimeout(300);
   const after = await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")).custom.length);
   check(after - before === 7, `"Add to my questions" adds the 7 questions of the topic (${after - before})`);
   await page.click("#addTopic"); await page.waitForTimeout(300);
   check(await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")).custom.length) === after, "adding the same topic again does not duplicate");
-  for (const id of ["di", "jwt-skip"]) { /* screenshots below */ }
+  await page.reload(); await page.waitForSelector(".faq-hero");
+  check(/Middleware/.test(await page.textContent(".faq-hero h2")), "the last topic is remembered");
   const SD = process.env.SHOT_DIR || "/tmp";
-  await page.fill("#fq", ""); await page.click('.faq-tab[data-id="di"]'); await page.waitForTimeout(200); await page.screenshot({ path: SD + "/faq-desktop.png" });
+  await page.screenshot({ path: SD + "/faq-desktop.png" });
   await page.setViewportSize({ width: 390, height: 800 }); await page.goto(base + "/#/faq?t=microservices"); await page.reload(); await page.waitForSelector(".faq-fig svg"); await page.screenshot({ path: SD + "/faq-mobile.png" });
+  check(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), "FAQs has no sideways scrolling on a phone");
 }
 // ---- usability round: focus mode, marks, star, note, quiz exit, job match, progress code, reminder ----
 await page.setViewportSize({ width: 390, height: 800 });

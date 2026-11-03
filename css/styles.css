@@ -409,3 +409,11 @@ table.tbl th { font-weight: 600; color: var(--ink-2); background: color-mix(in s
   .faq-tab { width: 200px; }
   .q-actions .btn { flex: 1 1 auto; justify-content: center; }
 }
+.faq-q { scroll-margin-top: calc(72px + env(safe-area-inset-top)); transition: box-shadow .25s ease, border-color .25s ease; }
+.faq-q .q-body { transition: opacity .2s ease, transform .2s ease; }
+.faq-q.closing .q-body { opacity: 0; transform: translateY(-6px); }
+.faq-q.opening { border-color: var(--cobalt); box-shadow: 0 0 0 3px var(--cobalt-tint); }
+.faq-q.opening .q-body { animation: faqIn .3s ease both; }
+.faq-q > summary:focus-visible { outline: 3px solid var(--cobalt); outline-offset: 2px; border-radius: 10px; }
+@keyframes faqIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .faq-q, .faq-q .q-body { transition: none; } .faq-q.opening .q-body { animation: none; } }

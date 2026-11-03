@@ -528,8 +528,10 @@ for (const r of ["dashboard", "bank", "code", "market", "import", "quiz"]) {
   await page.fill("#fq", ""); await page.waitForTimeout(150);
   await page.click('.faq-tab[data-id="middleware"]'); await page.waitForTimeout(150);
   await page.evaluate(() => { document.querySelector(".faq-q").open = true; });
-  await page.click(".faq-q [data-done]"); await page.waitForTimeout(150);
+  await page.click(".faq-q [data-done]"); await page.waitForTimeout(900);
   check(/1 of 7 understood/.test(await page.textContent("#faqmain")) && /1\/7 done/.test(await page.textContent('.faq-tab[data-id="middleware"]')), "'Got it' marks progress and shows it in the topic list");
+  const st1 = await page.evaluate(() => { const q = [...document.querySelectorAll(".faq-q")]; return { first: q[0].open, second: q[1].open, focus: document.activeElement === q[1].querySelector("summary") }; });
+  check(!st1.first && st1.second && st1.focus, `'Got it' collapses this question, opens the next and focuses it (${JSON.stringify(st1)})`);
   const before = await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")).custom.length);
   await page.click("#addTopic"); await page.waitForTimeout(300);
   const after = await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")).custom.length);

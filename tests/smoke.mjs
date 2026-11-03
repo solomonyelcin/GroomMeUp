@@ -530,6 +530,7 @@ for (const r of ["dashboard", "bank", "code", "market", "import", "quiz"]) {
   await page.evaluate(() => { document.querySelector(".faq-q").open = true; });
   await page.click(".faq-q [data-done]"); await page.waitForTimeout(150);
   check(/1 of 7 understood/.test(await page.textContent("#faqmain")) && /1\/7 done/.test(await page.textContent('.faq-tab[data-id="middleware"]')), "'Got it' marks progress and shows it in the topic list");
+  check(await page.evaluate(() => document.querySelector(".faq-q").open) && (await page.isVisible(".faq-q .model")), "after 'Got it' the answer stays open and visible");
   const before = await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")).custom.length);
   await page.click("#addTopic"); await page.waitForTimeout(300);
   const after = await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")).custom.length);

@@ -1,7 +1,7 @@
-import { store, allQuestions, categoryStats, noteMcq } from "../store.js";
+import { store, allQuestions, categoryStats, noteMcq, resetMcq } from "../store.js";
 import { MCQ, CATEGORIES } from "../data/index.js";
 import { prepPlain, makeMcqFor } from "../import/build.js";
-import { esc, rich, shuffle, fmtTime, tape, pct, $, $$ } from "../ui.js";
+import { esc, rich, shuffle, fmtTime, tape, pct, toast, $, $$ } from "../ui.js";
 
 // Every question we have can become a quiz item: hand-written MCQs, real MCQs imported from files,
 // and multiple choice generated from any question that has a model answer.
@@ -15,18 +15,22 @@ function candidates() {
   return { list, prepared };
 }
 
-// Weakest topics (from the study plan's readiness numbers) come up more, new and missed questions come up more,
-// anything asked in the last day comes up less.
-function pickSmart(list, n, picked, onlyMissed = false) {
-  const stats = categoryStats(), seen = store.get().mcqSeen || {}, now = Date.now();
-  const pool = list.filter((x) => picked.has(x.c) && (!onlyMissed || (seen[x.id] && !seen[x.id].ok))).map((x) => {
-    const readiness = stats[x.c]?.readiness ?? 0;
-    let w = 1 + (100 - readiness) / 50;                  // 1 .. 3
-    const s = seen[x.id];
-    if (!s) w *= 1.6; else if (!s.ok) w *= 2.4; else if (now - s.t < 864e5) w *= 0.25; else if (now - s.t < 3 * 864e5) w *= 0.6;
-    return { x, k: -Math.log(Math.random()) / w };       // weighted sampling without replacement
-  }).sort((a, b) => a.k - b.k);
-  return pool.slice(0, n).map((p) => p.x);
+// Which questions come next:
+// - never one you already answered correctly (until you have been through all of them)
+// - questions you got wrong come first, then new ones (weakest topics a little more often)
+// - when nothing is left, everything starts again from the beginning
+// The caller shuffles the final order, so a quiz never follows a fixed sequence.
+export function pickQuiz(list, n, picked, onlyMissed = false) {
+  const stats = categoryStats(), seen = store.get().mcqSeen || {};
+  const inTopics = list.filter((x) => picked.has(x.c));
+  const wrong = inTopics.filter((x) => seen[x.id] && !seen[x.id].ok);
+  if (onlyMissed) return { chosen: shuffle(wrong), reset: false };
+  const fresh = inTopics.filter((x) => !seen[x.id]).map((x) => ({ x, k: -Math.log(Math.random()) / (1 + (100 - (stats[x.c]?.readiness ?? 0)) / 50) })).sort((a, b) => a.k - b.k).map((p) => p.x);
+  const open = [...shuffle(wrong), ...fresh];
+  const need = n * 2; // spares in case a question cannot be turned into multiple choice
+  if (open.length >= n) return { chosen: open.slice(0, need), reset: false };
+  const done = inTopics.filter((x) => seen[x.id] && seen[x.id].ok);
+  return { chosen: [...open, ...shuffle(done)].slice(0, need), reset: done.length > 0, resetIds: done.map((x) => x.id) };
 }
 
 export function view(root, ctx) {
@@ -44,7 +48,7 @@ export function view(root, ctx) {
     const builtIn = topicKeys.filter((k) => !CATEGORIES[k].mine), mine = topicKeys.filter((k) => CATEGORIES[k].mine);
     const weakest = Object.values(categoryStats()).filter((c) => !c.mine && counts[c.key]).sort((a, b) => a.readiness - b.readiness).slice(0, 3).map((c) => c.name);
     root.innerHTML = `
-      <header class="page-head"><h1>Quick quiz</h1><p>Just press Start. Questions are picked for you from <strong>all</strong> topics, with your weakest areas${weakest.length ? ` (${esc(weakest.join(", "))})` : ""} and questions you missed coming up more often.</p></header>
+      <header class="page-head"><h1>Quick quiz</h1><p>Just press Start. Questions are picked for you from <strong>all</strong> topics in a fresh shuffle each time. You will not see a question again once you answer it correctly, but ones you miss keep coming back${weakest.length ? `, and your weakest areas (${esc(weakest.join(", "))}) come up more` : ""}.</p></header>
       <div class="card">
         <div class="grid g3">
           <div><label for="n">How many questions</label><select id="n"><option>10</option><option>20</option><option>30</option><option>50</option></select></div>
@@ -60,17 +64,18 @@ export function view(root, ctx) {
           </div></details>
       </div>
       ${history()}`;
-    const upd = () => { const only = $("#missed")?.checked; const n = list.filter((m) => picked.has(m.c) && (!only || (seenAll[m.id] && !seenAll[m.id].ok))).length; $("#pool").textContent = `${n} questions available${picked.size < topicKeys.length ? ` in ${picked.size} topic${picked.size === 1 ? "" : "s"}` : ""}`; $("#start").disabled = !n; };
+    const upd = () => { const only = $("#missed")?.checked; const n = list.filter((m) => picked.has(m.c) && (only ? (seenAll[m.id] && !seenAll[m.id].ok) : !(seenAll[m.id] && seenAll[m.id].ok))).length; $("#pool").textContent = `${n} questions available${picked.size < topicKeys.length ? ` in ${picked.size} topic${picked.size === 1 ? "" : "s"}` : ""}`; $("#start").disabled = !n; };
     upd(); $("#missed").onchange = upd;
     $("#cc").onclick = (e) => { const b = e.target.closest("[data-c]"); if (!b) return; const c = b.dataset.c; picked.has(c) ? picked.delete(c) : picked.add(c); b.setAttribute("aria-pressed", picked.has(c)); upd(); };
     $("#all").onclick = () => { topicKeys.forEach((k) => picked.add(k)); setup(); };
     $("#none").onclick = () => { picked.clear(); setup(); };
     $("#start").onclick = () => {
-      const chosen = pickSmart(list, +$("#n").value * 2, picked, $("#missed").checked);          // a few spares in case some cannot be built
+      const { chosen, reset, resetIds } = pickQuiz(list, +$("#n").value, picked, $("#missed").checked);
       const pool = [];
       for (const c of chosen) { const m = c.mcq || makeMcqFor(c.q, prepared); if (m) pool.push({ ...m, id: c.id }); if (pool.length >= +$("#n").value) break; }
       if (!pool.length) return;
-      run(pool, +$("#t").value);
+      if (reset) { resetMcq(resetIds); toast("You have answered everything correctly, so a new round starts from the beginning."); }
+      run(shuffle(pool), +$("#t").value);
     };
   };
 
@@ -90,6 +95,7 @@ export function view(root, ctx) {
       const { m, order, correct: ci } = items[i];
       root.innerHTML = `
         <div class="card" style="max-width:760px">
+          <div class="row" style="margin-bottom:8px"><span class="tag" style="font-size:.9rem"><span class="dot" style="background:${CATEGORIES[m.c]?.color || "#546178"}"></span> ${esc(CATEGORIES[m.c]?.name || "General")}</span></div>
           <div class="row between small muted"><span>Question ${i + 1} of ${items.length}</span><button class="btn sm" id="quit">End quiz</button>${perQ ? `<span class="timer" id="tm">${fmtTime(perQ)}</span>` : ""}</div>
           <div style="margin:10px 0 16px">${tape((i / items.length) * 100, { slim: true, label: "Quiz progress" })}</div>
           <h2>${rich(m.q)}</h2>
@@ -123,7 +129,7 @@ export function view(root, ctx) {
         ${wrong.length ? `<h3 style="margin-top:20px">Review what you missed</h3>${wrong.map((m) => `<div class="callout" style="margin-bottom:8px"><strong>${rich(m.q)}</strong><br>Answer: ${esc(m.o[m.a])}. ${rich(m.e)}</div>`).join("")}` : ""}
         <div class="row" style="margin-top:16px">${wrong.length ? `<button class="btn primary" id="retry">Retry the ${wrong.length} I missed</button>` : ""}<button class="btn ${wrong.length ? "" : "primary"}" id="again">New quiz</button><a class="btn" href="#/practice?mode=weak">Practise weak questions</a></div></div>`;
       $("#again").onclick = setup;
-      if ($("#retry")) $("#retry").onclick = () => run(wrong.slice(), perQ);
+      if ($("#retry")) $("#retry").onclick = () => run(shuffle(wrong.slice()), perQ);
     };
     step();
   }

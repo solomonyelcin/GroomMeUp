@@ -98,9 +98,40 @@ await page.evaluate(() => localStorage.setItem("groommeup.theme", "chalk"));
 // quiz: answer all
 await page.goto(base + "/#/quiz");
 await page.click("#start");
-for (let i = 0; i < 10; i++) { await page.click(".opt >> nth=0"); await page.click("#nx"); }
+const q1 = [], q1ok = new Set(); let topicShown = true;
+for (let i = 0; i < 10; i++) {
+  const text = (await page.textContent(".card h2")).trim(); q1.push(text);
+  topicShown = topicShown && (await page.textContent(".card .tag")).trim().length > 0;
+  await page.click(".opt >> nth=0");
+  if (!(await page.$(".opt.wrong"))) q1ok.add(text);
+  await page.click("#nx");
+}
 await page.waitForSelector("text=By topic");
 check((await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")).quizzes.length)) === 1, "quiz result saved");
+check(topicShown, "quiz shows the topic name above each question");
+{
+  await page.click("#again"); await page.click("#start");
+  const q2 = [];
+  for (let i = 0; i < 10; i++) { q2.push((await page.textContent(".card h2")).trim()); await page.click(".opt >> nth=0"); await page.click("#nx"); }
+  await page.waitForSelector("text=By topic");
+  check(q2.every((t) => !q1ok.has(t)), `a second quiz does not repeat the ${q1ok.size} questions already answered correctly`);
+  const r = await page.evaluate(async () => {
+    const { pickQuiz } = await import("/js/views/quiz.js");
+    const { store } = await import("/js/store.js");
+    const fake = Array.from({ length: 6 }, (_, i) => ({ id: "fq" + i, c: "custom" }));
+    store.update((s) => { s.mcqSeen = { fq0: { t: 1, ok: true }, fq1: { t: 1, ok: true }, fq2: { t: 1, ok: false } }; });
+    return JSON.parse(JSON.stringify({ a: pickQuiz(fake, 3, new Set(["custom"])).chosen.map((x) => x.id), reset: pickQuiz(fake, 3, new Set(["custom"])).reset }));
+  });
+  check(r.a.length === 4 && r.a[0] === "fq2" && !r.a.includes("fq0") && !r.a.includes("fq1") && r.a.includes("fq2") && !r.reset, "quiz picks missed + new questions and skips the ones answered correctly: " + r.a.join(","));
+  const r2 = await page.evaluate(async () => {
+    const { pickQuiz } = await import("/js/views/quiz.js");
+    const { store } = await import("/js/store.js");
+    const fake = Array.from({ length: 4 }, (_, i) => ({ id: "gq" + i, c: "custom" }));
+    store.update((s) => { s.mcqSeen = Object.fromEntries(fake.map((q) => [q.id, { t: 1, ok: true }])); });
+    const p = pickQuiz(fake, 3, new Set(["custom"])); return { n: p.chosen.length, reset: p.reset };
+  });
+  check(r2.reset === true && r2.n >= 3, "when everything is answered correctly a new round starts from the beginning");
+}
 
 // coding: JS solution passes in a real worker
 await page.goto(base + "/#/code?lang=js");

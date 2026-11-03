@@ -329,6 +329,11 @@ export function removeImport(id) {
 
 export const importedQuestions = () => state.custom.filter((q) => q.imported);
 
+// Forget that these quiz questions were answered, so they count as new again (a fresh round).
+export function resetMcq(ids) {
+  store.update((st) => { for (const id of ids) if (st.mcqSeen) delete st.mcqSeen[id]; });
+}
+
 export function noteMcq(id, ok) {
   store.update((st) => { (st.mcqSeen ||= {})[id] = { t: Date.now(), ok: !!ok }; });
 }

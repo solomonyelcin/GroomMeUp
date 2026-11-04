@@ -417,3 +417,51 @@ table.tbl th { font-weight: 600; color: var(--ink-2); background: color-mix(in s
 .faq-q > summary:focus-visible { outline: 3px solid var(--cobalt); outline-offset: 2px; border-radius: 10px; }
 @keyframes faqIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .faq-q, .faq-q .q-body { transition: none; } .faq-q.opening .q-body { animation: none; } }
+
+/* Analysis */
+.viz-root { --v-surface: var(--card); --v-ink: var(--ink); --v-mute: var(--ink-3); --v-grid: color-mix(in srgb, var(--ink-3) 22%, transparent); --v-axis: var(--ink-3); --v-focus: var(--chalk-tint, #fdf3d8);
+  --v1: #2a78d6; --v2: #eb6834; --v3: #1baf7a; position: relative; display: grid; gap: 16px; }
+.viz-root.viz-dark { --v1: #3987e5; --v2: #d95926; --v3: #199e70; }
+.viz-root > .card, .viz-root .grid > .card { margin: 0; }
+.viz-bar { margin: 4px 0 14px; gap: 10px; flex-wrap: wrap; }
+.viz-jump { display: flex; gap: 14px; flex-wrap: wrap; }
+.viz-jump a { padding: 8px 2px; }
+.viz-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+@media (max-width: 560px) { .viz-tiles { grid-template-columns: repeat(2, 1fr); } }
+.viz-tile { border: 1px solid var(--line); border-radius: 12px; background: var(--card); padding: 12px 14px; }
+.viz-n { font-size: 1.7rem; font-weight: 800; line-height: 1.15; letter-spacing: -.01em; }
+.viz-l { font-weight: 600; font-size: .88rem; }
+.small-tiles { grid-template-columns: repeat(3, 1fr); }
+.viz-svg { width: 100%; height: auto; display: block; overflow: visible; }
+.viz-hit { cursor: default; outline: none; }
+.viz-hit:focus-visible, .viz-hit:hover { opacity: .85; }
+.viz-svg .viz-hit:focus-visible { outline: 2px solid var(--v-ink); outline-offset: 2px; }
+.viz-tip { position: absolute; z-index: 20; pointer-events: none; background: var(--ink); color: var(--paper); font-size: .8rem; line-height: 1.35; padding: 6px 10px; border-radius: 8px; max-width: 280px; box-shadow: 0 4px 14px rgba(0, 0, 0, .25); }
+.hb { display: grid; gap: 8px; }
+.hb-row { display: grid; grid-template-columns: minmax(120px, 38%) 1fr auto; gap: 10px; align-items: center; }
+.hb-l { font-size: .9rem; line-height: 1.3; min-width: 0; overflow-wrap: anywhere; }
+.hb-l a { color: inherit; font-weight: 600; text-decoration: none; }
+.hb-l a:hover { text-decoration: underline; }
+.hb-t { height: 12px; border-radius: 6px; background: var(--v-grid); overflow: hidden; }
+.hb-t span { display: block; height: 100%; border-radius: 6px; }
+.hb-v { font-weight: 700; font-size: .88rem; min-width: 3.2em; text-align: right; font-variant-numeric: tabular-nums; }
+.seg-bar { display: flex; gap: 2px; height: 14px; border-radius: 7px; overflow: hidden; margin: 12px 0 8px; background: var(--v-grid); }
+.seg-bar span { min-width: 4px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: .84rem; color: var(--ink-2); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; }
+.viz-ins { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.viz-ins li { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border-radius: 10px; background: var(--cobalt-tint); }
+.viz-ins li > span:first-child { flex: none; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%; background: var(--card); font-size: .8rem; font-weight: 700; }
+.viz-ins li.k-warn { background: var(--chalk-tint); }
+.viz-ins li.k-good { background: var(--moss-tint, var(--cobalt-tint)); }
+.viz-table { margin-top: 12px; }
+.viz-table summary { cursor: pointer; font-weight: 600; font-size: .9rem; color: var(--ink-2); padding: 6px 0; }
+@media (max-width: 640px) {
+  .hb-row { grid-template-columns: 1fr auto; }
+  .hb-t { grid-column: 1 / -1; grid-row: 2; }
+  .hb-v { grid-row: 1; grid-column: 2; }
+  .viz-n { font-size: 1.45rem; }
+}
+.viz-root { grid-template-columns: minmax(0, 1fr); }
+.viz-root > *, .viz-root .grid > * { min-width: 0; }
+.viz-root .tbl-wrap { overflow-x: auto; }

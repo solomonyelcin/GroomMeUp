@@ -86,6 +86,7 @@ export function view(root) {
           ${tile("#/import", "⇪", myCount ? "Add more questions" : "Add my questions", myCount ? `${myCount} of yours added` : "Excel, Word, PDF or text", "import")}
           ${tile("#/log", "✓", "Interview log", "Record real interviews you attend")}
           ${tile("#/achievements", "★", "Progress & badges", "Streaks, levels and challenges")}
+          ${tile("#/analysis", "◔", "Analysis", "Graphs of progress, skills and market")}
           ${tile("#/plan", "▤", "Study plan", "A 4-week plan built for you")}
           ${tile("#/market", "↗", "Market & resume", "Trends, salary and resume tips")}
           ${tile("#/settings", "⚙", "Settings & AI", "Free AI, colours, backup")}

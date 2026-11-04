@@ -37,7 +37,7 @@ await page.goto(base + "/#/dashboard");
 await page.waitForSelector("h1");
 check((await page.textContent("h1")).includes("Welcome"), "dashboard renders");
 
-for (const r of ["bank", "practice", "quiz", "mock", "code", "log", "market", "plan", "settings", "dashboard", "faq"]) {
+for (const r of ["bank", "practice", "quiz", "mock", "code", "log", "market", "plan", "settings", "dashboard", "faq", "analysis"]) {
   await page.goto(`${base}/#/${r}`);
   await page.waitForFunction(() => !document.querySelector("#main .spinner") || document.querySelector("#main h1"), null, { timeout: 8000 });
   const h = await page.textContent("#main h1, #main h2");
@@ -544,6 +544,22 @@ for (const r of ["dashboard", "bank", "code", "market", "import", "quiz"]) {
   await page.screenshot({ path: SD + "/faq-desktop.png" });
   await page.setViewportSize({ width: 390, height: 800 }); await page.goto(base + "/#/faq?t=microservices"); await page.reload(); await page.waitForSelector(".faq-fig svg"); await page.screenshot({ path: SD + "/faq-mobile.png" });
   check(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), "FAQs has no sideways scrolling on a phone");
+}
+// ---- Analysis ----
+{
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto(base + "/#/analysis"); await page.reload(); await page.waitForSelector("#viz .viz-tile");
+  check((await page.$$(".viz-tile")).length >= 6 && (await page.$$("#viz svg")).length >= 2, "Analysis shows summary tiles and charts");
+  check(/Market needs against your skills/.test(await page.textContent("#viz")) && !!(await page.$("#v-market svg circle")), "market chart is drawn");
+  await page.hover("#viz .viz-svg circle[r=\"6\"], #viz .viz-svg path"); await page.waitForTimeout(100);
+  check(await page.isVisible(".viz-tip"), "hovering a chart mark shows a tooltip");
+  await page.click('[data-days="7"]'); await page.waitForTimeout(150);
+  check(await page.evaluate(() => document.querySelector('[data-days="7"]').getAttribute("aria-pressed")) === "true", "time range can be changed");
+  const SD = process.env.SHOT_DIR || "/tmp";
+  await page.screenshot({ path: SD + "/analysis-desktop.png", fullPage: true });
+  await page.setViewportSize({ width: 390, height: 800 }); await page.goto(base + "/#/analysis"); await page.reload(); await page.waitForSelector("#viz .viz-tile");
+  check(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), "Analysis has no sideways scrolling on a phone");
+  await page.screenshot({ path: SD + "/analysis-mobile.png", fullPage: true });
 }
 // ---- usability round: focus mode, marks, star, note, quiz exit, job match, progress code, reminder ----
 await page.setViewportSize({ width: 390, height: 800 });

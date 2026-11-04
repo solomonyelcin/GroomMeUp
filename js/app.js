@@ -17,6 +17,7 @@ const ROUTES = [
   { id: "mock", label: "Mock interview", ico: "◉", group: "Test yourself", mod: "./views/mock.js" },
   { id: "log", label: "Log real interviews", ico: "✓", group: "Track", mod: "./views/log.js" },
   { id: "achievements", label: "Progress & badges", ico: "★", group: "Track", mod: "./views/achievements.js" },
+  { id: "analysis", label: "Analysis", ico: "◔", group: "Track", mod: "./views/analysis.js" },
   { id: "plan", label: "Study plan", ico: "▤", group: "Track", mod: "./views/plan.js" },
   { id: "market", label: "Market & resume", ico: "↗", group: "Track", mod: "./views/market.js" },
   { id: "settings", label: "Settings & AI", ico: "⚙", group: "Settings", mod: "./views/settings.js" },

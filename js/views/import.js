@@ -10,6 +10,7 @@ import { aiEnabled } from "../ai.js";
 import { libraryAvailable, loadLibrary, installLibrary } from "../library.js";
 import { CATEGORIES } from "../data/index.js";
 import { mountSearch } from "../search.js";
+import { mountImageImport } from "./imageimport.js";
 import { esc, rich, toast, busy, fmtDate, $, $$ } from "../ui.js";
 
 const triedOdd = new Set(); // odd-topic sets already auto-sorted this session, so nothing loops
@@ -27,6 +28,7 @@ export function view(root) {
       <span class="muted small">Excel (.xlsx), Word (.docx), PDF, text, markdown or CSV. Files are read in your browser and never uploaded.</span>
       <input id="file" type="file" accept="${ACCEPT}" multiple hidden>
     </label>
+    <div id="imgHost" style="margin-top:16px"></div>
     <section class="card" style="margin-top:16px" aria-labelledby="pst"><h2 id="pst">Paste text</h2>
       <p class="small muted" style="margin-top:0">Copy and paste content straight in. Choose what kind of content it is, check the result below, then import it.</p>
       <div class="grid g2"><div><label for="pmode">Kind of content</label><select id="pmode"><option value="qa">Descriptive questions and answers</option><option value="mcq">Multiple choice questions (MCQ)</option><option value="notes">Paragraphs or notes</option></select></div>
@@ -48,7 +50,7 @@ export function view(root) {
         <div><h3>Excel or CSV</h3><p class="small muted">One sheet per topic. Put headers in a row near the top: <code>Question</code> and <code>Answer</code> are required. Optional: <code>Sub Topic</code> (or Category), <code>Learning Status</code>. A sub topic containing the word "Scenario" marks scenario questions, and rows marked "Confident" start as already learned. Sheets without those columns, hidden sheets and dashboards are skipped.</p></div>
         <div><h3>Word, PDF, text, markdown</h3><p class="small muted">Questions as <code>Q: ...</code> followed by <code>A: ...</code>, or numbered questions ("1. What is ...?") with the answer underneath, or markdown headings that are questions. Headings become topics. Word tables with Question and Answer columns work too. Multiple choice works too: a numbered question, options <code>A)</code> to <code>D)</code>, then <code>Ans : C</code>. A file of questions with no answers can have answers written by AI. For loose notes, use the AI option on the preview.</p></div>
       </div>
-      <p class="small muted" style="margin-bottom:0">Old .xls and .doc files need Save As .xlsx or .docx first. Scanned PDFs (pictures of text) cannot be read without OCR.</p></section>
+      <p class="small muted" style="margin-bottom:0">Old .xls and .doc files need Save As .xlsx or .docx first. Pictures of notes, screenshots and photos can be imported with "Import from pictures". Scanned PDFs: save the pages as pictures and import those.</p></section>
   `;
 
   let topicsSort = "name";
@@ -81,6 +83,20 @@ export function view(root) {
       $("#r" + id).innerHTML = `<div class="callout warn"><strong>Could not read that text.</strong> ${esc(e.message)}</div>`;
     }
   };
+
+  // ---------- pictures: the text becomes an article, and optionally practice questions ----------
+  mountImageImport($("#imgHost"), {
+    topicNames: () => [...new Set(importedQuestions().map((q) => CATEGORIES[q.c]?.name).filter(Boolean))],
+    onQuestions: async (text, topic) => {
+      const id = nextId++;
+      results$.insertAdjacentHTML("afterbegin", `<div class="card" id="r${id}"><span class="spinner"></span> Making practice questions...</div>`);
+      try {
+        const res = await parsePasted(text, { mode: "notes", topic });
+        const r0 = { id, res, opts: { seed: true, update: true, dedupe: false }, excl: new Set(), filter: "flagged", shown: 25, editing: new Set() };
+        prepare(r0); results.push(r0); draw(r0);
+      } catch (e) { $("#r" + id).innerHTML = `<div class="callout warn"><strong>Could not make questions.</strong> ${esc(e.message)}</div>`; }
+    },
+  });
 
   // ---------- file handling ----------
   async function handle(files) {

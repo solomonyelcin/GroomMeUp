@@ -22,6 +22,7 @@ const fresh = () => ({
   mocks: [],           // mock interview reports
   stars: {},           // qid -> true (questions to revisit)
   notes: {},           // qid -> your own note
+  articles: [],        // {id, title, topic, blocks, source, conf, t}: study notes read from pictures or typed in
   qclean: 1,           // question text had its document numbering removed
   badges: null,        // badge id -> time earned (null until first check, so old progress is not celebrated)
   settings: { provider: "pollinations", aiChoice: false, keys: {}, models: {}, target: "", pistonUrl: "", name: "" },
@@ -327,6 +328,13 @@ export function removeImport(id) {
   return removed;
 }
 
+export function addArticle(a) {
+  const art = { id: "a" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), t: Date.now(), ...a };
+  store.update((s) => { (s.articles ||= []).unshift(art); });
+  return art;
+}
+export const updateArticle = (id, patch) => store.update((s) => { const a = (s.articles || []).find((x) => x.id === id); if (a) Object.assign(a, patch); });
+export const deleteArticle = (id) => store.update((s) => { s.articles = (s.articles || []).filter((x) => x.id !== id); });
 export const importedQuestions = () => state.custom.filter((q) => q.imported);
 
 // Forget that these quiz questions were answered, so they count as new again (a fresh round).

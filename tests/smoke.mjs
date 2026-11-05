@@ -545,6 +545,57 @@ for (const r of ["dashboard", "bank", "code", "market", "import", "quiz"]) {
   await page.setViewportSize({ width: 390, height: 800 }); await page.goto(base + "/#/faq?t=microservices"); await page.reload(); await page.waitForSelector(".faq-fig svg"); await page.screenshot({ path: SD + "/faq-mobile.png" });
   check(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), "FAQs has no sideways scrolling on a phone");
 }
+// ---- Import from pictures (reading engine replaced by recorded output; the CDN engine is not reachable here) ----
+{
+  await page.addInitScript(() => {
+    window.__ocrEngine = { async recognize(canvas) {
+      const fx = await (await fetch("/tests/fixtures/rest-api.ocr.json")).json(), k = canvas.width / fx.width;
+      const sc = (w) => ({ ...w, x0: w.x0 * k, x1: w.x1 * k, y0: w.y0 * k, y1: w.y1 * k });
+      return { width: canvas.width, height: canvas.height, lines: fx.lines.map((l) => ({ words: l.words.map(sc) })) };
+    } };
+  });
+  await page.goto(base + "/#/import"); await page.reload(); await page.waitForSelector("#imgFile", { state: "attached" });
+  const jpg = fs.readFileSync(path.join(root, "tests/fixtures/rest-api.jpg"));
+  await page.setInputFiles("#imgFile", [{ name: "page-2.jpg", mimeType: "image/jpeg", buffer: jpg }, { name: "page-10.jpg", mimeType: "image/jpeg", buffer: jpg }, { name: "page-1.jpg", mimeType: "image/jpeg", buffer: jpg }]);
+  await page.waitForSelector("#imgList .img-page");
+  const names = () => page.$$eval("#imgList .img-page strong", (e) => e.map((x) => x.textContent));
+  check((await names()).join() === "page-1.jpg,page-2.jpg,page-10.jpg", "pictures chosen together start in file-name order (numbers sorted naturally)");
+  check(/\d+–\d+%/.test(await page.textContent(".img-est")), "an accuracy estimate is shown before reading");
+  await page.click('#imgList [data-mv="1"][data-i="0"]');
+  check((await names()).join() === "page-2.jpg,page-1.jpg,page-10.jpg", "the Later button moves a page down");
+  await page.evaluate(() => { // synthetic drag events (real mouse dragging is covered by hand; headless Chromium is unreliable at it here)
+    const l = [...document.querySelectorAll("#imgList .img-page")], dt = new DataTransfer();
+    const fire = (el, t) => el.dispatchEvent(new DragEvent(t, { bubbles: true, cancelable: true, dataTransfer: dt }));
+    fire(l[2], "dragstart"); fire(l[0], "dragenter"); fire(l[0], "dragover"); fire(l[0], "drop"); fire(l[2], "dragend");
+  });
+  check((await names())[0] === "page-10.jpg", "dragging a page onto another moves it: " + (await names()).join());
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.click('#imgList [data-rm="0"]');
+  check((await names()).length === 2, "a page can be removed");
+  await page.setInputFiles("#imgFile2", [{ name: "page-3.jpg", mimeType: "image/jpeg", buffer: jpg }]);
+  await page.waitForFunction(() => document.querySelectorAll("#imgList .img-page").length === 3);
+  check((await names()).length === 3, "more pictures can be added to the sequence");
+  await page.locator("#imgCard").screenshot({ path: path.join(process.env.SHOT_DIR || "/tmp", "img-analysis.png") });
+  await page.click("#imgGo");
+  await page.waitForSelector("#imgMd", { timeout: 60000 });
+  check(/\d+%/.test(await page.textContent(".img-est")) && (await page.$$("#imgMarks canvas")).length === 3, "measured confidence and a marked-up page for each picture");
+  check((await page.$$("#imgArt .art-h")).length >= 8, "article preview shows the numbered sections");
+  check((await page.$$("#imgArt table")).length >= 1, "article preview shows the table");
+  await page.locator("#imgCard").screenshot({ path: path.join(process.env.SHOT_DIR || "/tmp", "img-result.png") });
+  await page.fill("#imgTopic", "REST APIs");
+  await page.click("#imgSave");
+  await page.waitForSelector("#imgBody .callout.ok");
+  check((await page.$$(".card[id^=r]")).length >= 1, "practice questions are offered for review after saving");
+  await page.goto(base + "/#/articles"); await page.waitForSelector(".art-item");
+  check((await page.textContent(".art")).includes("What is an API"), "Articles page shows the saved article");
+  check(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), "Articles page has no sideways scrolling");
+  await page.setViewportSize({ width: 390, height: 800 });
+  await page.screenshot({ path: path.join(process.env.SHOT_DIR || "/tmp", "articles-mobile.png") });
+  check(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), "Articles page fits a phone");
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.evaluate(() => { window.__ocrEngine = undefined; });
+}
+
 // ---- Analysis ----
 {
   await page.setViewportSize({ width: 1280, height: 900 });

@@ -108,3 +108,11 @@ The FAQs page reads `js/data/faqs.js`. To add a topic, append one object to `FAQ
 Question content was assembled from public 2026 interview-prep and hiring write-ups (listed in the app under
 Market and resume) and rewritten with original answers. Salary figures come from a single training-provider
 blog and are indicative only: verify on AmbitionBox, Glassdoor, Levels.fyi and with recruiters.
+
+## Import from pictures (OCR)
+
+`Add my questions` → **Import from pictures** reads photos or screenshots of notes in the browser with Tesseract.js
+(loaded once from the jsDelivr CDN, then cached; pictures never leave the device). Pages can be dragged into order;
+`js/import/ocrlayout.js` turns word boxes into an article (two-column reading order, title, numbered sections, bullets,
+tables, sentences and numbering that continue across pages). Results are saved on the **Articles** page.
+Unit tests use recorded OCR output (`tests/fixtures/`), and the smoke test swaps the CDN engine for it.

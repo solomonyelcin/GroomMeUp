@@ -119,3 +119,8 @@ Unit tests use recorded OCR output (`tests/fixtures/`), and the smoke test swaps
 
 **Keep as pictures:** instead of reading the text, pages can be saved as images (IndexedDB, on the device only) and read in
 Articles with `js/views/imgviewer.js`: zoom, pan, rotate, grayscale / black & white / dark views, brightness and contrast.
+
+**Share pictures across devices:** *Settings → GitHub* takes a fine-grained token (this repository only, Contents: Read and write). With it,
+*Keep as pictures → Also publish to GitHub* commits the pages to `content/<id>/NN.jpg` and lists them in `content/articles.json`
+(see `js/github.js`); every device then shows them in Articles. The token lives only in that browser and is never exported.
+The repository is public, so published pictures are public too.

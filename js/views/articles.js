@@ -3,13 +3,16 @@ import { articleHtml } from "./article-render.js";
 import { toMarkdown, fromMarkdown } from "../import/ocrlayout.js";
 import { mountViewer } from "./imgviewer.js";
 import { delBlob } from "../imgstore.js";
+import { loadRemote, connected, unpublish } from "../github.js";
 import { esc, toast, fmtDate, $ } from "../ui.js";
 
 const plain = (a) => [a.title, ...a.blocks.map((b) => b.text || (b.items || []).join(" ") || (b.rows || []).flat().join(" "))].join(" ").toLowerCase();
 
 export function view(root, ctx) {
   let q = "", editing = false, cur = ctx?.params?.get("id") || null, closeViewer = null;
-  const list = () => store.get().articles || [];
+  let remote = [];
+  const list = () => { const mine = store.get().articles || []; return [...mine, ...remote.filter((r) => !mine.some((m) => m.id === r.id))].sort((a, b) => (b.t || 0) - (a.t || 0)); };
+  loadRemote().then((r) => { remote = r; if (r.length && document.body.contains(host)) draw(); });
   const current = () => list().find((a) => a.id === cur) || list()[0];
 
   root.innerHTML = `
@@ -33,7 +36,7 @@ export function view(root, ctx) {
         <a class="btn sm" href="#/import" style="margin-top:8px">Import more pictures</a></aside>
       <div class="faq-main"><div class="card">
         <div class="row" style="justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center"><div><h2 style="margin:0">${esc(a.title)}</h2>
-          <span class="small muted">${esc(a.topic || "")}${a.kind === "images" ? ` · ${a.pages.length} picture${a.pages.length > 1 ? "s" : ""}, kept as images` : ""}${a.source?.conf ? ` · read at ${a.source.conf}% confidence` : ""}${a.source?.pages ? ` · ${a.source.pages} page${a.source.pages > 1 ? "s" : ""}` : ""}</span></div>
+          <span class="small muted">${esc(a.topic || "")}${a.kind === "images" ? ` · ${a.pages.length} picture${a.pages.length > 1 ? "s" : ""}, kept as images${a.remote || a.published ? " · on GitHub, all devices" : " · this device only"}` : ""}${a.source?.conf ? ` · read at ${a.source.conf}% confidence` : ""}${a.source?.pages ? ` · ${a.source.pages} page${a.source.pages > 1 ? "s" : ""}` : ""}</span></div>
           <div class="row" style="gap:6px">${a.kind === "images" ? "" : `<button class="btn sm" id="aedit">${editing ? "Cancel" : "Edit"}</button><button class="btn sm" id="acopy">Copy</button>`}<button class="btn sm danger" id="adel">Delete</button></div></div>
         ${a.kind === "images" ? `<div id="aview" style="margin-top:12px"></div>` : editing ? `<textarea id="amd" rows="22" style="width:100%;margin-top:10px;font-family:ui-monospace,monospace;font-size:13px" aria-label="Article text">${esc(toMarkdown(a.blocks))}</textarea><button class="btn primary" id="asave" style="margin-top:8px">Save changes</button>`
           : `<article class="art" style="margin-top:12px">${articleHtml(a.blocks)}</article>`}
@@ -43,7 +46,13 @@ export function view(root, ctx) {
     if (a.kind === "images") closeViewer = mountViewer($("#aview"), a.pages);
     if ($("#aedit")) $("#aedit").onclick = () => { editing = !editing; draw(); };
     if ($("#acopy")) $("#acopy").onclick = async () => { try { await navigator.clipboard.writeText(toMarkdown(a.blocks)); toast("Copied"); } catch { toast("Could not copy"); } };
-    $("#adel").onclick = () => { if (confirm(`Delete “${a.title}”?`)) { (a.pages || []).forEach((p) => delBlob(p.id)); deleteArticle(a.id); cur = null; draw(); } };
+    $("#adel").onclick = async () => {
+      const onGh = a.remote || a.published;
+      if (onGh && !connected()) { toast("This one is on GitHub. Connect GitHub in Settings to delete it there."); if (a.remote) return; }
+      if (!confirm(`Delete “${a.title}”${onGh && connected() ? " from this device and from GitHub" : ""}?`)) return;
+      try { if (onGh && connected()) await unpublish(a.id, (a.pages || []).map((p) => p.path).filter(Boolean)); } catch (e) { toast(e.message); return; }
+      (a.pages || []).forEach((p) => p.id && delBlob(p.id)); deleteArticle(a.id); remote = remote.filter((r) => r.id !== a.id); cur = null; draw();
+    };
     if (editing && $("#asave")) $("#asave").onclick = () => { updateArticle(a.id, { blocks: fromMarkdown($("#amd").value) }); editing = false; toast("Saved"); draw(); };
   }
   draw();

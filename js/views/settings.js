@@ -1,10 +1,12 @@
 import { store } from "../store.js";
+import { getCfg, setCfg, clearCfg, testConnection } from "../github.js";
 import { makeProgressCode, applyProgressCode } from "../transfer.js";
 import { PROVIDERS, pingAI } from "../ai.js";
 import { esc, toast, busy, download, $, $$ } from "../ui.js";
 import { THEMES, getTheme, setTheme } from "../theme.js";
 
 export function view(root) {
+  const ghc = getCfg();
   const s = store.get().settings;
   root.innerHTML = `
     <header class="page-head"><h1>Settings</h1><p>Everything is free. AI is optional: the app works fully offline with key-point scoring.</p></header>
@@ -32,6 +34,12 @@ export function view(root) {
     <section class="card" style="margin-top:16px"><h2>Your data</h2>
       <p class="muted">Progress, interview log and custom questions live in this browser. Export a backup now and then, and use it to move to another browser or device. API keys are never included in exports.</p>
       <div class="row"><button class="btn" id="exp">Export backup</button><label class="btn" style="margin:0">Import backup<input id="imp" type="file" accept="application/json" hidden></label><button class="btn danger" id="rst">Erase everything</button></div></section>
+
+    <section class="card" style="margin-top:16px" aria-labelledby="gh"><h2 id="gh">GitHub: share pictures across devices</h2>
+      <p class="muted" style="margin-top:0">Pictures you keep as images can be published to the <code>content/</code> folder of your repository, so they open on every device. The site cannot write to GitHub by itself, so paste a <strong>fine-grained personal access token</strong> once: GitHub &rarr; Settings &rarr; Developer settings &rarr; Fine-grained tokens, limited to this one repository, permission <em>Contents: Read and write</em>. The token stays in this browser only and is never included in backups. Published pictures are public because the repository is public.</p>
+      <div class="grid g2"><div class="field"><label for="ghowner">Owner</label><input id="ghowner" value="${esc(ghc.owner)}" autocomplete="off"></div><div class="field"><label for="ghrepo">Repository</label><input id="ghrepo" value="${esc(ghc.repo)}" autocomplete="off"></div></div>
+      <div class="grid g2"><div class="field"><label for="ghbranch">Branch</label><input id="ghbranch" value="${esc(ghc.branch)}" autocomplete="off"></div><div class="field"><label for="ghtoken">Access token</label><input id="ghtoken" type="password" placeholder="${ghc.token ? "Saved (paste to replace)" : "github_pat_…"}" autocomplete="off"></div></div>
+      <div class="row"><button class="btn primary" id="ghsave">Save and test</button><button class="btn" id="ghclear">Disconnect</button></div><p id="ghmsg" class="small" style="margin:8px 0 0" aria-live="polite"></p></section>
 
     <section class="card" style="margin-top:16px" aria-labelledby="mv"><h2 id="mv">Move progress to another device</h2>
       <p class="muted">Your streak, badges, scores and notes stay in each browser. To carry them to your phone or laptop: tap <strong>Copy progress code</strong> here, then paste it below on the other device and tap <strong>Merge</strong>. Nothing is overwritten: the two histories are combined. Your questions are not included, so load them from your library or files on each device.</p>
@@ -78,5 +86,14 @@ export function view(root) {
   $("#exp").onclick = () => download(`groommeup-backup-${new Date().toISOString().slice(0, 10)}.json`, store.exportJSON());
   $("#imp").onchange = async (e) => { const f = e.target.files[0]; if (!f) return; try { store.importJSON(await f.text()); toast("Backup imported"); location.reload(); } catch (err) { toast("Import failed: " + err.message, true); } };
   $("#rst").onclick = () => { if (confirm("This erases all progress, logs and custom questions in this browser. Continue?")) { store.reset(); toast("Erased"); location.hash = "#/dashboard"; location.reload(); } };
+  $("#ghsave").onclick = async (e) => {
+    const old = getCfg(), tok = $("#ghtoken").value.trim() || old.token || "";
+    setCfg({ owner: $("#ghowner").value.trim(), repo: $("#ghrepo").value.trim(), branch: $("#ghbranch").value.trim() || "main", token: tok });
+    const m = $("#ghmsg"); if (!tok) { m.textContent = "Saved. Paste a token to connect."; return; }
+    const btn = e.currentTarget; busy(btn, true, "Testing");
+    try { m.textContent = "Connected to " + (await testConnection()) + "."; $("#ghtoken").value = ""; } catch (err) { m.textContent = err.message; }
+    busy(btn, false);
+  };
+  $("#ghclear").onclick = () => { clearCfg(); $("#ghmsg").textContent = "Disconnected. The token was removed from this browser."; $("#ghtoken").placeholder = "github_pat_…"; };
   void $$;
 }

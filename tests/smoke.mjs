@@ -636,6 +636,51 @@ for (const r of ["dashboard", "bank", "code", "market", "import", "quiz"]) {
   check((await page.$$(".art-item")).length === 0 || !(await page.textContent("#artRoot")).includes("Kept notes"), "deleting removes the pictures article");
 }
 
+// ---- Publish pictures to GitHub (API mocked) and read them back on "another device" ----
+{
+  const puts = []; let manifest = null, manifestSha = "m1";
+  await page.route(/api\.github\.com/, async (r) => {
+    const u = new URL(r.request().url()), m = r.request().method(), j = (b, st = 200) => r.fulfill({ status: st, contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: JSON.stringify(b) });
+    if (m === "OPTIONS") return r.fulfill({ status: 204, headers: { "access-control-allow-origin": "*", "access-control-allow-headers": "*", "access-control-allow-methods": "*" } });
+    if (!/Bearer test-token/.test(r.request().headers().authorization || "")) return j({ message: "Bad credentials" }, 401);
+    const p = u.pathname.replace(/^\/repos\/[^/]+\/[^/]+\/?/, "");
+    if (p === "" && m === "GET") return j({ full_name: "solomonyelcin/GroomMeUp", private: false, permissions: { push: true } });
+    if (p === "contents/content/articles.json" && m === "GET") return manifest ? j({ sha: manifestSha, content: Buffer.from(manifest).toString("base64") }) : j({ message: "Not Found" }, 404);
+    if (p === "contents/content/articles.json" && m === "PUT") { const b = JSON.parse(r.request().postData()); manifest = Buffer.from(b.content, "base64").toString(); manifestSha = "m2"; puts.push("manifest"); return j({ content: {} }, 200); }
+    if (/^contents\/content\/.+\.jpg$/.test(p) && m === "GET") return j({ message: "Not Found" }, 404);
+    if (/^contents\/content\/.+\.jpg$/.test(p) && m === "PUT") { puts.push(p); return j({ content: {} }, 201); }
+    return j({ message: "unexpected " + m + " " + p }, 500);
+  });
+  await page.goto(base + "/#/settings"); await page.waitForSelector("#ghsave");
+  await page.fill("#ghtoken", "bad"); await page.click("#ghsave");
+  await page.waitForFunction(() => /rejected/i.test(document.querySelector("#ghmsg").textContent));
+  check(true, "a wrong token is reported clearly");
+  await page.fill("#ghtoken", "test-token"); await page.click("#ghsave");
+  await page.waitForFunction(() => /Connected to/.test(document.querySelector("#ghmsg").textContent));
+  check((await page.textContent("#ghmsg")).includes("solomonyelcin/GroomMeUp (public)"), "token is tested and the repository named");
+  check(!(await page.evaluate(() => localStorage.getItem("groommeup.v1") || "")).includes("test-token"), "the token is not part of the saved progress (so not in backups)");
+  const jpg = fs.readFileSync(path.join(root, "tests/fixtures/rest-api.jpg"));
+  await page.goto(base + "/#/import"); await page.reload(); await page.waitForSelector("#imgFile", { state: "attached" });
+  await page.setInputFiles("#imgFile", [{ name: "a1.jpg", mimeType: "image/jpeg", buffer: jpg }, { name: "a2.jpg", mimeType: "image/jpeg", buffer: jpg }]);
+  await page.waitForSelector("#imgKeep", { state: "attached" }); await page.click(".img-keep summary");
+  check(await page.isChecked("#imgPub"), "publish to GitHub is offered once connected");
+  await page.fill("#imgKTitle", "Shared notes"); await page.click("#imgKeep");
+  await page.waitForSelector("#imgBody .callout.ok", { timeout: 30000 });
+  check(puts.filter((x) => x.endsWith(".jpg")).length === 2 && puts.includes("manifest"), "two pictures and the list were committed: " + puts.join(" "));
+  const mf = JSON.parse(manifest);
+  check(mf.length === 1 && mf[0].title === "Shared notes" && mf[0].pages.length === 2 && /^content\/[^/]+\/01\.jpg$/.test(mf[0].pages[0].path), "the list names the pictures in order");
+  // another device: no local copy, only what is on the site
+  await page.route(/\/content\/articles\.json/, (r) => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([{ id: "remote1", title: "From my phone", topic: "REST", t: Date.now() + 1000, kind: "images", pages: [{ path: "content/remote1/01.jpg", w: 1170, h: 1551, name: "x.jpg" }] }]) }));
+  await page.route(/\/content\/remote1\/01\.jpg/, (r) => r.fulfill({ status: 200, contentType: "image/jpeg", body: jpg }));
+  await page.goto(base + "/#/articles"); await page.reload(); await page.waitForSelector(".art-item");
+  check((await page.$$eval(".art-item strong", (e) => e.map((x) => x.textContent))).includes("From my phone"), "pictures published from another device are listed");
+  await page.click('.art-item:has-text("From my phone")');
+  await page.waitForFunction(() => document.querySelector("#ivImg") && document.querySelector("#ivImg").naturalWidth > 0);
+  check((await page.textContent(".card h2 + span")).includes("on GitHub"), "they open from the site and say they are on GitHub");
+  await page.unroute(/\/content\/articles\.json/); await page.unroute(/\/content\/remote1\/01\.jpg/);
+  await page.evaluate(() => localStorage.removeItem("groommeup.gh"));
+}
+
 // ---- Analysis ----
 {
   await page.setViewportSize({ width: 1280, height: 900 });

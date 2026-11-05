@@ -2,8 +2,9 @@
 // check the result against the page, then save it as an article (and optionally practice questions).
 import { inspect, extract, markUnsure, mergePages, isImage, exportPage } from "../import/ocr.js";
 import { putBlob, newBlobId } from "../imgstore.js";
+import { connected, publishImages } from "../github.js";
 import { toMarkdown, fromMarkdown, sequenceWarnings, suggestOrder } from "../import/ocrlayout.js";
-import { addArticle } from "../store.js";
+import { addArticle, updateArticle } from "../store.js";
 import { articleHtml, notesText } from "./article-render.js";
 import { esc, toast, $ } from "../ui.js";
 
@@ -59,6 +60,8 @@ export function mountImageImport(host, { onQuestions, topicNames = () => [] }) {
         <p class="small muted" style="margin:6px 0">Saved on this device as they are (dark bars trimmed). In Articles you can zoom, pan, switch to black &amp; white or dark view, and flip through the pages in the order above. Nothing is searched inside the picture, only its title and topic.</p>
         <div class="grid g2"><div><label for="imgKTitle">Title</label><input id="imgKTitle" value="${esc(pages[0].info.file.name.replace(/\.[^.]+$/, ""))}"></div>
           <div><label for="imgKTopic">Topic</label><input id="imgKTopic" list="imgTopics2" placeholder="e.g. REST APIs" autocomplete="off"><datalist id="imgTopics2">${topicNames().map((n) => `<option value="${esc(n)}">`).join("")}</datalist></div></div>
+        <label style="font-weight:400;display:block;margin-top:8px"><input type="checkbox" id="imgPub" ${connected() ? "checked" : "disabled"}> Also publish to GitHub so they appear on all my devices ${connected() ? "" : '<span class="muted">(connect GitHub in <a href="#/settings">Settings</a> first)</span>'}</label>
+        <p class="small muted" style="margin:2px 0 0">Your repository is public: published pictures can be seen by anyone with the link.</p>
         <button class="btn" id="imgKeep" style="margin-top:8px">Keep as pictures</button><span id="imgKeepMsg" class="small" role="status" style="margin-left:8px"></span></details>
       <div id="imgProg" style="margin-top:10px"></div>`;
     pages.forEach((p, i) => { const host2 = body.querySelector(`.img-prev[data-i="${i}"]`); p.info.preview.className = "img-canvas"; p.info.preview.setAttribute("role", "img"); p.info.preview.setAttribute("aria-label", "Preview of " + p.info.file.name); host2.append(p.info.preview); });
@@ -82,15 +85,20 @@ export function mountImageImport(host, { onQuestions, topicNames = () => [] }) {
     const btn = $("#imgKeep", host), msg = $("#imgKeepMsg", host); btn.disabled = true;
     const ttl = $("#imgKTitle", host).value.trim() || "Pictures", topic = $("#imgKTopic", host).value.trim() || ttl;
     try {
-      const saved = [];
+      const saved = [], blobs = [];
       for (let i = 0; i < pages.length; i++) {
         msg.textContent = `Saving page ${i + 1} of ${pages.length}…`;
         const { blob, w, h } = await exportPage(pages[i].info), id = newBlobId();
-        await putBlob(id, blob); saved.push({ id, w, h, name: pages[i].info.file.name });
+        await putBlob(id, blob); saved.push({ id, w, h, name: pages[i].info.file.name }); blobs.push(blob);
       }
       const a = addArticle({ title: ttl, topic, kind: "images", pages: saved, blocks: [] });
+      let note = "";
+      if ($("#imgPub", host).checked) {
+        try { const e = await publishImages(a, blobs, (t) => { msg.textContent = t; }); updateArticle(a.id, { published: true, pages: saved.map((p, i) => ({ ...p, path: e.pages[i].path })) }); note = " Published to GitHub: other devices see it after the site refreshes (about a minute)."; }
+        catch (err) { note = ` Kept on this device, but publishing failed: ${err.message}`; }
+      }
       toast("Saved to Articles");
-      body.innerHTML = `<div class="callout ok"><strong>Kept ${saved.length} picture${saved.length > 1 ? "s" : ""} as “${esc(ttl)}”.</strong> <a href="#/articles?id=${a.id}">Open them in Articles</a> to zoom and read.</div>`;
+      body.innerHTML = `<div class="callout ok"><strong>Kept ${saved.length} picture${saved.length > 1 ? "s" : ""} as “${esc(ttl)}”.</strong>${esc(note)} <a href="#/articles?id=${a.id}">Open them in Articles</a> to zoom and read.</div>`;
       pages = []; stage = "idle";
     } catch (e) { msg.textContent = ""; toast("Could not save: " + e.message); btn.disabled = false; }
   }

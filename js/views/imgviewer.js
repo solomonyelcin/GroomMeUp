@@ -44,13 +44,14 @@ export function mountViewer(host, pages) {
 
   async function show(i) {
     idx = (i + pages.length) % pages.length; $("#ivPg", host).textContent = `${idx + 1} / ${pages.length}`;
-    const blob = await getBlob(pages[idx].id).catch(() => null);
+    const blob = pages[idx].id ? await getBlob(pages[idx].id).catch(() => null) : null; // a copy on this device first, else the one on GitHub
     if (gone) return;
-    if (!blob) { img.removeAttribute("src"); stage.insertAdjacentHTML("beforeend", `<p class="iv-miss">This picture is no longer stored on this device.</p>`); return; }
+    if (!blob && !pages[idx].url) { img.removeAttribute("src"); stage.insertAdjacentHTML("beforeend", `<p class="iv-miss">This picture is no longer stored on this device.</p>`); return; }
     stage.querySelector(".iv-miss")?.remove();
-    const old = url; url = URL.createObjectURL(blob); img.src = url; if (old) URL.revokeObjectURL(old);
+    const old = url; url = blob ? URL.createObjectURL(blob) : null; img.src = url || pages[idx].url; if (old) URL.revokeObjectURL(old);
     img.alt = pages[idx].name || `Page ${idx + 1}`;
     await img.decode().catch(() => {});
+    if (gone) return;
     nat = { w: img.naturalWidth || pages[idx].w || 1, h: img.naturalHeight || pages[idx].h || 1 };
     img.style.width = nat.w + "px"; img.style.height = nat.h + "px"; rot = 0;
     setFit(); filter();

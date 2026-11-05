@@ -116,3 +116,6 @@ blog and are indicative only: verify on AmbitionBox, Glassdoor, Levels.fyi and w
 `js/import/ocrlayout.js` turns word boxes into an article (two-column reading order, title, numbered sections, bullets,
 tables, sentences and numbering that continue across pages). Results are saved on the **Articles** page.
 Unit tests use recorded OCR output (`tests/fixtures/`), and the smoke test swaps the CDN engine for it.
+
+**Keep as pictures:** instead of reading the text, pages can be saved as images (IndexedDB, on the device only) and read in
+Articles with `js/views/imgviewer.js`: zoom, pan, rotate, grayscale / black & white / dark views, brightness and contrast.

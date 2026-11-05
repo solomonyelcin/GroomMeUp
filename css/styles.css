@@ -497,3 +497,19 @@ ol.img-pages { list-style: none; padding: 0; margin: 8px 0 0; }
 .img-page.drag { opacity: .5; }
 .img-num { display: inline-flex; width: 24px; height: 24px; border-radius: 99px; background: var(--cobalt); color: #fff; font-size: .8rem; font-weight: 700; align-items: center; justify-content: center; }
 @media (max-width: 560px) { .img-page { grid-template-columns: 24px minmax(0, 84px) minmax(0, 1fr); } }
+
+/* Picture viewer */
+.iv { display: grid; gap: 8px; }
+.iv:fullscreen { background: var(--paper, #fff); padding: 10px; grid-template-rows: auto auto 1fr auto; }
+.iv:fullscreen .iv-stage { height: auto; min-height: 0; }
+.iv-bar { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+.iv-grp { display: inline-flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+.iv-z, .iv-pg { min-width: 4.2em; text-align: center; }
+.iv-sl { display: inline-flex; gap: 6px; align-items: center; }
+.iv-sl input { width: 110px; }
+.iv-mode[aria-pressed="true"] { background: var(--cobalt); color: #fff; border-color: var(--cobalt); }
+.iv-stage { position: relative; overflow: hidden; height: min(78vh, 900px); min-height: 320px; border: 1px solid var(--line); border-radius: 10px; background: #8a8f9a; touch-action: none; cursor: grab; outline-offset: 2px; }
+.iv-stage:active { cursor: grabbing; }
+.iv-stage img { position: absolute; left: 0; top: 0; max-width: none; transform-origin: 50% 50%; user-select: none; -webkit-user-drag: none; will-change: transform; }
+.iv-miss { color: #fff; padding: 20px; }
+@media (max-width: 560px) { .iv-stage { height: 70vh; } .iv-sl input { width: 90px; } }

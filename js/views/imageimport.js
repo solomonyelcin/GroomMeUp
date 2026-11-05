@@ -1,6 +1,7 @@
 // "Import from pictures": choose images, see the quality and the accuracy you can expect, read them,
 // check the result against the page, then save it as an article (and optionally practice questions).
-import { inspect, extract, markUnsure, mergePages, isImage } from "../import/ocr.js";
+import { inspect, extract, markUnsure, mergePages, isImage, exportPage } from "../import/ocr.js";
+import { putBlob, newBlobId } from "../imgstore.js";
 import { toMarkdown, fromMarkdown, sequenceWarnings, suggestOrder } from "../import/ocrlayout.js";
 import { addArticle } from "../store.js";
 import { articleHtml, notesText } from "./article-render.js";
@@ -54,9 +55,15 @@ export function mountImageImport(host, { onQuestions, topicNames = () => [] }) {
         <div class="row" style="gap:6px;margin-top:6px"><button class="btn sm" data-mv="-1" data-i="${i}" aria-label="Move page ${i + 1} earlier" ${i === 0 ? "disabled" : ""}>↑ Earlier</button><button class="btn sm" data-mv="1" data-i="${i}" aria-label="Move page ${i + 1} later" ${i === pages.length - 1 ? "disabled" : ""}>↓ Later</button><button class="btn sm" data-rm="${i}" aria-label="Remove page ${i + 1}">Remove</button></div></div></li>`).join("")}</ol>
       <div class="row" style="gap:10px;align-items:center;margin-top:8px"><label class="btn sm" for="imgFile2" style="cursor:pointer">+ Add more pictures</label><input id="imgFile2" type="file" accept="image/*" multiple hidden></div>
       <div class="row" style="gap:10px;align-items:center;margin-top:12px"><button class="btn primary" id="imgGo">${pages.every((p) => p.result) ? "Show the text again" : "Start extraction"}</button><span class="small muted">${pages.length} page${pages.length > 1 ? "s" : ""}${pages.some((p) => p.result) ? ", already-read pages are not read again" : ""}</span></div>
+      <details class="img-keep" style="margin-top:12px"><summary><strong>Or keep them as pictures, without reading the text</strong></summary>
+        <p class="small muted" style="margin:6px 0">Saved on this device as they are (dark bars trimmed). In Articles you can zoom, pan, switch to black &amp; white or dark view, and flip through the pages in the order above. Nothing is searched inside the picture, only its title and topic.</p>
+        <div class="grid g2"><div><label for="imgKTitle">Title</label><input id="imgKTitle" value="${esc(pages[0].info.file.name.replace(/\.[^.]+$/, ""))}"></div>
+          <div><label for="imgKTopic">Topic</label><input id="imgKTopic" list="imgTopics2" placeholder="e.g. REST APIs" autocomplete="off"><datalist id="imgTopics2">${topicNames().map((n) => `<option value="${esc(n)}">`).join("")}</datalist></div></div>
+        <button class="btn" id="imgKeep" style="margin-top:8px">Keep as pictures</button><span id="imgKeepMsg" class="small" role="status" style="margin-left:8px"></span></details>
       <div id="imgProg" style="margin-top:10px"></div>`;
     pages.forEach((p, i) => { const host2 = body.querySelector(`.img-prev[data-i="${i}"]`); p.info.preview.className = "img-canvas"; p.info.preview.setAttribute("role", "img"); p.info.preview.setAttribute("aria-label", "Preview of " + p.info.file.name); host2.append(p.info.preview); });
     $("#imgGo", host).onclick = run;
+    $("#imgKeep", host).onclick = keepPictures;
     $("#imgFile2", host).onchange = (e) => { load([...e.target.files]); e.target.value = ""; };
     body.querySelectorAll("[data-mv]").forEach((b) => (b.onclick = () => { move(+b.dataset.i, +b.dataset.i + +b.dataset.mv); }));
     body.querySelectorAll("[data-rm]").forEach((b) => (b.onclick = () => { pages.splice(+b.dataset.rm, 1); pages.length ? drawAnalysis() : (body.innerHTML = ""); }));
@@ -70,6 +77,22 @@ export function mountImageImport(host, { onQuestions, topicNames = () => [] }) {
       li.addEventListener("dragleave", () => li.classList.remove("over"));
       li.addEventListener("drop", (e) => { e.preventDefault(); if (from !== null) move(from, +li.dataset.i); from = null; });
     });
+  }
+  async function keepPictures() {
+    const btn = $("#imgKeep", host), msg = $("#imgKeepMsg", host); btn.disabled = true;
+    const ttl = $("#imgKTitle", host).value.trim() || "Pictures", topic = $("#imgKTopic", host).value.trim() || ttl;
+    try {
+      const saved = [];
+      for (let i = 0; i < pages.length; i++) {
+        msg.textContent = `Saving page ${i + 1} of ${pages.length}…`;
+        const { blob, w, h } = await exportPage(pages[i].info), id = newBlobId();
+        await putBlob(id, blob); saved.push({ id, w, h, name: pages[i].info.file.name });
+      }
+      const a = addArticle({ title: ttl, topic, kind: "images", pages: saved, blocks: [] });
+      toast("Saved to Articles");
+      body.innerHTML = `<div class="callout ok"><strong>Kept ${saved.length} picture${saved.length > 1 ? "s" : ""} as “${esc(ttl)}”.</strong> <a href="#/articles?id=${a.id}">Open them in Articles</a> to zoom and read.</div>`;
+      pages = []; stage = "idle";
+    } catch (e) { msg.textContent = ""; toast("Could not save: " + e.message); btn.disabled = false; }
   }
   function move(a, b) {
     if (b < 0 || b >= pages.length || a === b) return;

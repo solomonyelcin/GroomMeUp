@@ -110,3 +110,13 @@ export function markUnsure(info, result) {
 
 // merge pages (in the order given) into one article
 export const mergePages = (pages) => mergeArticles(pages.map((p) => p.blocks));
+
+// a picture to keep as it is: dark bars trimmed, at most 2600px on the long side, as JPEG (small enough to store many pages)
+export async function exportPage(info, maxSide = 2600) {
+  const { img, box } = info, k = Math.min(1, maxSide / Math.max(box.w, box.h));
+  const c = cnv(Math.round(box.w * k), Math.round(box.h * k)), ctx = c.getContext("2d");
+  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height);
+  ctx.drawImage(img, box.x, box.y, box.w, box.h, 0, 0, c.width, c.height);
+  const blob = await new Promise((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error("The picture could not be prepared."))), "image/jpeg", 0.88));
+  return { blob, w: c.width, h: c.height };
+}

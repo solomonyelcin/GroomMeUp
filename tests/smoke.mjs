@@ -596,6 +596,46 @@ for (const r of ["dashboard", "bank", "code", "market", "import", "quiz"]) {
   await page.evaluate(() => { window.__ocrEngine = undefined; });
 }
 
+// ---- Keep pictures as images, with the zoom viewer ----
+{
+  await page.goto(base + "/#/import"); await page.reload(); await page.waitForSelector("#imgFile", { state: "attached" });
+  const jpg = fs.readFileSync(path.join(root, "tests/fixtures/rest-api.jpg"));
+  await page.setInputFiles("#imgFile", [{ name: "n1.jpg", mimeType: "image/jpeg", buffer: jpg }, { name: "n2.jpg", mimeType: "image/jpeg", buffer: jpg }]);
+  await page.waitForSelector("#imgKeep", { state: "attached" });
+  await page.click(".img-keep summary"); await page.fill("#imgKTitle", "Kept notes"); await page.click("#imgKeep");
+  await page.waitForSelector("#imgBody .callout.ok", { timeout: 30000 });
+  await page.goto(base + "/#/articles"); await page.waitForSelector("#ivImg");
+  await page.waitForFunction(() => document.querySelector("#ivImg").naturalWidth > 0);
+  const zoom = () => page.textContent("#ivZ");
+  const z0 = parseInt(await zoom());
+  await page.click('[data-a="in"]'); await page.click('[data-a="in"]');
+  check(parseInt(await zoom()) > z0, "zoom in raises the zoom: " + z0 + "% to " + (await zoom()));
+  await page.click('[data-a="one"]');
+  check((await zoom()) === "100%", "100% button shows the picture at its real size");
+  const box = await page.locator("#ivStage").boundingBox();
+  const t0 = await page.$eval("#ivImg", (e) => e.style.transform);
+  await page.mouse.move(box.x + 200, box.y + 200); await page.mouse.down(); await page.mouse.move(box.x + 120, box.y + 150, { steps: 5 }); await page.mouse.up();
+  check((await page.$eval("#ivImg", (e) => e.style.transform)) !== t0, "dragging moves the zoomed picture");
+  await page.click('[data-m="bw"]');
+  check((await page.$eval("#ivImg", (e) => e.style.filter)).includes("grayscale(1)") && (await page.$eval("#ivImg", (e) => e.style.filter)).includes("contrast"), "black & white view applies");
+  await page.click('[data-m="invert"]');
+  check((await page.$eval("#ivImg", (e) => e.style.filter)).includes("invert(1)"), "dark view applies");
+  await page.click('[data-a="next"]');
+  check((await page.textContent("#ivPg")).startsWith("2 /"), "next page");
+  await page.click('[data-a="rot"]'); await page.click('[data-a="fit"]');
+  check(/rotate\(90deg\)/.test(await page.$eval("#ivImg", (e) => e.style.transform)), "rotate");
+  await page.reload(); await page.waitForSelector("#ivImg");
+  check((await page.getAttribute('[data-m="invert"]', "aria-pressed")) === "true", "the chosen view is remembered");
+  await page.setViewportSize({ width: 390, height: 800 });
+  await page.screenshot({ path: path.join(process.env.SHOT_DIR || "/tmp", "viewer-mobile.png") });
+  check(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), "viewer fits a phone");
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.screenshot({ path: path.join(process.env.SHOT_DIR || "/tmp", "viewer-desktop.png") });
+  page.once("dialog", (d) => d.accept());
+  await page.click("#adel");
+  check((await page.$$(".art-item")).length === 0 || !(await page.textContent("#artRoot")).includes("Kept notes"), "deleting removes the pictures article");
+}
+
 // ---- Analysis ----
 {
   await page.setViewportSize({ width: 1280, height: 900 });

@@ -67,8 +67,18 @@ export const store = {
   subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
   update(fn) { fn(state); syncCats(); persist(); listeners.forEach((l) => l(state)); },
   exportJSON() { return JSON.stringify({ ...state, settings: { ...state.settings, keys: {} } }, null, 2); },
+  hasSaved() { try { return localStorage.getItem(KEY) !== null; } catch { return true; } }, // false on a browser that holds nothing yet
+  // Replace everything with a restored copy. Keys already typed in on this device are kept unless the backup carries its own.
+  replaceAll(obj, { keepKeys = true } = {}) {
+    if (!obj || typeof obj !== "object" || !Array.isArray(obj.attempts || [])) throw new Error("That is not a GroomMeUp backup.");
+    const keep = state.settings.keys || {};
+    const merged = { ...obj, settings: { ...(obj.settings || {}), keys: { ...(keepKeys ? keep : {}), ...((obj.settings && obj.settings.keys) || {}) } } };
+    localStorage.setItem(KEY, JSON.stringify(merged)); // throws if the browser is full, so a failed restore is never silent
+    state = load(); syncCats(); listeners.forEach((l) => l(state));
+  },
   importJSON(text) {
-    const d = JSON.parse(text);
+    let d = JSON.parse(text);
+    if (d && d.format === "groommeup-backup" && d.state) d = d.state;
     if (!d || typeof d !== "object") throw new Error("Not a GroomMeUp export");
     const keep = state.settings;
     state = { ...fresh(), ...d, settings: { ...fresh().settings, ...(d.settings || {}), keys: keep.keys } };

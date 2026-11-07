@@ -1,5 +1,6 @@
 // Move progress between devices with a pasteable code (gzip + base64). Questions are not included: reload them from your library or files.
 import { store } from "./store.js";
+import { markBackup } from "./backup.js";
 
 const FIELDS = ["attempts", "srs", "quizzes", "code", "mocks", "log", "mcqSeen", "stars", "notes", "badges"];
 const toB64 = (u8) => { let s = ""; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode(...u8.subarray(i, i + 0x8000)); return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); };
@@ -9,7 +10,9 @@ async function pipe(bytes, stream) { return new Uint8Array(await new Response(ne
 export async function makeProgressCode() {
   const s = store.get(), o = { v: 1, t: Date.now(), target: s.settings.target || "", weekly: s.settings.weekly || 0 };
   for (const k of FIELDS) o[k] = s[k] ?? null;
-  return "GMU1." + toB64(await pipe(new TextEncoder().encode(JSON.stringify(o)), new CompressionStream("gzip")));
+  const code = "GMU1." + toB64(await pipe(new TextEncoder().encode(JSON.stringify(o)), new CompressionStream("gzip")));
+  markBackup("code");
+  return code;
 }
 
 export function mergeProgress(local, o) {

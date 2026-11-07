@@ -26,7 +26,7 @@ page.on("console", (m) => { if (m.type() === "error" && !/Failed to load resourc
 // External CDNs are not reachable in CI sandboxes; the app must degrade gracefully.
 await page.route(/fonts\.(googleapis|gstatic)\.com|cdn\.jsdelivr\.net|cdnjs\.cloudflare\.com/, (r) => r.abort());
 
-await page.addInitScript(() => { try { if (!sessionStorage.getItem("smoke-init")) { sessionStorage.setItem("smoke-init", "1"); localStorage.setItem("groommeup.tour", "done"); } } catch {} });
+await page.addInitScript(() => { try { if (!sessionStorage.getItem("smoke-init")) { sessionStorage.setItem("smoke-init", "1"); localStorage.setItem("groommeup.tour", "done"); localStorage.setItem("groommeup.setup", "1"); localStorage.setItem("groommeup.backup", JSON.stringify({ snooze: Date.now() + 9e11 })); } } catch {} });
 let aiMode = "down";
 const fakeAI = { choices: [{ message: { content: JSON.stringify({ score: 6.5, verdict: "Decent answer", strengths: ["Names the dual-write problem"], gaps: ["Mention the inbox table"], tips: ["Add a project example"], improved: "A stronger model answer.", followUp: "How would you relay events?" }) } }] };
 await page.route(/text\.pollinations\.ai/, (r) => aiMode === "ok" ? r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(fakeAI) }) : r.fulfill({ status: 500, body: "busy" }));

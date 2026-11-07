@@ -4,6 +4,7 @@ import { $, $$, esc, toast } from "./ui.js";
 import { THEMES, getTheme, cycleTheme, applyTheme } from "./theme.js";
 import { startTour, maybeAutoTour, endTour } from "./tour.js";
 import { checkBadges } from "./progress.js";
+import { needsGate, showGate, mountBackupBar, protectStorageOnce } from "./backup-ui.js";
 
 const ROUTES = [
   { id: "dashboard", label: "Home", ico: "◧", group: "Start", mod: "./views/dashboard.js" },
@@ -92,6 +93,7 @@ async function route() {
     if (my !== token) return;
     root.innerHTML = "";
     cleanup = (await m.view(root, { params, go: (h) => { location.hash = h; } })) || null;
+    mountBackupBar();
     window.scrollTo(0, 0);
     root.focus({ preventScroll: true });
     if (r.id === "dashboard") maybeAutoTour();
@@ -102,8 +104,11 @@ async function route() {
 }
 
 applyTheme();
-addEventListener("groommeup:save-error", () => toast("Browser storage is full, so your latest changes were not saved. Export a backup in Settings and remove old imports.", true));
+addEventListener("groommeup:save-error", () => toast("Browser storage is full, so your latest changes were not saved. Use Back up now in Settings, then remove old imports.", true));
 addEventListener("hashchange", route);
 store.subscribe(() => { renderNav(parseHash().id); checkBadges(); });
 checkBadges();
+// a browser with nothing saved first offers to restore, so a cleared phone is not silently started from zero
+if (needsGate()) await showGate();
+protectStorageOnce();
 route();

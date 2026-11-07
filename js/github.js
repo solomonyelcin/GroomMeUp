@@ -96,3 +96,6 @@ export async function loadRemote() {
     return (Array.isArray(l) ? l : []).filter((x) => x && x.id && Array.isArray(x.pages)).map((x) => ({ ...x, remote: true, pages: x.pages.map((p) => ({ ...p, url: p.path })) }));
   } catch { return []; }
 }
+
+// save a small text file (used for the encrypted progress backup)
+export const putText = (path, text, message) => putFile(path, text64(text), message);

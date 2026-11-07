@@ -1,16 +1,19 @@
 import { store } from "../store.js";
 import { getCfg, setCfg, clearCfg, testConnection } from "../github.js";
+import { backupCardHtml, wireBackupCard } from "../backup-ui.js";
+import { openBackup, applyBackup, summarise } from "../backup.js";
 import { makeProgressCode, applyProgressCode } from "../transfer.js";
 import { PROVIDERS, pingAI } from "../ai.js";
 import { esc, toast, busy, download, $, $$ } from "../ui.js";
 import { THEMES, getTheme, setTheme } from "../theme.js";
 
-export function view(root) {
+export function view(root, ctx) {
   const ghc = getCfg();
   const s = store.get().settings;
   root.innerHTML = `
     <header class="page-head"><h1>Settings</h1><p>Everything is free. AI is optional: the app works fully offline with key-point scoring.</p></header>
 
+    ${backupCardHtml()}
     <section class="card"><h2>Your details</h2>
       <div class="grid g2"><div class="field"><label for="nm">First name (for the dashboard greeting)</label><input id="nm" type="text" value="${esc(s.name)}"></div>
       <div class="field"><label for="tg">Target date to be offer-ready</label><input id="tg" type="date" value="${esc(s.target)}"></div></div></section>
@@ -33,7 +36,7 @@ export function view(root) {
 
     <section class="card" style="margin-top:16px"><h2>Your data</h2>
       <p class="muted">Progress, interview log and custom questions live in this browser. Export a backup now and then, and use it to move to another browser or device. API keys are never included in exports.</p>
-      <div class="row"><button class="btn" id="exp">Export backup</button><label class="btn" style="margin:0">Import backup<input id="imp" type="file" accept="application/json" hidden></label><button class="btn danger" id="rst">Erase everything</button></div></section>
+      <div class="row"><button class="btn" id="exp">Export backup</button><label class="btn" style="margin:0">Restore from file<input id="imp" type="file" accept=".json,application/json,.txt" hidden></label><button class="btn danger" id="rst">Erase everything</button></div></section>
 
     <section class="card" style="margin-top:16px" aria-labelledby="gh"><h2 id="gh">GitHub: share pictures across devices</h2>
       <p class="muted" style="margin-top:0">Pictures you keep as images can be published to the <code>content/</code> folder of your repository, so they open on every device. The site cannot write to GitHub by itself, so paste a <strong>fine-grained personal access token</strong> once: GitHub &rarr; Settings &rarr; Developer settings &rarr; Fine-grained tokens, limited to this one repository, permission <em>Contents: Read and write</em>. The token stays in this browser only and is never included in backups. Published pictures are public because the repository is public.</p>
@@ -84,7 +87,16 @@ export function view(root) {
   };
   $("#savePu").onclick = () => { store.update((st) => (st.settings.pistonUrl = $("#pu").value.trim())); toast("Saved"); };
   $("#exp").onclick = () => download(`groommeup-backup-${new Date().toISOString().slice(0, 10)}.json`, store.exportJSON());
-  $("#imp").onchange = async (e) => { const f = e.target.files[0]; if (!f) return; try { store.importJSON(await f.text()); toast("Backup imported"); location.reload(); } catch (err) { toast("Import failed: " + err.message, true); } };
+  $("#imp").onchange = async (e) => {
+    const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+    try {
+      const text = await f.text(); let r = await openBackup(text);
+      if (r.needsPass) { const pass = prompt("This backup is encrypted. Passphrase:"); if (!pass) return; r = await openBackup(text, pass); }
+      if (r.kind === "code") { const o = await applyProgressCode(text); toast(`Merged ${o.added} answers from the code`); return; }
+      if (!confirm("Replace everything in this browser with this backup? Your current progress here will be overwritten.")) return;
+      applyBackup(r); toast("Backup restored"); location.reload();
+    } catch (err) { toast("Restore failed: " + err.message, true); }
+  };
   $("#rst").onclick = () => { if (confirm("This erases all progress, logs and custom questions in this browser. Continue?")) { store.reset(); toast("Erased"); location.hash = "#/dashboard"; location.reload(); } };
   $("#ghsave").onclick = async (e) => {
     const old = getCfg(), tok = $("#ghtoken").value.trim() || old.token || "";
@@ -95,5 +107,7 @@ export function view(root) {
     busy(btn, false);
   };
   $("#ghclear").onclick = () => { clearCfg(); $("#ghmsg").textContent = "Disconnected. The token was removed from this browser."; $("#ghtoken").placeholder = "github_pat_…"; };
+  wireBackupCard(root);
+  if (ctx?.params?.get("focus") === "backup") setTimeout(() => $("#backupCard")?.scrollIntoView({ block: "start" }), 80); // after the router has scrolled to the top
   void $$;
 }

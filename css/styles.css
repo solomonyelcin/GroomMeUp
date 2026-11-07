@@ -550,3 +550,20 @@ body.iv-lock { overflow: hidden; }
   .iv-stage { height: clamp(300px, calc(100dvh - 300px), 760px); }
 }
 }
+
+/* Backups: first-launch restore screen and the reminder bar */
+.gate { position: fixed; inset: 0; z-index: 3000; display: flex; align-items: flex-start; justify-content: center; overflow-y: auto; padding: 20px 14px; background: var(--paper, #f6f1e4); }
+.gate-card { width: min(560px, 100%); margin: auto 0; padding: 22px 20px; border: 1px solid var(--line); border-radius: 14px; background: var(--card, #fff); box-shadow: 0 10px 40px rgba(0,0,0,.12); }
+.gate-card h1 { margin: 0 0 8px; font-size: 1.5rem; outline: none; }
+.gate-opt { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin: 10px 0; }
+.gate-opt summary { cursor: pointer; font-weight: 700; min-height: 32px; display: flex; align-items: center; }
+.gate-opt[open] summary { margin-bottom: 4px; }
+.gate-msg { min-height: 1.4em; margin: 10px 0 0; font-weight: 600; }
+.gate-msg.bad { color: #b3261e; }
+.backup-bar { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; justify-content: space-between; margin: 0 0 14px; padding: 10px 14px; border: 1px solid #e0b84a; border-radius: 12px; background: #fff6d6; color: #2a2412; }
+.backup-bar[hidden] { display: none; }
+.bb-text { flex: 1 1 280px; font-size: .92rem; line-height: 1.4; }
+.bb-act { display: flex; gap: 8px; flex-wrap: wrap; }
+@media (prefers-color-scheme: dark) { .backup-bar { background: #3a3210; border-color: #8a7420; color: #f6efd0; } }
+body.gating > :not(.gate):not(#toasts):not(script):not(noscript) { display: none !important; }
+#backupCard { scroll-margin-top: 80px; }

@@ -124,3 +124,16 @@ Articles with `js/views/imgviewer.js`: zoom, pan, rotate, grayscale / black & wh
 *Keep as pictures → Also publish to GitHub* commits the pages to `content/<id>/NN.jpg` and lists them in `content/articles.json`
 (see `js/github.js`); every device then shows them in Articles. The token lives only in that browser and is never exported.
 The repository is public, so published pictures are public too.
+
+## Backups and recovery
+
+All progress lives in the browser, so clearing the browser's site data erases it. Protection, in order of importance:
+
+- **Back up now** (Settings, top card, and the reminder bar that appears when the last backup is over 7 days old): saves `groommeup-backup-DATE.json`
+  to the device and, optionally, an AES-256-GCM encrypted copy to `backup/progress.enc.json` in the repo (passphrase of 10+ characters, never stored;
+  the repo is public, so that passphrase is the only lock). The plain file never contains the AI key or GitHub token; the encrypted copy can include them if you tick the box.
+- **Restore** is offered on first launch of an empty browser (file, `GMU1.` code, encrypted GitHub copy, encrypted library) and in Settings → Your data → Restore from file.
+- **Persistent storage** (`navigator.storage.persist()`) is requested after first launch. It stops the browser evicting data when space is low; it does not stop a manual "clear site data".
+- Pictures kept only on a device (not published to GitHub) are not part of a backup file.
+
+Tests: `npm run test:backup` (needs `PW_PATH`, like the smoke test) wipes a browser and restores it every supported way.

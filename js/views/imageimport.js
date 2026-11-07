@@ -1,10 +1,10 @@
 // "Import from pictures": choose images, see the quality and the accuracy you can expect, read them,
 // check the result against the page, then save it as an article (and optionally practice questions).
 import { inspect, extract, markUnsure, mergePages, isImage, exportPage } from "../import/ocr.js";
-import { putBlob, newBlobId } from "../imgstore.js";
-import { connected, publishImages } from "../github.js";
+import { putBlob, delBlob, newBlobId } from "../imgstore.js";
+import { connected, publishImages, publishDoc } from "../github.js";
 import { toMarkdown, fromMarkdown, sequenceWarnings, suggestOrder } from "../import/ocrlayout.js";
-import { addArticle, updateArticle } from "../store.js";
+import { addArticle, updateArticle, deleteArticle } from "../store.js";
 import { articleHtml, notesText } from "./article-render.js";
 import { esc, toast, $ } from "../ui.js";
 
@@ -60,7 +60,7 @@ export function mountImageImport(host, { onQuestions, topicNames = () => [] }) {
         <p class="small muted" style="margin:6px 0">Saved on this device as they are (dark bars trimmed). In Articles you can zoom, pan, switch to black &amp; white or dark view, and flip through the pages in the order above. Nothing is searched inside the picture, only its title and topic.</p>
         <div class="grid g2"><div><label for="imgKTitle">Title</label><input id="imgKTitle" value="${esc(pages[0].info.file.name.replace(/\.[^.]+$/, ""))}"></div>
           <div><label for="imgKTopic">Topic</label><input id="imgKTopic" list="imgTopics2" placeholder="e.g. REST APIs" autocomplete="off"><datalist id="imgTopics2">${topicNames().map((n) => `<option value="${esc(n)}">`).join("")}</datalist></div></div>
-        <label style="font-weight:400;display:block;margin-top:8px"><input type="checkbox" id="imgPub" ${connected() ? "checked" : "disabled"}> Also publish to GitHub so they appear on all my devices ${connected() ? "" : '<span class="muted">(connect GitHub in <a href="#/settings">Settings</a> first)</span>'}</label>
+        <p class="small muted" style="margin:8px 0 0">${connected() ? "Saved to your GitHub repository, so they show on all your devices. Nothing is kept on this device." : 'GitHub is not connected, so they stay on this device only. <a href="#/settings?focus=gh">Connect it in Settings</a>.'}</p><input type="checkbox" id="imgPub" ${connected() ? "checked" : ""} hidden>
         <p class="small muted" style="margin:2px 0 0">Your repository is public: published pictures can be seen by anyone with the link.</p>
         <button class="btn" id="imgKeep" style="margin-top:8px">Keep as pictures</button><span id="imgKeepMsg" class="small" role="status" style="margin-left:8px"></span></details>
       <div id="imgProg" style="margin-top:10px"></div>`;
@@ -94,8 +94,8 @@ export function mountImageImport(host, { onQuestions, topicNames = () => [] }) {
       const a = addArticle({ title: ttl, topic, kind: "images", pages: saved, blocks: [] });
       let note = "";
       if ($("#imgPub", host).checked) {
-        try { const e = await publishImages(a, blobs, (t) => { msg.textContent = t; }); updateArticle(a.id, { published: true, pages: saved.map((p, i) => ({ ...p, path: e.pages[i].path })) }); note = " Published to GitHub: other devices see it after the site refreshes (about a minute)."; }
-        catch (err) { note = ` Kept on this device, but publishing failed: ${err.message}`; }
+        try { const e = await publishImages(a, blobs, (t) => { msg.textContent = t; }); void e; saved.forEach((p) => delBlob(p.id)); deleteArticle(a.id); note = " Saved in your GitHub repository."; }
+        catch (err) { note = ` Kept on this device only, because saving to GitHub failed: ${err.message}`; }
       }
       toast("Saved to Articles");
       body.innerHTML = `<div class="callout ok"><strong>Kept ${saved.length} picture${saved.length > 1 ? "s" : ""} as “${esc(ttl)}”.</strong>${esc(note)} <a href="#/articles?id=${a.id}">Open them in Articles</a> to zoom and read.</div>`;
@@ -158,8 +158,11 @@ export function mountImageImport(host, { onQuestions, topicNames = () => [] }) {
       if (!bl.length) { toast("There is no text to save"); return; }
       const ttl = $("#imgTitle", host).value.trim() || title, topic = $("#imgTopic", host).value.trim() || ttl;
       const content = bl.filter((b) => b.type !== "title");
-      const a = addArticle({ title: ttl, topic, blocks: content, source: { pages: pages.length, files: pages.map((p) => p.info.file.name), conf, sure } });
-      toast("Saved to Articles");
+      const source = { pages: pages.length, files: pages.map((p) => p.info.file.name), conf, sure }, btn = $("#imgSave", host); btn.disabled = true;
+      let a;
+      try { a = connected() ? { id: (await publishDoc({ id: newBlobId(), title: ttl, topic, blocks: content, t: Date.now(), source }, null)).entry.id } : addArticle({ title: ttl, topic, blocks: content, source }); }
+      catch (err) { btn.disabled = false; toast("Could not save to GitHub: " + err.message, true); return; }
+      toast(connected() ? "Saved to your GitHub repository" : "Saved on this device");
       if ($("#imgQ", host).checked) await onQuestions?.(notesText(content), topic);
       body.innerHTML = `<div class="callout ok"><strong>Saved “${esc(ttl)}”.</strong> <a href="#/articles?id=${a.id}">Open it in Articles</a>.</div>`;
       pages = []; stage = "idle";

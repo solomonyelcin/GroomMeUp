@@ -679,7 +679,7 @@ for (const r of ["dashboard", "bank", "code", "market", "import", "quiz"]) {
   check(true, "a wrong token is reported clearly");
   await page.fill("#ghtoken", "test-token"); await page.click("#ghsave");
   await page.waitForFunction(() => /Connected to/.test(document.querySelector("#ghmsg").textContent));
-  check((await page.textContent("#ghmsg")).includes("solomonyelcin/GroomMeUp (public)"), "token is tested and the repository named");
+  { const t = await page.textContent("#ghmsg"); check(/solomonyelcin\/GroomMeUp\S* /.test(t) && /PUBLIC/.test(t), "token is tested, the repository named and a public one is warned about: " + t.slice(0, 120)); }
   check(!(await page.evaluate(() => localStorage.getItem("groommeup.v1") || "")).includes("test-token"), "the token is not part of the saved progress (so not in backups)");
   const jpg = fs.readFileSync(path.join(root, "tests/fixtures/rest-api.jpg"));
   await page.goto(base + "/#/import"); await page.reload(); await page.waitForSelector("#imgFile", { state: "attached" });

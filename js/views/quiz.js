@@ -40,7 +40,7 @@ export function view(root, ctx) {
   const counts = {};
   list.forEach((m) => (counts[m.c] = (counts[m.c] || 0) + 1));
   const topicKeys = Object.keys(CATEGORIES).filter((k) => counts[k]);
-  const picked = new Set(topicKeys.filter((k) => (mineOnly ? CATEGORIES[k].mine : true)));
+  const catParam = ctx?.params?.get("cat"), picked = catParam && topicKeys.includes(catParam) ? new Set([catParam]) : new Set(topicKeys.filter((k) => (mineOnly ? CATEGORIES[k].mine : true)));
 
   const setup = () => {
     const chip = (k) => `<button class="chip" data-c="${esc(k)}" aria-pressed="${picked.has(k)}">${esc(CATEGORIES[k].name)} (${counts[k]})</button>`;

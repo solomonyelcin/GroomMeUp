@@ -2,7 +2,7 @@
 // The site is static and cannot write to the repo by itself, so this uses the GitHub REST API from your browser
 // with a fine-grained access token you paste in once. The token stays in this browser and is never exported.
 const KEY = "groommeup.gh";
-export const DEFAULTS = { owner: "solomonyelcin", repo: "GroomMeUp", branch: "main" };
+export const DEFAULTS = { owner: "solomonyelcin", repo: "GroomMeUp-data", branch: "main" };
 export const MANIFEST = "content/articles.json";
 
 export const getCfg = () => { try { return { ...DEFAULTS, ...(JSON.parse(localStorage.getItem(KEY)) || {}) }; } catch { return { ...DEFAULTS }; } };
@@ -31,8 +31,18 @@ export async function testConnection() {
   if (!res.ok) throw new Error("Could not reach the repository (" + res.status + ").");
   const j = await res.json();
   if (j.permissions && !j.permissions.push) throw new Error("The token can read the repository but not write to it. Give it Contents: Read and write.");
-  return `${j.full_name} (${j.private ? "private" : "public"}), branch ${getCfg().branch}`;
+  return `${j.full_name} (${j.private ? "private, only you can read your files" : "PUBLIC: anything you add here can be read by anyone. Use a private repository for your library"}), branch ${getCfg().branch}`;
 }
+
+// Read a file from the data repository with the token, so private repositories work too.
+export async function fetchBlob(path) {
+  const c = getCfg();
+  const res = await fetch(`https://api.github.com/repos/${c.owner}/${c.repo}/contents/${path.split("/").map(encodeURIComponent).join("/")}?ref=${encodeURIComponent(c.branch)}`, { headers: { Authorization: `Bearer ${c.token}`, Accept: "application/vnd.github.raw+json", "X-GitHub-Api-Version": "2022-11-28" }, cache: "no-store" });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error("GitHub could not read " + path + " (" + res.status + ").");
+  return res.blob();
+}
+export async function fetchJson(path) { const b = await fetchBlob(path); return b ? JSON.parse(await b.text()) : null; }
 
 async function sha(path) {
   const res = await api("GET", `contents/${path}?ref=${encodeURIComponent(getCfg().branch)}`);
@@ -83,39 +93,70 @@ export async function publishImages(art, blobs, onProgress) {
 }
 
 export async function unpublish(id, paths = []) {
-  await editManifest((l) => l.filter((x) => x.id !== id), "Remove pictures " + id);
+  await editManifest((l) => l.filter((x) => x.id !== id), "Remove " + id);
   for (const p of paths) await delFile(p, "Remove " + p);
 }
 
-// An article made from a file: its text blocks go in one json file, the original file (if kept) beside it.
-// blob: the original file; qs: optional questions [{topic,sub,q,a,kind}] that can be added to practice from any device.
-export async function publishDoc(art, original, onProgress) {
-  const dir = `content/${art.id}`, entry = { id: art.id, title: art.title, topic: art.topic, t: art.t, kind: "doc", file: `${dir}/article.json`, source: art.source };
-  if (original) { onProgress?.("Uploading the original file…", 0.2); const ext = (original.name.split(".").pop() || "bin").toLowerCase(); const path = `${dir}/original.${ext}`; await putFile(path, await b64(original.blob), `Add original of "${art.title}"`); entry.original = { path, name: original.name, ext, type: original.type, size: original.size }; }
-  onProgress?.("Uploading the article…", 0.6);
-  await putFile(entry.file, text64(JSON.stringify(art.blocks)), `Add article "${art.title}"`);
+// An article made from a file or from pasted text or a web page. Everything goes into the data repository under content/<id>/:
+// article.json (the text blocks), original.<ext> (the file, if kept), img/ (pictures from Word files), questions.json (optional).
+// original: { blob, name, type, size }; images: [{ id, blob, type, name }] where each img block's id is replaced by a path.
+export async function publishDoc(art, original, onProgress, images = []) {
+  const dir = `content/${art.id}`, entry = { id: art.id, title: art.title, topic: art.topic, t: art.t || Date.now(), kind: "doc", file: `${dir}/article.json`, source: art.source };
+  const blocks = JSON.parse(JSON.stringify(art.blocks)), paths = [];
+  for (let i = 0; i < images.length; i++) {
+    onProgress?.(`Uploading picture ${i + 1} of ${images.length}…`, 0.1 + 0.3 * (i / images.length));
+    const ext = (images[i].type.split("/")[1] || "png").replace("jpeg", "jpg"), path = `${dir}/img/${i + 1}.${ext}`;
+    await putFile(path, await b64(images[i].blob), `Add picture ${i + 1} of "${art.title}"`); paths.push(path);
+    blocks.forEach((b) => { if (b.type === "img" && b.id === images[i].id) { b.path = path; delete b.id; } });
+  }
+  if (paths.length) entry.images = paths;
+  if (original) { onProgress?.("Uploading the original file…", 0.5); const ext = (original.name.split(".").pop() || "bin").toLowerCase(); const path = `${dir}/original.${ext}`; await putFile(path, await b64(original.blob), `Add original of "${art.title}"`); entry.original = { path, name: original.name, ext, type: original.type, size: original.size }; }
+  onProgress?.("Uploading the article…", 0.7);
+  await putFile(entry.file, text64(JSON.stringify(blocks)), `Add article "${art.title}"`);
   if (art.questions?.length) { entry.questions = `${dir}/questions.json`; await putFile(entry.questions, text64(JSON.stringify(art.questions)), `Add questions of "${art.title}"`); entry.questionCount = art.questions.length; }
   onProgress?.("Updating the list…", 0.9);
   await editManifest((l) => [entry, ...l.filter((x) => x.id !== art.id)], `Add "${art.title}"`);
-  return entry;
+  return { entry, blocks };
 }
 
-// what other devices published (public files on the site, no token needed)
-export async function loadRemote() {
+// change the text or title of an article that is already in the repository
+export async function updateDoc(entry, { title, topic, blocks }) {
+  if (blocks) await putFile(entry.file, text64(JSON.stringify(blocks)), `Edit article "${title || entry.title}"`);
+  await editManifest((l) => l.map((x) => (x.id === entry.id ? { ...x, ...(title ? { title } : {}), ...(topic ? { topic } : {}) } : x)), `Rename "${title || entry.title}"`);
+}
+
+// What is available besides this device: the shared samples published on the site, and (when connected) everything in your
+// own data repository, which may be private. Yours wins when both have the same id.
+async function readManifest(fromRepo) {
   try {
+    if (fromRepo) { const l = await fetchJson(MANIFEST); return Array.isArray(l) ? l : []; }
     const res = await fetch(MANIFEST + "?v=" + Date.now(), { cache: "no-store" });
-    if (!res.ok) return [];
-    const l = (await res.json()) || [], out = [];
-    for (const x of Array.isArray(l) ? l : []) {
-      if (!x || !x.id) continue;
-      if (Array.isArray(x.pages)) out.push({ ...x, remote: true, pages: x.pages.map((p) => ({ ...p, url: p.path })) });
-      else if (x.kind === "doc" && x.file) {
-        try { const r = await fetch(x.file + "?v=" + (x.t || 0), { cache: "no-cache" }); if (r.ok) out.push({ ...x, remote: true, blocks: await r.json() }); } catch { /* skip this one */ }
-      }
-    }
-    return out;
+    return res.ok ? await res.json() : [];
   } catch { return []; }
 }
+export async function loadRemote() {
+  const out = new Map();
+  for (const fromRepo of connected() ? [false, true] : [false]) {
+    for (const x of await readManifest(fromRepo)) {
+      if (!x || !x.id) continue;
+      try {
+        if (Array.isArray(x.pages)) out.set(x.id, { ...x, remote: true, mine: fromRepo, pages: x.pages.map((p) => ({ ...p, url: fromRepo ? null : p.path })) });
+        else if (x.kind === "doc" && x.file) {
+          const blocks = fromRepo ? await fetchJson(x.file) : await (await fetch(x.file + "?v=" + (x.t || 0), { cache: "no-cache" })).json();
+          if (Array.isArray(blocks)) out.set(x.id, { ...x, remote: true, mine: fromRepo, blocks });
+        }
+      } catch { /* skip this one */ }
+    }
+  }
+  return [...out.values()];
+}
+
+// pictures of a private repository have no public address: fetch them with the token and give the viewer local addresses
+export async function resolvePages(a) {
+  if (!a.mine) return a.pages;
+  return Promise.all(a.pages.map(async (p) => { if (p.url) return p; const b = await fetchBlob(p.path); return { ...p, url: b ? URL.createObjectURL(b) : null }; }));
+}
+export async function urlFor(path, mine) { if (!mine) return path; const b = await fetchBlob(path); return b ? URL.createObjectURL(b) : null; }
 
 // save a small text file (used for the encrypted progress backup)
 export const putText = (path, text, message) => putFile(path, text64(text), message);

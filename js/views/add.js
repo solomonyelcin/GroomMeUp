@@ -2,7 +2,9 @@
 // and the page recommends which fits, with the numbers behind it. You choose.
 import { addArticle, importQuestions, store } from "../store.js";
 import { buildQuestions } from "../import/build.js";
-import { loadRemote } from "../github.js";
+import { loadRemote, connected, publishDoc, fetchJson } from "../github.js";
+import { fetchPage, htmlToArticle, getHelper, DEFAULT_HELPER } from "../import/web.js";
+import { textToArticle, toMarkdown } from "../import/blocks.js";
 import { fileToArticle, ARTICLE_TYPES } from "../import/article.js";
 import { blocksToQA } from "../import/blocks.js";
 import { parseFile, ACCEPT } from "../import/index.js";
@@ -38,16 +40,22 @@ export function advise(res, art, hq = []) {
 export function view(root, ctx) {
   root.innerHTML = `
     <header class="page-head"><h1>Add material</h1>
-      <p>Drop any file. It is read in your browser (nothing is uploaded) and the page suggests whether to keep it as an <strong>article</strong> to read, pull out <strong>questions</strong> to practise, or both. You decide.</p></header>
+      <p>Drop a file, paste text or give a web address. It is read in your browser, and the page suggests whether to keep it as an <strong>article</strong> to read, pull out <strong>questions</strong> to practise, or both. You decide.</p></header>
     <label class="drop" id="adrop" for="afile">
       <strong>Drop files here, or click to choose</strong>
       <span class="muted small">PDF, Word (.docx), Excel (.xlsx), CSV, text or markdown. Pictures of notes: use “Import from pictures” below.</span>
       <input id="afile" type="file" accept="${ACCEPT}" multiple hidden>
     </label>
+    <section class="card" style="margin-top:14px"><div class="grid g2">
+      <div><label for="ptext">Paste text</label><textarea id="ptext" style="min-height:84px" placeholder="Paste notes, questions and answers, or an article"></textarea><div class="row" style="margin-top:6px"><input id="ptitle" placeholder="Title (optional)" autocomplete="off" style="flex:1"><button class="btn" id="pgoText">Read it</button></div></div>
+      <div><label for="purl">Web address</label><input id="purl" placeholder="https://…" inputmode="url" autocomplete="off"><div class="row" style="margin-top:6px"><button class="btn" id="pgoUrl">Fetch and preview</button><span class="small muted" id="purlMsg" aria-live="polite"></span></div><p class="small muted" style="margin:6px 0 0">Sites usually block direct reading, so the page goes through a small free helper (${getHelper() ? "yours, set in Settings" : "a public one until you set your own in Settings"}). It sees the address you give. Pages behind a login do not work.</p></div>
+    </div></section>
+    <p class="small muted" id="storeNote" style="margin:10px 0 0"></p>
     <div id="cards"></div>
     <section class="card" id="ready" style="margin-top:14px" hidden><h2 style="margin-top:0">Ready to add</h2><p class="small muted" style="margin-top:0">Questions that came with articles saved in your GitHub repository. One tap adds them to practice, quizzes and mock interviews on this device.</p><div id="readyBody"></div></section>
     <div id="importHost" style="margin-top:16px"></div>`;
   const cards = $("#cards"), importHost = $("#importHost");
+  $("#storeNote").innerHTML = connected() ? "Everything you add here is saved in your GitHub repository, so it shows on all your devices. Nothing is kept on this device." : '<strong>GitHub is not connected</strong>, so what you add stays on this device only. <a href="#/settings?focus=gh">Connect it in Settings</a> to keep your library in your own repository.';
   let n = 0, cleanup = null;
   import("./import.js?v=" + encodeURIComponent(window.__V || "dev")).then(async (m) => { cleanup = (await m.view(importHost, { ...ctx, embedded: true })) || null; importHost.querySelectorAll("h1").forEach((h) => { const h2 = document.createElement("h2"); h2.innerHTML = h.innerHTML; h.replaceWith(h2); }); });
 
@@ -58,7 +66,7 @@ export function view(root, ctx) {
     $("#readyBody").querySelectorAll("[data-pack]").forEach((b) => (b.onclick = async () => {
       const r = pk.find((x) => x.id === b.dataset.pack); b.disabled = true;
       try {
-        const items = await (await fetch(r.questions + "?v=" + (r.t || 0), { cache: "no-cache" })).json(), importId = "pack-" + r.id;
+        const items = r.mine ? await fetchJson(r.questions) : await (await fetch(r.questions + "?v=" + (r.t || 0), { cache: "no-cache" })).json(), importId = "pack-" + r.id;
         const built = buildQuestions(items, { importId, existingCats: store.get().cats });
         const out = importQuestions({ questions: built.questions, cats: built.cats, seeds: built.seeds, record: { id: importId, name: r.title, kind: "Questions from an article" }, seedConfident: false, update: true });
         toast(`${out.added} question${out.added === 1 ? "" : "s"} added`); drawReady(pk);
@@ -98,7 +106,7 @@ export function view(root, ctx) {
         ${opt("both", "Both", "Save the article and review its questions.", !canArticle || !canQ)}
       </div>
       ${canArticle ? `<div class="grid g2"><div><label for="t${host.id}">Article title</label><input id="t${host.id}" value="${esc(A.title)}"></div><div><label for="p${host.id}">Topic (optional)</label><input id="p${host.id}" placeholder="e.g. Caching" autocomplete="off"></div></div>
-        ${A.keepOriginal ? `<label style="font-weight:400;display:block;margin-top:8px"><input type="checkbox" id="o${host.id}" checked> Also keep the original file, so I can open it exactly as it is (stored on this device only, ${(file.size / 1024 / 1024).toFixed(1)} MB)</label>` : ""}` : ""}
+        ${A.keepOriginal ? `<label style="font-weight:400;display:block;margin-top:8px"><input type="checkbox" id="o${host.id}" checked> Also keep the original file, so I can open it exactly as it is (${connected() ? "kept in your GitHub repository" : "kept on this device only"}, ${(file.size / 1024 / 1024).toFixed(1)} MB)</label>` : ""}` : ""}
       <button class="btn primary" data-go style="margin-top:12px">Continue</button> <span class="small muted" data-msg aria-live="polite"></span>`;
     host.querySelector("[data-x]").onclick = () => host.remove();
     host.querySelector("[data-go]").onclick = async (e) => {
@@ -108,13 +116,19 @@ export function view(root, ctx) {
         let saved = null;
         if (mode !== "questions") {
           const keep = host.querySelector("#o" + host.id)?.checked;
-          let orig = null;
-          if (keep) { orig = { id: newBlobId(), name: file.name, type: file.type || "application/octet-stream", size: file.size, ext: A.ext }; await putBlob(orig.id, file); }
-          const imgs = []; for (const im of A.images) { await putBlob(im.id, new Blob([im.bytes], { type: im.type })); imgs.push(im.id); }
           const ttl = host.querySelector("#t" + host.id).value.trim() || A.title, topic = host.querySelector("#p" + host.id).value.trim() || ttl;
-          const blocks = A.blocks.filter((b, i) => !(b.type === "title" && i === 0 && b.text === A.title && ttl === A.title && false));
-          saved = addArticle({ title: ttl, topic, blocks, kind: "doc", source: { file: file.name, format: A.kind, size: file.size, warnings: A.warnings }, original: orig, imageIds: imgs });
-          toast("Saved to Articles");
+          const meta = { title: ttl, topic, blocks: A.blocks, source: { file: file.name, format: A.kind, size: file.size, warnings: A.warnings } };
+          if (connected()) {
+            const images = A.images.map((im) => ({ id: im.id, blob: new Blob([im.bytes], { type: im.type }), type: im.type }));
+            const { entry } = await publishDoc({ ...meta, id: newBlobId(), t: Date.now() }, keep ? { blob: file, name: file.name, type: file.type || "application/octet-stream", size: file.size } : null, (t) => { msg.textContent = t; }, images);
+            saved = { id: entry.id };
+          } else {
+            let orig = null;
+            if (keep) { orig = { id: newBlobId(), name: file.name, type: file.type || "application/octet-stream", size: file.size, ext: A.ext }; await putBlob(orig.id, file); }
+            const imgs = []; for (const im of A.images) { await putBlob(im.id, new Blob([im.bytes], { type: im.type })); imgs.push(im.id); }
+            saved = addArticle({ ...meta, kind: "doc", original: orig, imageIds: imgs });
+          }
+          toast(connected() ? "Saved to your GitHub repository" : "Saved on this device");
         }
         let qdone = "";
         if (mode !== "article" && useHead) {
@@ -128,6 +142,36 @@ export function view(root, ctx) {
       } catch (err) { btn.disabled = false; msg.textContent = ""; toast("Could not save: " + err.message, true); }
     };
   }
+
+  // pasted text and web addresses go through the same advice card as files
+  const asResult = (name, kind, blocks, title) => ({ title, blocks, kind, warnings: [], images: [], keepOriginal: false, name, ext: "txt", size: 0, stats: { headings: blocks.filter((b) => b.type === "h" || b.type === "title").length, tables: blocks.filter((b) => b.type === "table").length, lists: blocks.filter((b) => b.type === "ul" || b.type === "ol").length, pictures: 0, blocks: blocks.length } });
+  async function fromText(text, name, kind, title, blocks) {
+    const id = ++n, host = document.createElement("section"); host.className = "card"; host.style.marginTop = "14px"; host.id = "ac" + id; cards.prepend(host);
+    const file = new File([text], name.replace(/[\\/:*?"<>|]+/g, " ").slice(0, 80) + ".txt", { type: "text/plain" });
+    const A = asResult(file.name, kind, blocks, title), R = await parseFile(file).catch(() => null); A.size = file.size;
+    draw(host, file, A, R);
+  }
+  $("#pgoText").onclick = async () => {
+    const text = $("#ptext").value; if (text.trim().length < 20) return toast("Paste some text first.", true);
+    const md = /(^|\n)#{1,6}\s|\*\*|\n\s*\|.*\|\s*\n/.test(text), title = $("#ptitle").value.trim() || (text.trim().split("\n")[0] || "Pasted text").replace(/^#+\s*/, "").slice(0, 70);
+    const blocks = textToArticle(text, { markdown: md }); if (!blocks.some((b) => b.type === "title")) blocks.unshift({ type: "title", text: title.replace(/([\\*`\[\]~])/g, "\\$1") });
+    await fromText(text, title, "Pasted text", title, blocks); $("#ptext").value = ""; $("#ptitle").value = "";
+  };
+  $("#pgoUrl").onclick = async (e) => {
+    const btn = e.currentTarget, m = $("#purlMsg"), addr = $("#purl").value.trim(); if (!addr) return toast("Enter a web address.", true);
+    btn.disabled = true; m.textContent = "Fetching…";
+    try {
+      const r = await fetchPage(addr);
+      if (r.kind === "file") { m.textContent = ""; await handle([new File([r.blob], r.name, { type: r.blob.type })]); }
+      else {
+        const { title, blocks } = htmlToArticle(r.text, r.url); if (blocks.length < 2) throw new Error("No readable text was found on that page.");
+        const host = new URL(r.url).hostname.replace(/^www\./, "");
+        await fromText(toMarkdown(blocks), title || host, "Web page (" + host + ")", title || host, blocks);
+      }
+      m.textContent = ""; $("#purl").value = "";
+    } catch (err) { m.textContent = ""; toast(err.message, true); }
+    btn.disabled = false;
+  };
 
   const drop = $("#adrop");
   ["dragenter", "dragover"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("over"); }));

@@ -139,3 +139,11 @@ export function blocksToQA(blocks) {
   close();
   return items;
 }
+// Any article with headings can be studied: each heading with its text under it becomes "Explain: <heading>".
+export function sectionsToQA(blocks, topic = "Imported notes") {
+  const items = []; let cur = null;
+  const close = () => { if (cur) { const a = blocksToText(cur.body); if (a.length >= 40) items.push({ topic, sub: "", q: /\?$/.test(cur.h) ? cur.h : "Explain: " + cur.h.replace(/:$/, ""), a, kind: "concept", status: "" }); cur = null; } };
+  for (const b of blocks) { if (b.type === "h") { close(); cur = { h: plainText(b.text).trim(), body: [] }; } else if (b.type !== "title" && cur) cur.body.push(b); }
+  close();
+  return items;
+}

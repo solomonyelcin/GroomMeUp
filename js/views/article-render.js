@@ -1,6 +1,7 @@
 import { esc } from "../ui.js";
 import { toMarkdown } from "../import/blocks.js";
 import { getBlob } from "../imgstore.js";
+import { urlFor } from "../github.js";
 
 // Inline marks. The text is escaped first, so nothing in an imported file can add markup or script.
 export function inlineHtml(text) {
@@ -41,7 +42,7 @@ export function articleHtml(blocks) {
     if (b.type === "code") return `<pre class="art-code"><code>${esc(b.text)}</code></pre>`;
     if (b.type === "quote") return `<blockquote class="art-quote">${inlineHtml(b.text)}</blockquote>`;
     if (b.type === "hr") return `<hr class="art-hr">`;
-    if (b.type === "img") return `<figure class="art-img"><img data-blob="${esc(b.id)}" alt="${esc(b.alt || "")}" hidden><figcaption class="small muted">${esc(b.alt || "")}</figcaption></figure>`;
+    if (b.type === "img") return `<figure class="art-img"><img ${b.path ? `data-path="${esc(b.path)}"` : `data-blob="${esc(b.id)}"`} alt="${esc(b.alt || "")}" hidden><figcaption class="small muted">${esc(b.alt || "")}</figcaption></figure>`;
     if (b.type === "table") {
       const [h, ...r] = b.rows;
       return `<div class="art-tablewrap" tabindex="0"><table class="art-table"><thead><tr>${h.map((c) => `<th>${inlineHtml(c)}</th>`).join("")}</tr></thead><tbody>${r.map((row) => `<tr>${row.map((c) => `<td>${inlineHtml(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
@@ -51,13 +52,16 @@ export function articleHtml(blocks) {
 }
 
 // pictures inside an article live in the browser's file store; show them once the HTML is in the page
-export function hydrateImages(el) {
+export function hydrateImages(el, { mine = false } = {}) {
   const urls = [];
-  el.querySelectorAll("img[data-blob]").forEach(async (img) => {
+  el.querySelectorAll("img[data-blob], img[data-path]").forEach(async (img) => {
     try {
-      const blob = await getBlob(img.dataset.blob);
-      if (!blob) { img.closest("figure").querySelector("figcaption").textContent = "(picture not on this device)"; return; }
-      const u = URL.createObjectURL(blob); urls.push(u); img.src = u; img.hidden = false;
+      let u = null;
+      if (img.dataset.path) u = await urlFor(img.dataset.path, mine);
+      else { const blob = await getBlob(img.dataset.blob); if (blob) { u = URL.createObjectURL(blob); urls.push(u); } }
+      if (!u) { img.closest("figure").querySelector("figcaption").textContent = "(picture not found)"; return; }
+      if (img.dataset.path && mine) urls.push(u);
+      img.src = u; img.hidden = false;
     } catch { /* leave the caption */ }
   });
   return () => urls.forEach((u) => URL.revokeObjectURL(u));

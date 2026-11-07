@@ -137,3 +137,19 @@ All progress lives in the browser, so clearing the browser's site data erases it
 - Pictures kept only on a device (not published to GitHub) are not part of a backup file.
 
 Tests: `npm run test:backup` (needs `PW_PATH`, like the smoke test) wipes a browser and restores it every supported way.
+
+## Library: questions, articles, FAQs and adding material in one place
+
+The menu has one **Library** entry with four tabs: Questions, Articles, FAQs and Add material. Old links such as `#/bank`, `#/faq` and `#/import` still work and open the matching tab.
+
+**Add material** takes PDF, Word (.docx), Excel (.xlsx), CSV, text and markdown. Each file is read in the browser (nothing is uploaded) both ways, then the page recommends what to do, with its numbers (how many questions were found, how much of the text they cover):
+
+- **Keep as an article**: the exact content, with headings, lists, tables, code, bold/italic/links and pictures from Word files. Long articles get a contents list. The original file can be kept on the device and opened or downloaded from the article ("Original").
+- **Extract questions**: questions written as headings ("Question 3: ..." with the answer under them) are taken exactly; other files go through the existing question reader with its review step.
+- **Both**, which is suggested for documents that are mostly Q&A but also contain tables, code or explanation.
+
+How each format is read: `js/import/article.js` (entry point), `pdfnative.js` (text PDFs: real font bold/italic/monospace, sizes and positions give headings, lists, tables and code), `blocks.js` (the block model, markdown round trip, questions from headings). Limits: scanned PDFs have no text (use Import from pictures); pictures inside PDFs are not extracted; a two-column PDF is read line by line and gets a warning; code that the PDF stores as one long line stays one line; very large files keep the first ~1.5 MB of text (the original is still kept).
+
+Articles and their text are part of your backups. Original files and Word pictures are stored in the browser's file store and are not. With a GitHub token in Settings, **Publish to all devices** uploads an article, its original file and (optionally) its questions to `content/<id>/`, listed in `content/articles.json`, so every device shows them. `content/dotnet-guide/` is one such article; **Add material → Ready to add** puts its questions into practice on a device with one tap.
+
+Tests: `node tests/article.test.mjs` (readers, markdown round trip, PDF structure, questions) and the Library steps in `tests/smoke.mjs`. Rebuild the sample files with `python3 tests/fixtures/make_articles.py`.

@@ -1,0 +1,24 @@
+[
+ {
+  "id": "dotnet-guide",
+  "title": ".NET Core, SQL, Architecture & C# Algorithms (Technical Interview Guide)",
+  "topic": ".NET Full-Stack Interview Guide",
+  "t": 1794071661512,
+  "kind": "doc",
+  "file": "content/dotnet-guide/article.json",
+  "source": {
+   "file": ".NET Full-Stack Technical Interview Guide.pdf",
+   "format": "PDF",
+   "pages": 6
+  },
+  "original": {
+   "path": "content/dotnet-guide/original.pdf",
+   "name": ".NET Full-Stack Technical Interview Guide.pdf",
+   "ext": "pdf",
+   "type": "application/pdf",
+   "size": 469090
+  },
+  "questions": "content/dotnet-guide/questions.json",
+  "questionCount": 15
+ }
+]

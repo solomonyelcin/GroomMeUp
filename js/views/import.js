@@ -15,13 +15,13 @@ import { esc, rich, toast, busy, fmtDate, $, $$ } from "../ui.js";
 
 const triedOdd = new Set(); // odd-topic sets already auto-sorted this session, so nothing loops
 
-export function view(root) {
+export function view(root, ctx) {
   const results = []; // { id, res, opts }
   let nextId = 1;
 
   root.innerHTML = `
-    <header class="page-head"><h1>Import material</h1>
-      <p>Bring in your own question banks and prep notes. Each Excel sheet or document section becomes its own topic that works everywhere: Question bank, Practice, Mock interview and Quick quiz.</p></header>
+    <header class="page-head"><h1>Questions from files</h1>
+      <p>Bring in your own question banks and prep notes. Each Excel sheet or document section becomes its own topic that works everywhere: Questions, Practice, Mock interview and Quick quiz.</p></header>
 
     <label class="drop" id="drop" for="file">
       <strong>Drop files here, or click to choose</strong>
@@ -114,6 +114,8 @@ export function view(root) {
     }
   }
   $("#file").onchange = (e) => { handle([...e.target.files]); e.target.value = ""; };
+  root.__readQuestions = (files) => { results$.scrollIntoView?.({ block: "nearest" }); return handle(files); }; // used by the combined Add page, which decides article or questions first
+  if (ctx?.embedded) $("#drop").hidden = true;
   const drop = $("#drop");
   ["dragenter", "dragover"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("over"); }));
   ["dragleave", "drop"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("over"); }));

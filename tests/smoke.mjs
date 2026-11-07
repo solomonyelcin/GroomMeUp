@@ -765,6 +765,75 @@ const dl = page.waitForEvent("download"); await page.click("#ics"); const dlf = 
 check((await page.locator(".tstr").count()) >= 5 && dlf.suggestedFilename().endsWith(".ics"), "topic strength map shown and daily reminder downloads as .ics");
 }
 
+
+// ---- Library: one page for questions, articles, FAQs and adding material ----
+{
+  const fx = (n) => path.join(root, "tests/fixtures", n);
+  const SH = process.env.SHOT_DIR;
+  await page.setViewportSize({ width: 1280, height: 900 }); await page.evaluate(() => localStorage.setItem("groommeup.bankview", "list"));
+  await page.goto(base + "/#/bank"); await page.waitForSelector(".mode-tabs");
+  const navTxt = await page.textContent("#nav");
+  check(/Library/.test(navTxt) && !/Browse questions|Add my questions/.test(navTxt) && !/FAQs/.test(navTxt), "menu has one Library entry instead of four");
+  check((await page.textContent(".mode-tabs a[aria-current=page]")) === "Questions", "#/bank opens the Questions tab");
+  await page.goto(base + "/#/faq?t=" + (await page.evaluate(async () => (await import("/js/data/faqs.js")).FAQS[1].id))); await page.waitForSelector(".faq-layout");
+  check((await page.textContent(".mode-tabs a[aria-current=page]")) === "FAQs", "#/faq keeps working inside the Library");
+  await page.goto(base + "/#/import"); await page.waitForSelector("#importHost #pgo");
+  check((await page.textContent(".mode-tabs a[aria-current=page]")) === "Add material" && (await page.locator("#importHost #pgo").count()) === 1, "#/import opens Add material, with paste and pictures");
+  check((await page.locator("h1").count()) === 1, "one h1 on the Library page");
+
+  // PDF: recommended as an article, saved with its original
+  await page.setInputFiles("#afile", fx("article.pdf")); await page.waitForSelector("#ac1 [data-go]");
+  const pdfCard = await page.textContent("#ac1");
+  check(/Suggestion:/.test(pdfCard) && (await page.locator("#ac1 input[type=radio][value=article]").isChecked()), "PDF without Q&A: article suggested. " + pdfCard.slice(0, 160).replace(/\s+/g, " "));
+  check(/Pictures and drawings inside a PDF are not extracted/.test(pdfCard), "PDF warns about pictures");
+  await page.screenshot({ path: SH + "/lib-advice.png" });
+  await page.click("#ac1 [data-go]"); await page.waitForSelector("#ac1 .callout.ok");
+  const art1 = await page.evaluate(() => (JSON.parse(localStorage.getItem("groommeup.v1")).articles || []).find((a) => a.source?.file === "article.pdf"));
+  const types = art1.blocks.map((b) => b.type + (b.level ? b.level : "") + (b.n ? "#" + b.n : "")).join(",");
+  check(!!art1 && art1.blocks.some((b) => b.type === "ul" && b.items.length === 3) && art1.blocks.filter((b) => b.type === "h" && b.n).length === 2 && !!art1.original, "PDF article: bullets and numbered sections kept: " + types);
+  check(art1.blocks.some((b) => (b.text || "").includes("second page paragraph")), "PDF second page included: " + JSON.stringify(art1.blocks.slice(-2)));
+
+  // Word: picture, list, table, original download
+  await page.setInputFiles("#afile", fx("article.docx")); await page.waitForSelector("#ac2 [data-go]");
+  await page.click("#ac2 [data-go]"); await page.waitForSelector("#ac2 .callout.ok");
+  await page.click("#ac2 .callout.ok a"); await page.waitForSelector(".art");
+  check((await page.textContent(".mode-tabs a[aria-current=page]")) === "Articles" && /Caching Guide/.test(await page.textContent("#main")), "saved article opens in Articles");
+  await page.waitForFunction(() => { const i = document.querySelector(".art img"); return i && i.naturalWidth > 0; }, null, { timeout: 8000 });
+  check((await page.locator(".art strong").count()) >= 1 && (await page.locator(".art ol li").count()) === 3 && (await page.locator(".art table").count()) === 1 && (await page.locator(".art pre").count()) === 1, "Word article shows bold, numbered list, table, code and its picture");
+  await page.screenshot({ path: SH + "/lib-article-docx.png" });
+  await page.click("#mOrig"); await page.waitForSelector("#aorig a[download]");
+  const dd = page.waitForEvent("download"); await page.click("#aorig a[download]");
+  check((await dd).suggestedFilename() === "article.docx", "original Word file downloads under its own name");
+  await page.click("#mRead");
+
+  // Excel without Q&A columns: table article; Excel with Q&A: questions suggested
+  await page.goto(base + "/#/library?tab=add"); await page.waitForSelector("#adrop");
+  await page.setInputFiles("#afile", fx("article.xlsx")); await page.waitForSelector("#ac1 [data-go]");
+  check(await page.locator("#ac1 input[type=radio][value=article]").isChecked(), "workbook without Question/Answer columns: article suggested");
+  await page.setInputFiles("#afile", fx("sample.xlsx")); await page.waitForSelector("#ac2 [data-go]");
+  const qCard = await page.textContent("#ac2");
+  check(await page.locator("#ac2 input[type=radio][value=questions]").isChecked() && /questions with answers found/.test(qCard), "Q&A workbook: questions suggested. " + qCard.slice(0, 140).replace(/\s+/g, " "));
+  await page.click("#ac2 [data-go]"); await page.waitForSelector("[data-act=import]", { timeout: 15000 });
+  check(true, "choosing questions opens the question review");
+  await page.screenshot({ path: SH + "/lib-questions.png", fullPage: false });
+  // text file and article search
+  await page.setInputFiles("#afile", fx("article.txt")); await page.waitForSelector("#ac3 [data-go]");
+  await page.click("#ac3 [data-go]"); await page.waitForSelector("#ac3 .callout.ok");
+  await page.goto(base + "/#/library?tab=articles"); await page.waitForSelector("#aq");
+  await page.fill("#aq", "partitions"); await page.waitForTimeout(150);
+  check((await page.locator(".art-item").count()) === 1 && /Message Queues/.test(await page.textContent(".art-item")), "article search finds text on page 2 of a PDF");
+  await page.fill("#aq", "");
+  const cnt = await page.evaluate(() => (JSON.parse(localStorage.getItem("groommeup.v1")).articles || []).length);
+  check(cnt >= 4, `${cnt} articles saved`);
+  // phone width
+  await page.setViewportSize({ width: 390, height: 800 });
+  await page.goto(base + "/#/library?tab=add"); await page.waitForSelector("#adrop");
+  await page.setInputFiles("#afile", fx("article.md")); await page.waitForSelector("#ac1 [data-go]");
+  check((await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)), "Add material has no sideways scroll on a phone");
+  await page.screenshot({ path: SH + "/lib-phone.png" });
+  await page.setViewportSize({ width: 1280, height: 900 });
+}
+
 check(errors.length === 0, "no uncaught errors" + (errors.length ? ": " + errors.join(" | ") : ""));
 await browser.close(); server.close();
 console.log(fails ? `\n${fails} FAILED` : "\nAll smoke checks passed");

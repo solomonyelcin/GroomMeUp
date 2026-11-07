@@ -1,0 +1,14 @@
+THREADING NOTES
+
+A thread is the smallest unit of execution the scheduler can run.
+Every process starts with one.
+
+KEY IDEAS
+- Shared state needs locks
+- Prefer immutability
+
+1. Race conditions
+Two threads write the same field without a lock.
+
+2. Deadlocks
+Two locks taken in opposite order.

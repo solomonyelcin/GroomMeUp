@@ -334,6 +334,7 @@ table.tbl th { font-weight: 600; color: var(--ink-2); background: color-mix(in s
   body.focus-mode main { padding-top: calc(66px + env(safe-area-inset-top)); padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
   body.focus-mode main { min-height: calc(100dvh + 160px); }
   body.focus-mode .tabbar { display: none; }
+  body.focus-mode .mode-tabs { display: none; }
   body.focus-mode #toasts { bottom: calc(84px + env(safe-area-inset-bottom)); }
   .bank-one .bank-bar { margin: 0 0 6px; }
   .bank-one .filters { padding: 10px 14px; margin-bottom: 8px; }
@@ -567,3 +568,22 @@ body.iv-lock { overflow: hidden; }
 @media (prefers-color-scheme: dark) { .backup-bar { background: #3a3210; border-color: #8a7420; color: #f6efd0; } }
 body.gating > :not(.gate):not(#toasts):not(script):not(noscript) { display: none !important; }
 #backupCard { scroll-margin-top: 80px; }
+
+/* articles from files */
+.art-h2 { font-size: 1.02rem; } .art-h3, .art-h4 { font-size: .96rem; color: var(--ink-2, inherit); }
+.art-ol { padding-left: 1.4em; margin: 6px 0; } .art-ul .art-ul, .art-ol .art-ol, .art-ul .art-ol, .art-ol .art-ul { margin: 2px 0; }
+.art-code { background: var(--chalk-tint); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; overflow-x: auto; font-size: .86rem; }
+.art-quote { margin: 8px 0; padding: 2px 12px; border-left: 3px solid var(--cobalt); color: inherit; opacity: .9; }
+.art-hr { border: 0; border-top: 1px solid var(--line); margin: 14px 0; }
+.art-img { margin: 10px 0; } .art-img img { max-width: 100%; height: auto; border-radius: 6px; border: 1px solid var(--line); }
+.art code:not(pre code) { background: var(--chalk-tint); padding: 0 4px; border-radius: 4px; font-size: .9em; }
+.art-toc { margin: 10px 0 14px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; font-size: .9rem; }
+.art-toc summary { cursor: pointer; font-weight: 600; } .art-toc a { display: block; padding: 2px 0; text-decoration: none; }
+.art-toc a.l2 { padding-left: 14px; } .art-toc a.l3, .art-toc a.l4 { padding-left: 28px; }
+.mode-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 14px; border-bottom: 1px solid var(--line); }
+.mode-tabs a { padding: 8px 14px; border-radius: 8px 8px 0 0; text-decoration: none; color: inherit; border: 1px solid transparent; border-bottom: 0; }
+.mode-tabs a[aria-current=page] { border-color: var(--line); background: var(--chalk-tint); font-weight: 700; }
+.advice { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-top: 10px; }
+.advice.rec { border-color: var(--cobalt); }
+.choice { display: grid; gap: 6px; margin: 10px 0; } .choice label { font-weight: 400; display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
+.choice label.rec { border-color: var(--cobalt); background: var(--chalk-tint); }

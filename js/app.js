@@ -8,11 +8,8 @@ import { needsGate, showGate, mountBackupBar, protectStorageOnce } from "./backu
 
 const ROUTES = [
   { id: "dashboard", label: "Home", ico: "◧", group: "Start", mod: "./views/dashboard.js" },
-  { id: "import", label: "Add my questions", ico: "⇪", group: "Start", mod: "./views/import.js" },
+  { id: "library", label: "Library", ico: "☰", group: "Start", mod: "./views/library.js" },
   { id: "practice", label: "Practise answers", ico: "✎", group: "Learn", mod: "./views/practice.js" },
-  { id: "bank", label: "Browse questions", ico: "☰", group: "Learn", mod: "./views/bank.js" },
-  { id: "articles", label: "Articles", ico: "❏", group: "Learn", mod: "./views/articles.js" },
-  { id: "faq", label: "FAQs", ico: "❓", group: "Learn", mod: "./views/faq.js" },
   { id: "jd", label: "Match a job", ico: "⌖", group: "Learn", mod: "./views/jd.js" },
   { id: "quiz", label: "Quick quiz", ico: "?", group: "Test yourself", mod: "./views/quiz.js" },
   { id: "code", label: "Coding tests", ico: "⌘", group: "Test yourself", mod: "./views/code.js" },
@@ -25,6 +22,8 @@ const ROUTES = [
   { id: "settings", label: "Settings & AI", ico: "⚙", group: "Settings", mod: "./views/settings.js" },
 ];
 // the five places a phone user needs most, always one tap away
+// the old pages now live in the Library as tabs; their links keep working
+const ALIAS = { bank: "questions", articles: "articles", faq: "faqs", import: "add" };
 const TABS = [["dashboard", "Home", "◧"], ["practice", "Practise", "✎"], ["quiz", "Quiz", "?"], ["code", "Code", "⌘"]];
 
 let cleanup = null;
@@ -80,7 +79,8 @@ matchMedia("(min-width: 861px)").addEventListener("change", (e) => { if (e.match
 async function route() {
   const my = ++token;
   const { id, params } = parseHash();
-  const r = ROUTES.find((x) => x.id === id) || ROUTES[0];
+  if (ALIAS[id] && !params.get("tab")) params.set("tab", ALIAS[id]);
+  const r = ROUTES.find((x) => x.id === (ALIAS[id] ? "library" : id)) || ROUTES[0];
   if (cleanup) { try { cleanup(); } catch { /* ignore */ } cleanup = null; }
   setMenu(false);
   endTour();

@@ -87,13 +87,33 @@ export async function unpublish(id, paths = []) {
   for (const p of paths) await delFile(p, "Remove " + p);
 }
 
+// An article made from a file: its text blocks go in one json file, the original file (if kept) beside it.
+// blob: the original file; qs: optional questions [{topic,sub,q,a,kind}] that can be added to practice from any device.
+export async function publishDoc(art, original, onProgress) {
+  const dir = `content/${art.id}`, entry = { id: art.id, title: art.title, topic: art.topic, t: art.t, kind: "doc", file: `${dir}/article.json`, source: art.source };
+  if (original) { onProgress?.("Uploading the original file…", 0.2); const ext = (original.name.split(".").pop() || "bin").toLowerCase(); const path = `${dir}/original.${ext}`; await putFile(path, await b64(original.blob), `Add original of "${art.title}"`); entry.original = { path, name: original.name, ext, type: original.type, size: original.size }; }
+  onProgress?.("Uploading the article…", 0.6);
+  await putFile(entry.file, text64(JSON.stringify(art.blocks)), `Add article "${art.title}"`);
+  if (art.questions?.length) { entry.questions = `${dir}/questions.json`; await putFile(entry.questions, text64(JSON.stringify(art.questions)), `Add questions of "${art.title}"`); entry.questionCount = art.questions.length; }
+  onProgress?.("Updating the list…", 0.9);
+  await editManifest((l) => [entry, ...l.filter((x) => x.id !== art.id)], `Add "${art.title}"`);
+  return entry;
+}
+
 // what other devices published (public files on the site, no token needed)
 export async function loadRemote() {
   try {
     const res = await fetch(MANIFEST + "?v=" + Date.now(), { cache: "no-store" });
     if (!res.ok) return [];
-    const l = await res.json();
-    return (Array.isArray(l) ? l : []).filter((x) => x && x.id && Array.isArray(x.pages)).map((x) => ({ ...x, remote: true, pages: x.pages.map((p) => ({ ...p, url: p.path })) }));
+    const l = (await res.json()) || [], out = [];
+    for (const x of Array.isArray(l) ? l : []) {
+      if (!x || !x.id) continue;
+      if (Array.isArray(x.pages)) out.push({ ...x, remote: true, pages: x.pages.map((p) => ({ ...p, url: p.path })) });
+      else if (x.kind === "doc" && x.file) {
+        try { const r = await fetch(x.file + "?v=" + (x.t || 0), { cache: "no-cache" }); if (r.ok) out.push({ ...x, remote: true, blocks: await r.json() }); } catch { /* skip this one */ }
+      }
+    }
+    return out;
   } catch { return []; }
 }
 

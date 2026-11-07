@@ -11,7 +11,23 @@ const textOf = (xml) => {
   return decodeXml(out.join(""));
 };
 
-export async function readXlsx(buffer) {
+// number formats: dates and percentages show as they do in Excel instead of as raw numbers
+const BUILTIN_DATE = new Set([14, 15, 16, 17, 18, 19, 20, 21, 22, 45, 46, 47]);
+const pad = (n) => String(n).padStart(2, "0");
+function fmtDate(serial, withTime) {
+  const ms = Math.round((serial - 25569) * 86400000), d = new Date(ms);
+  if (isNaN(d)) return String(serial);
+  const day = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+  return withTime && serial % 1 ? `${day} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}` : day;
+}
+function formatNumber(raw, kind) {
+  const n = Number(raw); if (!isFinite(n)) return raw;
+  if (kind === "date") return fmtDate(n, true);
+  if (kind === "pct") return String(Number((n * 100).toPrecision(12))) + "%";
+  return String(Number(n.toPrecision(15))); // 0.1+0.2 shows as 0.3, not 0.30000000000000004
+}
+
+export async function readXlsx(buffer, { formatted = false } = {}) {
   const zip = await unzip(buffer);
   if (!zip.has("xl/workbook.xml")) throw new Error("This zip file is not an Excel workbook (xl/workbook.xml is missing).");
   const wbXml = await zip.text("xl/workbook.xml");
@@ -22,6 +38,19 @@ export async function readXlsx(buffer) {
   const ss = await zip.text("xl/sharedStrings.xml");
   if (ss) for (const m of ss.matchAll(/<si\b[^>]*>([\s\S]*?)<\/si>|<si\s*\/>/g)) shared.push(m[1] ? textOf(m[1]) : "");
 
+  const xfKind = []; // per cell style: "date", "pct" or ""
+  if (formatted) {
+    const st = await zip.text("xl/styles.xml");
+    if (st) {
+      const custom = {};
+      for (const m of st.matchAll(/<numFmt\b[^>]*>/g)) custom[attr(m[0], "numFmtId")] = attr(m[0], "formatCode") || "";
+      const xfs = /<cellXfs\b[^>]*>([\s\S]*?)<\/cellXfs>/.exec(st);
+      if (xfs) for (const m of xfs[1].matchAll(/<xf\b[^>]*>/g)) {
+        const id = +attr(m[0], "numFmtId") || 0, code = custom[id] || "";
+        xfKind.push(BUILTIN_DATE.has(id) || (code && /[ymdhs]/i.test(code.replace(/\[[^\]]*\]|"[^"]*"|\\./g, "")) && !/^general$/i.test(code)) ? "date" : id === 9 || id === 10 || /%/.test(code) ? "pct" : "");
+      }
+    }
+  }
   const sheets = [];
   for (const m of wbXml.matchAll(/<sheet\b[^>]*>/g)) {
     const name = attr(m[0], "name"), rid = attr(m[0], "r:id"), state = attr(m[0], "state") || "visible";
@@ -41,7 +70,7 @@ export async function readXlsx(buffer) {
       else if (t === "inlineStr") val = textOf(body);
       else if (t === "b") val = /<v>1<\/v>/.test(body) ? "TRUE" : "FALSE";
       else if (t === "e") val = "";
-      else { const v = /<v>([\s\S]*?)<\/v>/.exec(body); val = v ? decodeXml(v[1]) : ""; }
+      else { const v = /<v>([\s\S]*?)<\/v>/.exec(body); val = v ? decodeXml(v[1]) : ""; if (formatted && val !== "") val = formatNumber(val, xfKind[+attr(" " + head, "s") || 0] || ""); }
       (rows[r] ||= [])[col] = val;
     }
     const width = Math.min(MAX_COLS, rows.reduce((w, r) => Math.max(w, r ? r.length : 0), 0));

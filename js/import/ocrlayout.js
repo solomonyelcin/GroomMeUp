@@ -1,3 +1,4 @@
+import { toMarkdown } from "./blocks.js";
 // Turns OCR word boxes into a readable article: reading order across columns, a title, numbered
 // headings, bullets, tables and paragraphs. Pure functions, no browser needed, so it is unit tested.
 //
@@ -49,6 +50,7 @@ export function findGutter(lines, width) {
   return mid;
 }
 
+const BULLET_NATIVE = /^[•·▪●○◦■□◆▸►‣⁃*+–—-]\s+(?=\S)/u; // text that came from a real file has no OCR look-alikes
 const BULLET = /^[•·*+\-–—«»▪●○◦@®©\u2460-\u2473\u2776-\u277F]\s*(?=\S)/u;
 const PAGENO = /^[-–— ]*(page\s*)?\d{1,3}(\s*(of|\/)\s*\d{1,3})?[-–— ]*$/i; // "3", "Page 3", "3 / 10" are page numbers, not content
 const NUMHEAD = /^(\d{1,2})\s*[.)]\s+(\S.*)$/;
@@ -58,7 +60,7 @@ function cleanLine(text) {
   return clean(text.replace(/^[|\]\[!¦]+\s*/, "").replace(/\s*[|¦]+$/, "").replace(/\s+([,.;:?!])/g, "$1"));
 }
 
-export function layoutToArticle(ocr, { renumber = true } = {}) {
+export function layoutToArticle(ocr, { renumber = true, native = false, sizeHeadings = false } = {}) {
   const W = ocr.width || 1000;
   let lines = ocr.lines.map(toLine).filter(Boolean);
   const hAll = med(lines.map((l) => l.h)) || 20;
@@ -118,7 +120,10 @@ export function layoutToArticle(ocr, { renumber = true } = {}) {
     const newCol = !!prev && (colOf(prev) !== colOf(l) || l.y0 < prev.y0), gap = prev && !newCol ? l.y0 - prev.y1 : 999;
     const head = t.match(NUMHEAD);
     const isHead = head && t.length <= 64 && !/[.,;]$/.test(t) && !/^\d+[.)]\s+(HTTP|GET|POST)\b/.test(t) && (l.h >= hAll * 0.95 || t.length <= 40) && (!prev || gap > hAll * 0.5 || newCol);
-    const bm = BULLET.exec(t);
+    if (sizeHeadings && !head && !prevIsBullet(ul) && l.h >= hAll * 1.18 && t.length <= 100 && !/[.,;:]$/.test(t) && !(native ? BULLET_NATIVE : BULLET).test(t) && (!prev || gap > hAll * 0.4 || newCol)) {
+      flush(); blocks.push({ type: "h", n: 0, level: l.h >= hAll * 1.6 ? 1 : l.h >= hAll * 1.32 ? 2 : 3, text: t }); prev = l; continue;
+    }
+    const bm = (native ? BULLET_NATIVE : BULLET).exec(t);
     if (isHead) { flush(); blocks.push({ type: "h", n: +head[1], text: head[2].replace(/\s*[:?]\s*$/, (m) => m.trim()).replace(/\s+\?/, "?") }); }
     else if (bm) { if (para) { blocks.push({ type: "p", text: clean(para.join(" ")) }); para = null; } ul ||= []; ulX = l.x0; ul.push(t.slice(bm[0].length).trim()); }
     else if (ul && gap < hAll * 0.9 && !newCol && l.x0 > ulX + hAll * 1.5) ul[ul.length - 1] += " " + t; // wrapped bullet (indented under its marker)
@@ -141,38 +146,7 @@ export function layoutToArticle(ocr, { renumber = true } = {}) {
   return { blocks, markdown: toMarkdown(blocks), stats };
 }
 
-export function toMarkdown(blocks) {
-  const out = [];
-  for (const b of blocks) {
-    if (b.type === "title") out.push("# " + b.text);
-    else if (b.type === "h") out.push(`## ${b.n}. ${b.text}`);
-    else if (b.type === "p") out.push(b.text);
-    else if (b.type === "ul") out.push(b.items.map((x) => "- " + x).join("\n"));
-    else if (b.type === "table") {
-      const [h, ...r] = b.rows; const row = (c) => "| " + c.join(" | ") + " |";
-      out.push([row(h), row(h.map(() => "---")), ...r.map(row)].join("\n"));
-    }
-  }
-  return out.join("\n\n");
-}
-
-// Markdown back into blocks (the review box is editable, so what you save is what you edited)
-export function fromMarkdown(md) {
-  const blocks = [], paras = String(md).replace(/\r/g, "").split(/\n\s*\n/);
-  for (const p of paras) {
-    const lines = p.split("\n").map((x) => x.trimEnd()).filter((x) => x.trim());
-    if (!lines.length) continue;
-    if (/^#\s/.test(lines[0])) { blocks.push({ type: "title", text: lines[0].replace(/^#\s+/, "") }); lines.shift(); }
-    if (lines.length && /^##\s/.test(lines[0])) { const m = lines[0].replace(/^##\s+/, "").match(/^(\d{1,2})[.)]\s+(.*)$/); blocks.push({ type: "h", n: m ? +m[1] : 0, text: m ? m[2] : lines[0].replace(/^##\s+/, "") }); lines.shift(); }
-    if (!lines.length) continue;
-    if (lines.every((x) => /^\|.*\|$/.test(x.trim()))) {
-      const rows = lines.filter((x) => !/^\|\s*:?-{2,}/.test(x.trim())).map((x) => x.trim().slice(1, -1).split("|").map((c) => c.trim()));
-      blocks.push({ type: "table", rows });
-    } else if (lines.every((x) => /^[-*•]\s/.test(x))) blocks.push({ type: "ul", items: lines.map((x) => x.replace(/^[-*•]\s+/, "")) });
-    else blocks.push({ type: "p", text: lines.join(" ") });
-  }
-  return blocks;
-}
+export { toMarkdown, fromMarkdown } from "./blocks.js";
 
 
 // Numbers of headings should run n, n+1, n+2 ... in reading order. If most of them already do, fix the odd ones (OCR reads 1 as 4 and so on).
@@ -185,6 +159,7 @@ export function repairNumbers(heads) {
   if (bestV >= heads.length / 2 && best >= 0) heads.forEach((h, i) => { h.n = i + best; });
 }
 
+const prevIsBullet = (ul) => false; // a heading never continues a list
 const norm = (t) => String(t).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 const endsSentence = (t) => /[.?!:;)"”]$/.test(t.trim());
 
@@ -193,14 +168,14 @@ const endsSentence = (t) => /[.?!:;)"”]$/.test(t.trim());
 export function mergeArticles(pages) {
   const out = []; let firstTitle = null;
   const header = new Map(); // text that is the first or last line on several pages is a running header or footer
-  pages.forEach((bl) => { for (const b of [bl[0], bl[bl.length - 1]]) if (b && b.type === "p" && b.text.length < 60) header.set(norm(b.text), (header.get(norm(b.text)) || 0) + 1); });
+  pages.forEach((bl) => { for (const b of new Set([bl[0], bl[bl.length - 1]])) if (b && b.type === "p" && b.text.length < 60) header.set(norm(b.text), (header.get(norm(b.text)) || 0) + 1); });
   pages.forEach((bl, pi) => {
     bl = bl.map((b) => ({ ...b, items: b.items && [...b.items], rows: b.rows && b.rows.map((r) => [...r]) }));
     bl = bl.filter((b, i) => !((i === 0 || i === bl.length - 1) && b.type === "p" && header.get(norm(b.text)) >= 2 && pages.length > 1));
     bl.forEach((b, i) => {
       if (b.type === "title") {
         if (!firstTitle) { firstTitle = norm(b.text); out.push(b); }
-        else if (norm(b.text) !== firstTitle) out.push({ type: "h", n: 0, text: b.text });
+        else if (norm(b.text) !== firstTitle) out.push({ type: "h", n: 0, level: 1, text: b.text });
         return;
       }
       const last = out[out.length - 1];

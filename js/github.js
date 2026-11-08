@@ -14,7 +14,7 @@ export const connected = () => !!getCfg().token;
 async function api(method, path, body) {
   const c = getCfg();
   if (!c.token) throw new Error("GitHub is not connected. Add your access token in Settings.");
-  const res = await fetch(`https://api.github.com/repos/${c.owner}/${c.repo}/${path}`, {
+  const res = await fetch(`https://api.github.com/repos/${c.owner}/${c.repo}${path ? "/" + path : ""}`, {
     method,
     headers: { Authorization: `Bearer ${c.token}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", ...(body ? { "Content-Type": "application/json" } : {}) },
     body: body ? JSON.stringify(body) : undefined,

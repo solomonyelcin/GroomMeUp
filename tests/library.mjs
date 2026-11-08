@@ -23,6 +23,7 @@ const fake = async (route) => {
   const req = route.request(), u = new URL(req.url()), m = /^\/repos\/([^/]+)\/([^/]+)(?:\/contents\/(.*))?\/?$/.exec(u.pathname);
   const json = (o, status = 200) => route.fulfill({ status, contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: JSON.stringify(o) });
   if (req.method() === "OPTIONS") return route.fulfill({ status: 204, headers: { "access-control-allow-origin": "*", "access-control-allow-headers": "*", "access-control-allow-methods": "*" } });
+  if (u.pathname === "/user") return json({ login: "solomonyelcin" });
   if (!m) return json({ message: "nf" }, 404);
   if (req.headers().authorization !== "Bearer tok123") return json({ message: "bad" }, 401);
   const file = m[3] && decodeURIComponent(m[3]);
@@ -54,8 +55,9 @@ const localState = (page) => page.evaluate(async () => {
 
 const A = await device();
 await A.goto(base + "/#/settings?focus=gh"); await A.waitForSelector("#ghsave");
-await A.click("#ghsave"); await A.waitForFunction(() => /private/.test(document.querySelector("#ghmsg").textContent), null, { timeout: 8000 });
-check(true, "Settings tests the connection and reports a private repository");
+await A.click("#ghsave"); await A.waitForFunction(() => localStorage.getItem("groommeup.user") === "solomonyelcin", null, { timeout: 8000 });
+await A.waitForLoadState("load"); await A.waitForTimeout(800);
+check(true, "Settings tests the connection and signs in");
 
 // ---- a Word file with a picture goes to the repo, nothing stays on the device ----
 await A.goto(base + "/#/library?tab=add"); await A.waitForSelector("#adrop");

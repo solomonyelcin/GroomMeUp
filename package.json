@@ -10,7 +10,8 @@
     "test:smoke": "node tests/smoke.mjs",
     "test:backup": "node tests/backup.mjs",
     "test:library": "node tests/library.mjs",
-    "test:accounts": "node tests/accounts.mjs"
+    "test:accounts": "node tests/accounts.mjs",
+    "test:live": "node tests/live.mjs"
   },
   "devDependencies": {
     "sql.js": "^1.10.3",

@@ -587,3 +587,12 @@ body.gating > :not(.gate):not(#toasts):not(script):not(noscript) { display: none
 .advice.rec { border-color: var(--cobalt); }
 .choice { display: grid; gap: 6px; margin: 10px 0; } .choice label { font-weight: 400; display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
 .choice label.rec { border-color: var(--cobalt); background: var(--chalk-tint); }
+
+/* live voice interview */
+.live-dot { width: 14px; height: 14px; border-radius: 50%; background: var(--line); display: inline-block; flex: none; }
+.live-dot.speak { background: var(--amber, #d99a1f); animation: livepulse 1s ease-in-out infinite; }
+.live-dot.listen { background: var(--moss, #3a9d5d); animation: livepulse 1.2s ease-in-out infinite; }
+.live-dot.denied { background: var(--thread, #d6453d); }
+@keyframes livepulse { 50% { transform: scale(1.35); opacity: .6; } }
+@media (prefers-reduced-motion: reduce) { .live-dot { animation: none !important; } }
+[hidden] { display: none !important; }

@@ -168,3 +168,11 @@ Tests: `node tests/article.test.mjs` (readers, markdown round trip, PDF structur
 - **Progress sync**: `progress/state.json` in your repo (about 1 MB limit). If two devices diverge, the other copy is saved as `progress/conflict-<time>.json` rather than overwritten.
 - **Sign out** wipes that account's local data (it stays in your repo). To switch accounts, sign out first.
 - AI keys never leave the browser and are not synced. Use a private repo; the app warns if it is public.
+
+## Live voice interview (Mock interview)
+
+- Pick **Level** (Easy, Medium, Hard, Pro), **Duration** (10 to 30 minutes) and **Programming questions** (Yes/No), then press Start.
+- The interviewer **speaks** each question (browser speech synthesis), starting with "Tell me about yourself". Full and HR rounds also ask why you want a change and end with "Do you have questions for us?". You answer **aloud**; your words appear in the box (browser speech recognition, Chrome or Edge) and you can edit them. Browsers without a microphone fall back to typing.
+- **Pro** hides the question text (audio only), gives shorter time per answer and moves on after a 6 second pause. Programming questions come from the Coding tests bank: say your approach, then type the code.
+- The interview stops when the duration is over. The debrief gives a score, a hire signal, delivery stats (words per answer, pace, filler words), per question feedback with model answers, weak topics with a quiz link, and a **Download transcript** button.
+- Nothing is uploaded by the app; speech goes through your browser's own speech service. Test: `npm run test:live`.

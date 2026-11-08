@@ -160,6 +160,7 @@ check((await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")
 
 // mock interview end-to-end
 await page.goto(base + "/#/mock");
+await page.selectOption("#md", "text");
 await page.selectOption("#n", "4");
 await page.click("#go");
 for (let i = 0; i < 4; i++) { await page.fill("#ans", "I would explain the concept, give an example from my project, and discuss the trade-offs and failure modes carefully."); await page.click("#nx"); }

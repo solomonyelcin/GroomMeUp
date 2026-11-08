@@ -665,6 +665,7 @@ for (const r of ["dashboard", "bank", "code", "market", "import", "quiz"]) {
     const u = new URL(r.request().url()), m = r.request().method(), j = (b, st = 200) => r.fulfill({ status: st, contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: JSON.stringify(b) });
     if (m === "OPTIONS") return r.fulfill({ status: 204, headers: { "access-control-allow-origin": "*", "access-control-allow-headers": "*", "access-control-allow-methods": "*" } });
     if (!/Bearer test-token/.test(r.request().headers().authorization || "")) return j({ message: "Bad credentials" }, 401);
+    if (u.pathname === "/user" && m === "GET") return j({ login: "solomonyelcin" });
     const p = u.pathname.replace(/^\/repos\/[^/]+\/[^/]+\/?/, "");
     if (p === "" && m === "GET") return j({ full_name: "solomonyelcin/GroomMeUp", private: false, permissions: { push: true } });
     if (p === "contents/content/articles.json" && m === "GET") return manifest ? j({ sha: manifestSha, content: Buffer.from(manifest).toString("base64") }) : j({ message: "Not Found" }, 404);
@@ -678,9 +679,11 @@ for (const r of ["dashboard", "bank", "code", "market", "import", "quiz"]) {
   await page.waitForFunction(() => /rejected/i.test(document.querySelector("#ghmsg").textContent));
   check(true, "a wrong token is reported clearly");
   await page.fill("#ghtoken", "test-token"); await page.click("#ghsave");
-  await page.waitForFunction(() => /Connected to/.test(document.querySelector("#ghmsg").textContent));
-  { const t = await page.textContent("#ghmsg"); check(/solomonyelcin\/GroomMeUp\S* /.test(t) && /PUBLIC/.test(t), "token is tested, the repository named and a public one is warned about: " + t.slice(0, 120)); }
-  check(!(await page.evaluate(() => localStorage.getItem("groommeup.v1") || "")).includes("test-token"), "the token is not part of the saved progress (so not in backups)");
+  await page.waitForFunction(() => localStorage.getItem("groommeup.user") === "solomonyelcin");
+  await page.waitForLoadState("load"); await page.waitForTimeout(800);
+  check(await page.evaluate(() => localStorage.getItem("groommeup.user")) === "solomonyelcin", "a good token signs the person in");
+  await page.goto(base + "/#/settings"); await page.waitForSelector("#ghsave", { state: "attached" });
+  check(!(await page.evaluate(() => Object.keys(localStorage).filter((k) => /^groommeup\.v1/.test(k)).map((k) => localStorage.getItem(k)).join(""))).includes("test-token"), "the token is not part of the saved progress (so not in backups)");
   const jpg = fs.readFileSync(path.join(root, "tests/fixtures/rest-api.jpg"));
   await page.goto(base + "/#/import"); await page.reload(); await page.waitForSelector("#imgFile", { state: "attached" });
   await page.setInputFiles("#imgFile", [{ name: "a1.jpg", mimeType: "image/jpeg", buffer: jpg }, { name: "a2.jpg", mimeType: "image/jpeg", buffer: jpg }]);
@@ -700,7 +703,8 @@ for (const r of ["dashboard", "bank", "code", "market", "import", "quiz"]) {
   await page.waitForFunction(() => document.querySelector("#ivImg") && document.querySelector("#ivImg").naturalWidth > 0);
   check((await page.textContent(".card h2 + span")).includes("on GitHub"), "they open from the site and say they are on GitHub");
   await page.unroute(/\/content\/articles\.json/); await page.unroute(/\/content\/remote1\/01\.jpg/);
-  await page.evaluate(() => localStorage.removeItem("groommeup.gh"));
+  await page.evaluate(() => { localStorage.removeItem("groommeup.gh"); localStorage.removeItem("groommeup.user"); localStorage.removeItem("groommeup.accounts"); Object.keys(localStorage).filter((k) => /\.u\.solomonyelcin$/.test(k)).forEach((k) => localStorage.removeItem(k)); });
+  await page.goto(base + "/#/"); await page.reload();
 }
 
 // ---- Analysis ----

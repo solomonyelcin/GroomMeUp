@@ -1,3 +1,4 @@
+import { ns } from "../account.js";
 import { store, importQuestions, removeImport, importedQuestions, renameTopic, moveToTopics, deleteTopic } from "../store.js";
 import { proposeTopics } from "../import/retopic.js";
 import { isBogusTopic } from "../import/clean.js";
@@ -248,7 +249,7 @@ export function view(root, ctx) {
   });
 
   // ---------- encrypted library ----------
-  const PASS_KEY = "groommeup.libpass";
+  const PASS_KEY = ns("groommeup.libpass");
   const getPass = () => { try { return localStorage.getItem(PASS_KEY) || ""; } catch { return ""; } };
   libraryAvailable().then((yes) => {
     if (!yes || !$("#libCard")) return;

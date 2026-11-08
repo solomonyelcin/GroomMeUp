@@ -1,3 +1,4 @@
+import { ns } from "../account.js";
 import { store, allQuestions, lastScores, isDue, isBrokenMcq, removeBroken, markStudy, toggleStar, setNote, updateQuestion, deleteQuestion } from "../store.js";
 import { CATEGORIES } from "../data/index.js";
 import { generateQuestions, aiEnabled } from "../ai.js";
@@ -5,9 +6,9 @@ import { esc, rich, scoreBadge, toast, busy, $, $$ } from "../ui.js";
 import { isBogusTopic } from "../import/clean.js";
 
 const filt = { text: "", cat: "all", diff: 0, status: "all", src: "", kind: "all", ids: null, sort: "topic" };
-const readMode = () => { try { return localStorage.getItem("groommeup.read") === "1"; } catch { return false; } };
+const readMode = () => { try { return localStorage.getItem(ns("groommeup.read")) === "1"; } catch { return false; } };
 const revealed = new Set();
-const setReadMode = (v) => { try { localStorage.setItem("groommeup.read", v ? "1" : "0"); } catch { /* ignore */ } };
+const setReadMode = (v) => { try { localStorage.setItem(ns("groommeup.read"), v ? "1" : "0"); } catch { /* ignore */ } };
 let shown = 40;
 let rank = new Map(), idx = 0, curId = null;
 const shuffleRank = (q) => { if (!rank.has(q.id)) rank.set(q.id, Math.random()); return rank.get(q.id); };

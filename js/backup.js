@@ -5,7 +5,8 @@ import { store } from "./store.js";
 import { encryptLibrary, decryptLibrary } from "./library.js";
 import { getCfg, setCfg, putText, DEFAULTS } from "./github.js";
 
-const META = "groommeup.backup", SETUP = "groommeup.setup";
+import { ns } from "./account.js";
+const META = ns("groommeup.backup"), SETUP = ns("groommeup.setup");
 export const GH_BACKUP = "backup/progress.enc.json";
 export const DUE_DAYS = 7;
 const DAY = 86400000;

@@ -3,7 +3,8 @@
 import { QUESTIONS, CATEGORIES, MCQ, JS_CHALLENGES, SQL_CHALLENGES, CS_CHALLENGES } from "./data/index.js";
 import { cleanQuestion } from "./import/clean.js";
 
-const KEY = "groommeup.v1";
+import { ns } from "./account.js";
+const KEY = ns("groommeup.v1");
 const DAY = 86400000;
 const INTERVALS = [0, 1, 3, 7, 16, 35]; // days per Leitner box
 

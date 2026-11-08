@@ -1,5 +1,7 @@
 import { store } from "../store.js";
-import { getCfg, setCfg, clearCfg, testConnection } from "../github.js";
+import { getCfg, setCfg, clearCfg, testConnection, whoami, fetchJson, connected } from "../github.js";
+import { currentUser, profile, rememberAccount, setUser, wipeUser } from "../account.js";
+import { syncLabel, syncMeta, pushNow, onSyncChange } from "../sync.js";
 import { getHelper, setHelper, DEFAULT_HELPER } from "../import/web.js";
 import { backupCardHtml, wireBackupCard } from "../backup-ui.js";
 import { openBackup, applyBackup, summarise } from "../backup.js";
@@ -7,6 +9,23 @@ import { makeProgressCode, applyProgressCode } from "../transfer.js";
 import { PROVIDERS, pingAI } from "../ai.js";
 import { esc, toast, busy, download, $, $$ } from "../ui.js";
 import { THEMES, getTheme, setTheme } from "../theme.js";
+
+function accountBlock() {
+  const u = currentUser(), p = profile();
+  if (!u) return `<div class="callout" style="margin-bottom:10px"><strong>Guest.</strong> Your progress stays in this browser only. Sign in below and it is kept in your own private repository, so it looks the same on every device and each person on a shared device has their own.</div>`;
+  return `<div class="callout ok" style="margin-bottom:10px"><strong>Signed in as ${esc(u)}${p?.name ? " (" + esc(p.name) + ")" : ""}.</strong> Progress, settings, imported questions and your library are kept in <code>${esc(getCfg().owner)}/${esc(getCfg().repo)}</code>. <span id="syncLbl">${esc(syncLabel())}</span><div class="row" style="margin-top:8px"><button class="btn sm" id="syncNow">Sync now</button><button class="btn sm" id="signout">Sign out</button></div><p class="small muted" style="margin:6px 0 0">AI keys never leave this browser. To use another account, sign out first.</p></div>`;
+}
+async function signIn(cfg, m) {
+  const who = await whoami(cfg.token);
+  const remote = await fetchJson("progress/state.json").catch(() => null);
+  const guest = (() => { try { return localStorage.getItem("groommeup.v1"); } catch { return null; } })();
+  const L = who.login, now = Date.now();
+  if (remote?.state) { localStorage.setItem(`groommeup.v1.u.${L}`, JSON.stringify(remote.state)); localStorage.setItem(`groommeup.sync.u.${L}`, JSON.stringify({ remoteT: remote.t, localT: 0, dirty: false, last: now, error: "" })); }
+  else if (guest && confirm(`Sign in as ${L}. Move the progress and imported questions on this browser into your account? (Recommended)`)) { localStorage.setItem(`groommeup.v1.u.${L}`, guest); localStorage.removeItem("groommeup.v1"); localStorage.setItem(`groommeup.sync.u.${L}`, JSON.stringify({ remoteT: 0, localT: now, dirty: true, last: 0, error: "" })); }
+  localStorage.setItem(`groommeup.gh.u.${L}`, JSON.stringify(cfg)); localStorage.removeItem("groommeup.gh");
+  localStorage.setItem(`groommeup.setup.u.${L}`, "1"); localStorage.setItem(`groommeup.profile.u.${L}`, JSON.stringify(who));
+  rememberAccount(L, who); setUser(L); m.textContent = `Signed in as ${L}. Loading your account…`; location.hash = "#/dashboard"; location.reload();
+}
 
 export function view(root, ctx) {
   const ghc = getCfg();
@@ -39,11 +58,12 @@ export function view(root, ctx) {
       <p class="muted">Progress, interview log and custom questions live in this browser. Export a backup now and then, and use it to move to another browser or device. API keys are never included in exports.</p>
       <div class="row"><button class="btn" id="exp">Export backup</button><label class="btn" style="margin:0">Restore from file<input id="imp" type="file" accept=".json,application/json,.txt" hidden></label><button class="btn danger" id="rst">Erase everything</button></div></section>
 
-    <section class="card" style="margin-top:16px" aria-labelledby="gh" id="ghCard"><h2 id="gh">Your library in your own GitHub repository</h2>
+    <section class="card" style="margin-top:16px" aria-labelledby="gh" id="ghCard"><h2 id="gh">Account and library (your own GitHub repository)</h2>
+      ${accountBlock()}
       <p class="muted" style="margin-top:0">Files, articles and pictures you add are saved in a repository of yours, so they show on every device and nothing stays in this browser. Use a <strong>private</strong> repository: <a href="https://github.com/new?name=GroomMeUp-data&amp;visibility=private&amp;description=My+GroomMeUp+library" target="_blank" rel="noopener noreferrer">create GroomMeUp-data</a> (free), then make a <strong>fine-grained personal access token</strong> limited to that one repository with permission <em>Contents: Read and write</em> (GitHub &rarr; Settings &rarr; Developer settings &rarr; Fine-grained tokens). Put your GitHub user name and that repository below. The token stays in this browser and is never included in backups. In a private repository only you can read the files.</p>
       <div class="grid g2"><div class="field"><label for="ghowner">GitHub user name</label><input id="ghowner" value="${esc(ghc.owner)}" autocomplete="off"></div><div class="field"><label for="ghrepo">Repository</label><input id="ghrepo" value="${esc(ghc.repo)}" autocomplete="off"></div></div>
       <div class="grid g2"><div class="field"><label for="ghbranch">Branch</label><input id="ghbranch" value="${esc(ghc.branch)}" autocomplete="off"></div><div class="field"><label for="ghtoken">Access token</label><input id="ghtoken" type="password" placeholder="${ghc.token ? "Saved (paste to replace)" : "github_pat_…"}" autocomplete="off"></div></div>
-      <div class="row"><button class="btn primary" id="ghsave">Save and test</button><button class="btn" id="ghclear">Disconnect</button></div><p id="ghmsg" class="small" style="margin:8px 0 0" aria-live="polite"></p>
+      <div class="row"><button class="btn primary" id="ghsave">${currentUser() ? "Save and test" : "Save, test and sign in"}</button>${currentUser() ? "" : '<button class="btn" id="ghclear">Disconnect</button>'}</div><p id="ghmsg" class="small" style="margin:8px 0 0" aria-live="polite"></p>
       <div class="field" style="margin-top:14px"><label for="helper">Web address helper (for “From a web address”)</label><input id="helper" value="${esc(getHelper())}" placeholder="${esc(DEFAULT_HELPER)}" autocomplete="off"><p class="small muted" style="margin:4px 0 0">Leave empty to use a public free helper. For privacy and reliability, deploy your own free one from <code>tools/url-helper/worker.js</code> (Cloudflare Workers) and paste its address here, with <code>{url}</code> where the page address goes.</p></div></section>
 
     <section class="card" style="margin-top:16px" aria-labelledby="mv"><h2 id="mv">Move progress to another device</h2>
@@ -102,16 +122,29 @@ export function view(root, ctx) {
   $("#rst").onclick = () => { if (confirm("This erases all progress, logs and custom questions in this browser. Continue?")) { store.reset(); toast("Erased"); location.hash = "#/dashboard"; location.reload(); } };
   $("#ghsave").onclick = async (e) => {
     const old = getCfg(), tok = $("#ghtoken").value.trim() || old.token || "";
-    setCfg({ owner: $("#ghowner").value.trim(), repo: $("#ghrepo").value.trim(), branch: $("#ghbranch").value.trim() || "main", token: tok });
+    const cfg = { owner: $("#ghowner").value.trim(), repo: $("#ghrepo").value.trim(), branch: $("#ghbranch").value.trim() || "main", token: tok };
+    setCfg(cfg);
     const m = $("#ghmsg"); if (!tok) { m.textContent = "Saved. Paste a token to connect."; return; }
     const btn = e.currentTarget; busy(btn, true, "Testing");
-    try { m.textContent = "Connected to " + (await testConnection()) + "."; $("#ghtoken").value = ""; } catch (err) { m.textContent = err.message; }
+    try {
+      m.textContent = "Connected to " + (await testConnection()) + "."; $("#ghtoken").value = "";
+      if (!currentUser()) await signIn(cfg, m);
+    } catch (err) { m.textContent = err.message; }
     busy(btn, false);
   };
+  $("#syncNow")?.addEventListener("click", async (e) => { busy(e.currentTarget, true, "Syncing"); await pushNow(); busy(e.currentTarget, false); toast(syncLabel()); });
+  $("#signout")?.addEventListener("click", async () => {
+    const u = currentUser(); await pushNow();
+    if (syncMeta().dirty && !confirm("Your latest changes could not be saved to your repository yet. Sign out anyway and lose them on this browser?")) return;
+    if (!confirm(`Sign out ${u}? Your progress and library stay in your repository. This browser forgets them and the token, and goes back to guest mode.`)) return;
+    wipeUser(u); setUser(""); location.hash = "#/dashboard"; location.reload();
+  });
+  const off = onSyncChange(() => { const el = $("#syncLbl"); if (el) el.textContent = syncLabel(); });
   $("#helper").onchange = (e) => { const v = e.target.value.trim(); if (v && !v.includes("{url}")) { toast("The helper address must contain {url}.", true); return; } setHelper(v); toast("Helper saved"); };
-  $("#ghclear").onclick = () => { clearCfg(); $("#ghmsg").textContent = "Disconnected. The token was removed from this browser."; $("#ghtoken").placeholder = "github_pat_…"; };
+  $("#ghclear") && ($("#ghclear").onclick = () => { clearCfg(); $("#ghmsg").textContent = "Disconnected. The token was removed from this browser."; $("#ghtoken").placeholder = "github_pat_…"; });
   wireBackupCard(root);
   if (ctx?.params?.get("focus") === "gh") setTimeout(() => $("#ghCard")?.scrollIntoView({ block: "start" }), 80);
   if (ctx?.params?.get("focus") === "backup") setTimeout(() => $("#backupCard")?.scrollIntoView({ block: "start" }), 80); // after the router has scrolled to the top
-  void $$;
+  void $$; void connected;
+  return off;
 }

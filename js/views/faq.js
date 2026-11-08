@@ -1,10 +1,11 @@
+import { ns } from "../account.js";
 import { FAQS, FAQ_SOURCES } from "../data/faqs.js";
 import { DIAGRAMS } from "./faq-diagrams.js";
 import { store, importQuestions } from "../store.js";
 import { buildQuestions } from "../import/build.js";
 import { esc, rich, toast, $, $$ } from "../ui.js";
 
-const KEY = "groommeup.faq";
+const KEY = ns("groommeup.faq");
 const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } };
 const save = (v) => { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch { /* ignore */ } };
 const qid = (f, i) => f.id + ":" + i;

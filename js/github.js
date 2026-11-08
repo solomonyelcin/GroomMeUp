@@ -1,7 +1,8 @@
 // Publishing pictures to your own GitHub repo (folder content/) so they are available on every device.
 // The site is static and cannot write to the repo by itself, so this uses the GitHub REST API from your browser
 // with a fine-grained access token you paste in once. The token stays in this browser and is never exported.
-const KEY = "groommeup.gh";
+import { ns } from "./account.js";
+const KEY = ns("groommeup.gh");
 export const DEFAULTS = { owner: "solomonyelcin", repo: "GroomMeUp-data", branch: "main" };
 export const MANIFEST = "content/articles.json";
 
@@ -32,6 +33,14 @@ export async function testConnection() {
   const j = await res.json();
   if (j.permissions && !j.permissions.push) throw new Error("The token can read the repository but not write to it. Give it Contents: Read and write.");
   return `${j.full_name} (${j.private ? "private, only you can read your files" : "PUBLIC: anything you add here can be read by anyone. Use a private repository for your library"}), branch ${getCfg().branch}`;
+}
+
+// who owns the token (GitHub login), used to sign in
+export async function whoami(token = getCfg().token) {
+  const res = await fetch("https://api.github.com/user", { headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" }, cache: "no-store" });
+  if (res.status === 401) throw new Error("GitHub rejected that token. Check that it is copied completely and has not expired.");
+  if (!res.ok) throw new Error("GitHub could not tell who this token belongs to (" + res.status + ").");
+  const j = await res.json(); return { login: j.login, name: j.name || "", avatar: j.avatar_url || "" };
 }
 
 // Read a file from the data repository with the token, so private repositories work too.

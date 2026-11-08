@@ -159,3 +159,12 @@ How each format is read: `js/import/article.js` (entry point), `pdfnative.js` (t
 Planned next: sign-in and a separate library, progress and settings per user, each in that user's own private repository.
 
 Tests: `node tests/article.test.mjs` (readers, markdown round trip, PDF structure, questions), `npm run test:library` (storage in a fake private GitHub repo, paste, web address, second device, quiz) and the Library steps in `tests/smoke.mjs`. Rebuild the sample files with `python3 tests/fixtures/make_articles.py`.
+
+## Accounts, sign-in and sync
+
+- **Sign in** (Settings → GitHub): paste a fine-grained token with *Contents: read and write* on your own private repo (default name `GroomMeUp-data`). A static site cannot do OAuth, so the token is the sign-in. It stays in the browser and is never part of a backup.
+- **Per-user data**: progress, notes, settings and the library are kept under your GitHub login, so each person on a shared device sees only their own. Existing guest progress is moved into the account at first sign-in.
+- **Library files** (articles, original PDFs/Word/Excel, pictures, questions) are written to `content/<id>/` in your repo and read back on any device.
+- **Progress sync**: `progress/state.json` in your repo (about 1 MB limit). If two devices diverge, the other copy is saved as `progress/conflict-<time>.json` rather than overwritten.
+- **Sign out** wipes that account's local data (it stays in your repo). To switch accounts, sign out first.
+- AI keys never leave the browser and are not synced. Use a private repo; the app warns if it is public.

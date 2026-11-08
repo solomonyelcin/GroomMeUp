@@ -4,6 +4,8 @@ import { $, $$, esc, toast } from "./ui.js";
 import { THEMES, getTheme, cycleTheme, applyTheme } from "./theme.js";
 import { startTour, maybeAutoTour, endTour } from "./tour.js";
 import { checkBadges } from "./progress.js";
+import { currentUser, profile } from "./account.js";
+import { startSync, syncLabel, onSyncChange } from "./sync.js";
 import { needsGate, showGate, mountBackupBar, protectStorageOnce } from "./backup-ui.js";
 
 const ROUTES = [
@@ -42,6 +44,7 @@ window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); inst
 window.addEventListener("appinstalled", () => { installEvt = null; renderNav(parseHash().id); toast("GroomMeUp installed"); });
 if ("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
 
+const acctLine = () => (currentUser() ? `Signed in as <a href="#/settings?focus=gh"><strong>${esc(currentUser())}</strong></a><br><span class="small muted" id="syncLine">${esc(syncLabel())}</span>` : 'Guest: progress stays in this browser. <a href="#/settings?focus=gh">Sign in</a>');
 function renderNav(current) {
   let html = "", g = "";
   for (const r of ROUTES) {
@@ -55,7 +58,7 @@ function renderNav(current) {
   $("#pageTitle").textContent = ROUTES.find((r) => r.id === current)?.label || "GroomMeUp";
   const p = activeProvider();
   const tn = THEMES.find((x) => x.id === getTheme())?.name || "Theme";
-  $("#railFoot").innerHTML = `<button class="rail-btn" id="tourBtn2">Take the quick tour</button>${installEvt && !standalone() ? `<button class="rail-btn" id="installBtn" style="margin-top:6px">Install app</button>` : isIos() && !standalone() ? `<div class="small" style="margin:6px 0">To install: tap Share, then "Add to Home Screen".</div>` : ""}<button class="rail-btn" id="themeBtn" title="Switch theme" style="margin-top:6px">Colours: ${esc(tn)}</button><div style="margin-top:8px">AI: ${esc(p === "offline" ? "off (offline scoring)" : PROVIDERS[p].keyless ? "free, no key" : PROVIDERS[p].name.split(" (")[0])}<br>Progress stays in this browser.</div>`;
+  $("#railFoot").innerHTML = `<button class="rail-btn" id="tourBtn2">Take the quick tour</button>${installEvt && !standalone() ? `<button class="rail-btn" id="installBtn" style="margin-top:6px">Install app</button>` : isIos() && !standalone() ? `<div class="small" style="margin:6px 0">To install: tap Share, then "Add to Home Screen".</div>` : ""}<button class="rail-btn" id="themeBtn" title="Switch theme" style="margin-top:6px">Colours: ${esc(tn)}</button><div style="margin-top:8px">AI: ${esc(p === "offline" ? "off (offline scoring)" : PROVIDERS[p].keyless ? "free, no key" : PROVIDERS[p].name.split(" (")[0])}<br><span id="acctLine">${acctLine()}</span></div>`;
   const ib = $("#installBtn"); if (ib) ib.onclick = async () => { installEvt.prompt(); await installEvt.userChoice.catch(() => {}); installEvt = null; renderNav(current); };
   $("#themeBtn").onclick = () => { cycleTheme(); renderNav(current); };
   $("#tourBtn2").onclick = () => { setMenu(false); startTour(); };
@@ -112,3 +115,6 @@ checkBadges();
 if (needsGate()) await showGate();
 protectStorageOnce();
 route();
+onSyncChange(() => { const l = $("#syncLine"); if (l) l.textContent = syncLabel(); });
+startSync();
+void profile;

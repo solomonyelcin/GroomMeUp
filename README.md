@@ -176,3 +176,11 @@ Tests: `node tests/article.test.mjs` (readers, markdown round trip, PDF structur
 - **Pro** hides the question text (audio only), gives shorter time per answer and moves on after a 6 second pause. Programming questions come from the Coding tests bank: say your approach, then type the code.
 - The interview stops when the duration is over. The debrief gives a score, a hire signal, delivery stats (words per answer, pace, filler words), per question feedback with model answers, weak topics with a quiz link, and a **Download transcript** button.
 - Nothing is uploaded by the app; speech goes through your browser's own speech service. Test: `npm run test:live`.
+
+## What goes into quizzes
+
+Quizzes only use questions with **clear options and one marked correct answer**:
+- hand-written multiple choice, and multiple choice found inside your files (with their own options and answer key);
+- multiple choice made from the curated built-in answers, never from imported text, which can be split badly.
+
+Anything else you import (plain Q&A, articles, notes) stays in the Library as reading material and still works in Practice and Mock interview. Items with unclear options (duplicates, no marked answer, an option that is itself a question) are left out, and the Quiz page tells you how many. Test: `node tests/quizgate.test.mjs`.

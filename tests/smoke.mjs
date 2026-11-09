@@ -207,8 +207,8 @@ await page.goto(base + "/#/bank?src=mine"); await page.waitForSelector(".q-card"
 check((await page.locator(".q-card").count()) > 0, "bank filters to imported questions");
 await page.goto(base + "/#/practice?mine=1"); await page.waitForSelector("#ans");
 check(true, "practice serves imported questions");
-await page.goto(base + "/#/quiz?mine=1"); await page.waitForSelector("#start");
-check((await page.locator("#cc h4").count()) === 1, "quiz lists 'Your material' topics");
+await page.goto(base + "/#/quiz"); await page.waitForSelector("#start");
+check((await page.locator("#cc h4").count()) === 0 && /stay in the Library as reading material/.test(await page.textContent("#cc")), "imported Q&A without options are kept out of the quiz and the page says so");
 await page.click("#start");
 const qn = await page.locator(".opt").count();
 check(qn === 4, "generated multiple choice has 4 options");

@@ -1,6 +1,4 @@
-import { store, updateArticle, deleteArticle, importQuestions } from "../store.js";
-import { blocksToQA, sectionsToQA } from "../import/blocks.js";
-import { buildQuestions } from "../import/build.js";
+import { store, updateArticle, deleteArticle } from "../store.js";
 import { articleHtml, hydrateImages, tocOf, searchText } from "./article-render.js";
 import { toMarkdown, fromMarkdown } from "../import/ocrlayout.js";
 import { mountViewer } from "./imgviewer.js";
@@ -39,7 +37,7 @@ export function view(root, ctx) {
       <div class="faq-main"><div class="card">
         <div class="row" style="justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center"><div><h2 style="margin:0">${esc(a.title)}</h2>
           <span class="small muted">${esc(a.topic || "")}${a.kind === "images" ? ` · ${a.pages.length} picture${a.pages.length > 1 ? "s" : ""}, kept as images${a.remote || a.published ? " · on GitHub, all devices" : " · this device only"}` : ""}${a.source?.conf ? ` · read at ${a.source.conf}% confidence` : ""}${a.source?.pages ? ` · ${a.source.pages} page${a.source.pages > 1 ? "s" : ""}` : ""}${a.source?.file ? ` · from ${esc(a.source.file)}` : ""}${a.kind === "doc" ? (a.remote || a.published ? " · on GitHub, all devices" : " · this device only") : ""}</span></div>
-          <div class="row" style="gap:6px">${a.kind === "doc" && !a.remote && !a.published && connected() ? `<button class="btn sm" id="apub" title="Move this article into your GitHub repository">Move to GitHub</button>` : ""}${a.original ? `<div class="seg" role="group" aria-label="View"><button id="mRead" aria-pressed="${mode === "read"}">Reading view</button><button id="mOrig" aria-pressed="${mode === "orig"}">Original</button></div>` : ""}${a.kind === "images" ? "" : `<button class="btn sm primary" id="aquiz" title="Multiple choice questions made from this article">Quiz me on this</button>`}${a.kind === "images" || (a.remote && !a.mine) ? "" : `<button class="btn sm" id="aedit">${editing ? "Cancel" : "Edit"}</button><button class="btn sm" id="acopy">Copy</button>`}<button class="btn sm danger" id="adel">Delete</button></div></div>
+          <div class="row" style="gap:6px">${a.kind === "doc" && !a.remote && !a.published && connected() ? `<button class="btn sm" id="apub" title="Move this article into your GitHub repository">Move to GitHub</button>` : ""}${a.original ? `<div class="seg" role="group" aria-label="View"><button id="mRead" aria-pressed="${mode === "read"}">Reading view</button><button id="mOrig" aria-pressed="${mode === "orig"}">Original</button></div>` : ""}${a.kind === "images" || (a.remote && !a.mine) ? "" : `<button class="btn sm" id="aedit">${editing ? "Cancel" : "Edit"}</button><button class="btn sm" id="acopy">Copy</button>`}<button class="btn sm danger" id="adel">Delete</button></div></div>
         ${a.kind === "images" ? `<div id="aview" style="margin-top:12px"></div>` : editing ? `<textarea id="amd" rows="22" style="width:100%;margin-top:10px;font-family:ui-monospace,monospace;font-size:13px" aria-label="Article text">${esc(toMarkdown(a.blocks))}</textarea><button class="btn primary" id="asave" style="margin-top:8px">Save changes</button>`
           : mode === "orig" && a.original ? `<div id="aorig" style="margin-top:12px"></div>` : `${(() => { const t = tocOf(a.blocks); return t.length >= 4 ? `<details class="art-toc"><summary>Contents (${t.length})</summary>${t.map((x) => `<a class="l${x.level}" href="#" data-toc="${x.id}">${x.n ? x.n + ". " : ""}${esc(x.text)}</a>`).join("")}</details>` : ""; })()}<article class="art" style="margin-top:12px">${articleHtml(a.blocks)}</article>`}
       </div></div></div>`;
@@ -63,13 +61,6 @@ export function view(root, ctx) {
         if (a.original) delBlob(a.original.id); images.forEach((i) => delBlob(i.id)); deleteArticle(a.id);
         remote = await loadRemote(); toast("Moved to your GitHub repository"); cur = a.id; draw();
       } catch (err) { btn.disabled = false; btn.textContent = "Move to GitHub"; toast(err.message, true); }
-    };
-    if ($("#aquiz")) $("#aquiz").onclick = () => {
-      let items = blocksToQA(a.blocks); if (items.length < 4) items = sectionsToQA(a.blocks, a.topic || a.title);
-      if (items.length < 4) { toast("This article needs at least four sections or questions to make a multiple choice quiz.", true); return; }
-      const importId = "art-" + a.id, built = buildQuestions(items, { importId, existingCats: store.get().cats });
-      importQuestions({ questions: built.questions, cats: built.cats, seeds: built.seeds, record: { id: importId, name: a.title, kind: "Article" }, seedConfident: false, update: true });
-      location.hash = "#/quiz?cat=" + encodeURIComponent(built.questions[0].c);
     };
     if ($("#aedit")) $("#aedit").onclick = () => { editing = !editing; draw(); };
     if ($("#acopy")) $("#acopy").onclick = async () => { try { await navigator.clipboard.writeText(toMarkdown(a.blocks)); toast("Copied"); } catch { toast("Could not copy"); } };

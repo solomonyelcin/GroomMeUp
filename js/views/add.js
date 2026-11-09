@@ -102,7 +102,7 @@ export function view(root, ctx) {
       ${(A?.warnings || []).map((w) => `<div class="callout warn" style="margin-top:8px">${esc(w)}</div>`).join("")}
       <div class="choice" role="radiogroup" aria-label="What to do with this file">
         ${opt("article", "Keep as an article", "Read it here in the same structure: headings, lists, tables, pictures.", !canArticle)}
-        ${opt("questions", "Extract questions", "Review the questions found, then add them to practice, quizzes and mock interviews.", !canQ)}
+        ${opt("questions", "Extract questions", "Review the questions found, then add them to practice and mock interviews. Quizzes only use questions that come with clear options and a marked answer.", !canQ)}
         ${opt("both", "Both", "Save the article and review its questions.", !canArticle || !canQ)}
       </div>
       ${canArticle ? `<div class="grid g2"><div><label for="t${host.id}">Article title</label><input id="t${host.id}" value="${esc(A.title)}"></div><div><label for="p${host.id}">Topic (optional)</label><input id="p${host.id}" placeholder="e.g. Caching" autocomplete="off"></div></div>

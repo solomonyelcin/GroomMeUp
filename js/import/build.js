@@ -1,6 +1,7 @@
 // Turn parsed items into app questions: stable ids, categories, key points for scoring, and quiz questions.
 import { norm } from "./sheet.js";
 import { cleanQuestion } from "./clean.js";
+import { questionLike, mcqProblem } from "./quality.js";
 
 export const hash32 = (str) => { let h = 0x811c9dc5; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193); } return (h >>> 0).toString(36); };
 export const slug = (s) => norm(s).replace(/\s+/g, "-").slice(0, 40) || "topic";
@@ -102,7 +103,7 @@ const jsets = (A, B) => { if (!A.size || !B.size) return 0; let i = 0; for (cons
 
 // Candidate pool for generating options: every plain Q&A, with its option text prepared once.
 export function prepPlain(list) {
-  return list.filter((q) => !q.o && q.a && q.a.length >= 30 && !NOT_FACTUAL.has(q.c)).map((o) => { const t = optionText(o.a); return { o, t, nt: norm(t), set: new Set(tokens(t)) }; });
+  return list.filter((q) => !q.o && q.a && q.a.length >= 30 && !NOT_FACTUAL.has(q.c) && !questionLike(optionText(q.a))).map((o) => { const t = optionText(o.a); return { o, t, nt: norm(t), set: new Set(tokens(t)) }; });
 }
 
 // One multiple-choice question from a Q&A: the right option is the start of the model answer,
@@ -110,7 +111,7 @@ export function prepPlain(list) {
 export function makeMcqFor(q, prepared, rand = Math.random) {
   if (q.o) return { id: "m:" + q.id, c: q.c, q: q.q, o: q.o, a: q.ans, e: q.e || q.a, imported: true };
   const me = prepared.find((x) => x.o.id === q.id) || (() => { const t = optionText(q.a); return { o: q, t, nt: norm(t), set: new Set(tokens(t)) }; })();
-  if (me.t.length < 25) return null;
+  if (me.t.length < 25 || questionLike(me.t)) return null;
   const cands = prepared.filter((x) => x.o.id !== q.id && x.nt !== me.nt && jsets(x.set, me.set) < 0.5);
   const score = (x) => (x.o.c === q.c ? 0 : 100) + (x.o.sub && x.o.sub === q.sub ? 0 : 12) + Math.abs(x.t.length - me.t.length) / 3 + rand() * 6;
   const picked = [];
@@ -121,7 +122,8 @@ export function makeMcqFor(q, prepared, rand = Math.random) {
   }
   if (picked.length < 3) return null;
   const opts = [{ t: me.t, ok: true }, ...picked.map((p) => ({ t: p.t, ok: false }))].sort(() => rand() - 0.5);
-  return { id: "m:" + q.id, c: q.c, q: q.q, o: opts.map((x) => x.t), a: opts.findIndex((x) => x.ok), e: q.a, imported: true };
+  const out = { id: "m:" + q.id, c: q.c, q: q.q, o: opts.map((x) => x.t), a: opts.findIndex((x) => x.ok), e: q.a, imported: true };
+  return mcqProblem(out) ? null : out;
 }
 
 export function makeMcqs(questions, { count = 20, rand = Math.random, cats = null } = {}) {

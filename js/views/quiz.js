@@ -1,18 +1,22 @@
 import { store, allQuestions, categoryStats, noteMcq, resetMcq } from "../store.js";
-import { MCQ, CATEGORIES } from "../data/index.js";
+import { MCQ, CATEGORIES, QUESTIONS } from "../data/index.js";
+import { mcqProblem } from "../import/quality.js";
 import { prepPlain, makeMcqFor } from "../import/build.js";
 import { esc, rich, shuffle, fmtTime, tape, pct, toast, $, $$ } from "../ui.js";
 
 // Every question we have can become a quiz item: hand-written MCQs, real MCQs imported from files,
 // and multiple choice generated from any question that has a model answer.
+// Only questions with clear options and one correct answer reach a quiz. Anything else stays in the Library to read.
+// - written MCQs and MCQs found in your files (they carry their own options and marked answer)
+// - multiple choice made from the curated built-in answers (never from imported text, which can be badly split)
 function candidates() {
-  const qs = allQuestions();
-  const prepared = prepPlain(qs);
-  const list = [];
-  for (const m of MCQ) list.push({ id: m.id, c: m.c, kind: "written", mcq: m });
-  for (const q of qs) if (q.o) list.push({ id: "m:" + q.id, c: q.c, kind: "file", q });
-  for (const x of prepared) if (!x.o.ai) list.push({ id: "m:" + x.o.id, c: x.o.c, kind: "made", q: x.o });
-  return { list, prepared };
+  const qs = allQuestions(), builtIn = new Set(QUESTIONS.map((q) => q.id));
+  const prepared = prepPlain(qs.filter((q) => builtIn.has(q.id)));
+  const list = []; let descriptive = 0, rejected = 0;
+  for (const m of MCQ) if (!mcqProblem(m)) list.push({ id: m.id, c: m.c, kind: "written", mcq: m }); else rejected++;
+  for (const q of qs) if (q.o) { if (!mcqProblem({ q: q.q, o: q.o, a: q.ans })) list.push({ id: "m:" + q.id, c: q.c, kind: "file", q }); else rejected++; } else if (!builtIn.has(q.id)) descriptive++;
+  for (const x of prepared) if (!x.o.ai && makeMcqFor(x.o, prepared)) list.push({ id: "m:" + x.o.id, c: x.o.c, kind: "made", q: x.o });
+  return { list, prepared, descriptive, rejected };
 }
 
 // Which questions come next:
@@ -36,7 +40,7 @@ export function pickQuiz(list, n, picked, onlyMissed = false) {
 export function view(root, ctx) {
   let timerId = null;
   const mineOnly = ctx?.params?.get("mine") === "1";
-  const { list, prepared } = candidates();
+  const { list, prepared, descriptive, rejected } = candidates();
   const counts = {};
   list.forEach((m) => (counts[m.c] = (counts[m.c] || 0) + 1));
   const topicKeys = Object.keys(CATEGORIES).filter((k) => counts[k]);
@@ -61,6 +65,7 @@ export function view(root, ctx) {
           <div id="cc" role="group" aria-label="Quiz topics">
             <div class="chips">${builtIn.map(chip).join("")}</div>
             ${mine.length ? `<h4 style="margin:14px 0 6px">Your material</h4><div class="chips">${mine.map(chip).join("")}</div>` : ""}
+            ${descriptive || rejected ? `<p class="small muted" style="margin-top:10px">Quizzes only use questions with clear options and a marked correct answer. ${descriptive ? `${descriptive} of your imported questions have no options, so they stay in the Library as reading material. ` : ""}${rejected ? `${rejected} multiple-choice item${rejected > 1 ? "s were" : " was"} left out because the options were unclear.` : ""}</p>` : ""}
           </div></details>
       </div>
       ${history()}`;

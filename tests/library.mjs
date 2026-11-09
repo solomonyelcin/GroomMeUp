@@ -95,14 +95,8 @@ const md = "# Messaging basics\n\n## Queues\nA queue decouples producers from co
 await A.fill("#ptext", md); await A.click("#pgoText"); await A.waitForSelector("#ac1 [data-go]");
 await A.check("#ac1 input[type=radio][value=article]"); await A.click("#ac1 [data-go]"); await A.waitForSelector("#ac1 .callout.ok");
 check([...repo.keys()].filter((k) => /\/article\.json$/.test(k)).length === 2, "pasted text saved to the repo as an article");
-await A.click("#ac1 .callout.ok a"); await A.waitForSelector("#aquiz");
-await A.click("#aquiz"); await A.waitForSelector("#main h1, #main h2");
-await A.waitForTimeout(400);
-check(/quiz/i.test(await A.evaluate(() => location.hash)) && /cat=/.test(await A.evaluate(() => location.hash)), "Quiz me on this opens the quiz for that article: " + await A.evaluate(() => location.hash));
-const quizText = await A.textContent("#main");
-check(/Messaging basics|Queues|question/i.test(quizText), "quiz page shows the article's topic");
-await A.click("#start"); await A.waitForSelector(".opt");
-check((await A.locator(".opt").count()) === 4, "the quiz asks multiple choice questions with four options");
+await A.click("#ac1 .callout.ok a"); await A.waitForSelector("#adel");
+check(await A.locator("#aquiz").count() === 0, "an article offers no quiz button: it has no clear options, so it stays reading material");
 
 // ---- web address through the helper ----
 await A.route("https://api.allorigins.win/**", (r) => r.fulfill({ status: 200, contentType: "text/html", headers: { "access-control-allow-origin": "*" }, body: `<html><head><title>Cache Aside | Docs</title></head><body><nav>menu menu</nav><article><h1>Cache Aside</h1><p>Load data on demand into a cache from a data store. This can improve <strong>performance</strong> and help maintain consistency.</p><h2>Context</h2><p>Applications use a cache to improve repeated access to information held in a data store, see <a href="https://example.com/x">the docs</a>.</p><ul><li>Read through</li><li>Write behind</li></ul><pre>var v = cache.Get(k);</pre><table><tr><th>Layer</th><th>Latency</th></tr><tr><td>L1</td><td>1 ns</td></tr></table></article><footer>footer junk</footer></body></html>` }));

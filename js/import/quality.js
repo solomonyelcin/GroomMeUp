@@ -20,3 +20,18 @@ export function flag(it) {
   if (a.length > 4000) return "answer is very long";
   return "";
 }
+
+// ---- quiz gate: a question only goes into a quiz when it has clear options and one correct answer ----
+export const questionLike = (t) => { t = String(t || "").trim(); return /\?\s*["')]*$/.test(t) || (INTERROG.test(t) && t.length >= 12 && t.length < 160 && !/[.]\s*$/.test(t)); };
+// returns "" when the multiple-choice item is clean, otherwise the reason it is not
+export function mcqProblem(m) {
+  if (!m || typeof m.q !== "string" || m.q.trim().length < 12) return "no clear question";
+  const o = m.o;
+  if (!Array.isArray(o) || o.length < 2 || o.length > 8) return "needs 2 to 8 options";
+  if (o.some((x) => typeof x !== "string" || !x.trim())) return "an option is empty";
+  if (new Set(o.map(norm)).size < o.length) return "two options are identical";
+  if (!Number.isInteger(m.a) || m.a < 0 || m.a >= o.length) return "no marked correct answer";
+  if (o.some((x) => norm(x) === norm(m.q))) return "an option repeats the question";
+  if (o.some(questionLike)) return "an option is itself a question";
+  return "";
+}

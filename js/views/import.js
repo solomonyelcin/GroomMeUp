@@ -22,7 +22,7 @@ export function view(root, ctx) {
 
   root.innerHTML = `
     <header class="page-head"><h1>Questions from files</h1>
-      <p>Bring in your own question banks and prep notes. Each Excel sheet or document section becomes its own topic that works everywhere: Questions, Practice, Mock interview and Quick quiz.</p></header>
+      <p>Bring in your own question banks and prep notes. Each Excel sheet or document section becomes its own topic that works in Questions, Practice and Mock interview. Quick quiz uses only the ones that have clear options and a marked answer.</p></header>
 
     <label class="drop" id="drop" for="file">
       <strong>Drop files here, or click to choose</strong>

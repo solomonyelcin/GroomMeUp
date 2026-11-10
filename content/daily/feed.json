@@ -1,1 +1,168 @@
-{ "updated": null, "items": [] }
+{
+ "updated": "2026-11-10T04:14:59.130Z",
+ "items": [
+  {
+   "id": "dflusql",
+   "title": "Dynamic Workflows in Azure Functions Hosted Skills: Durable, AI-Led Work for Event-Driven Apps",
+   "url": "https://devblogs.microsoft.com/azure-sdk/dynamic-workflows-azure-functions-hosted-skills/",
+   "source": "Microsoft Azure Architecture",
+   "date": "2026-10-08",
+   "summary": "Azure Functions is the event-driven application platform, and Hosted Skills adds AI reasoning to your app. Dynamic Workflows give the app a durable way to carry out AI-led, multi-step work after the triggering invocation is finished. The model writes a plan (a DAG) one time, and Durable Functions runs it. In our…",
+   "topics": [
+    "azure",
+    "architecture"
+   ],
+   "score": 10,
+   "added": "2026-11-10"
+  },
+  {
+   "id": "d133t8d7",
+   "title": ".NET October 2026 Out-of-Band Security Updates",
+   "url": "https://devblogs.microsoft.com/dotnet/dotnet-october-2026-oob-security-updates/",
+   "source": ".NET Blog",
+   "date": "2026-10-25",
+   "summary": "Out-of-band security updates for .NET address the Brotli decoder vulnerability and tarball ownership vulnerability. The post .NET October 2026 Out-of-Band Security Updates appeared first on .NET Blog .",
+   "topics": [
+    "dotnet",
+    "security"
+   ],
+   "score": 8,
+   "added": "2026-11-10"
+  },
+  {
+   "id": "d14fawl0",
+   "title": "Azure Cloud HSM Hardware Audit Logging: Verifiable audit trails for security and compliance",
+   "url": "https://azure.microsoft.com/en-us/blog/azure-cloud-hsm-hardware-audit-logging-verifiable-audit-trails-for-security-and-compliance/",
+   "source": "Azure Blog",
+   "date": "2026-10-29",
+   "summary": "Security, compliance, and operations teams can use this hardware-originated evidence for monitoring, compliance reporting, and forensic investigations. The post Azure Cloud HSM Hardware Audit Logging: Verifiable audit trails for security and compliance appeared first on Microsoft Azure Blog .",
+   "topics": [
+    "azure",
+    "security"
+   ],
+   "score": 7,
+   "added": "2026-11-10"
+  },
+  {
+   "id": "d14bboao",
+   "title": "Azure SDK Release (October 2026)",
+   "url": "https://devblogs.microsoft.com/azure-sdk/azure-sdk-release-october-2026/",
+   "source": "Microsoft Azure Architecture",
+   "date": "2026-10-28",
+   "summary": "October's Azure SDK highlights include Azure Core authentication updates, managed identity improvements for Python and Java, and the first stable Cosmos DB libraries for Rust. The post Azure SDK Release (October 2026) appeared first on Azure SDK Blog .",
+   "topics": [
+    "azure",
+    "security"
+   ],
+   "score": 7,
+   "added": "2026-11-10"
+  },
+  {
+   "id": "dlubi3c",
+   "title": "Bring Your Own Model to the GitHub Copilot SDK with C#",
+   "url": "https://devblogs.microsoft.com/dotnet/bring-your-own-model-to-the-github-copilot-sdk-with-csharp/",
+   "source": ".NET Blog",
+   "date": "2026-10-19",
+   "summary": "The GitHub Copilot SDK gives your application an agent runtime. BYOK lets you keep that runtime while sending model requests to your own Microsoft Foundry or Azure OpenAI deployment. Here is the complete C# setup. The post Bring Your Own Model to the GitHub Copilot SDK with C# appeared first on .NET Blog .",
+   "topics": [
+    "dotnet",
+    "azure"
+   ],
+   "score": 7,
+   "added": "2026-11-10"
+  },
+  {
+   "id": "dlw5l2n",
+   "title": "Bring agentic reasoning to Python function apps with Azure Functions Agent bindings (preview)",
+   "url": "https://devblogs.microsoft.com/azure-sdk/azure-functions-agent-binding/",
+   "source": "Microsoft Azure Architecture",
+   "date": "2026-10-06",
+   "summary": "Add bounded AI reasoning to Python function apps with Azure Functions Agent bindings, while keeping deterministic application code in control. The post Bring agentic reasoning to Python function apps with Azure Functions Agent bindings (preview) appeared first on Azure SDK Blog .",
+   "topics": [
+    "azure"
+   ],
+   "score": 7,
+   "added": "2026-11-10"
+  },
+  {
+   "id": "d1gg8o67",
+   "title": "Connect Azure Functions to more services with managed connectors",
+   "url": "https://devblogs.microsoft.com/azure-sdk/connect-azure-functions-to-more-services-with-managed-connectors/",
+   "source": "Microsoft Azure Architecture",
+   "date": "2026-10-05",
+   "summary": "Learn how Azure Functions managed connectors provide access to 1,700 services, with triggers and typed clients available for supported service connectors, and walk through a sample that automates RFP intake across SharePoint, Azure Content Understanding, and Teams. The post Connect Azure Functions to more services…",
+   "topics": [
+    "azure"
+   ],
+   "score": 7,
+   "added": "2026-11-10"
+  },
+  {
+   "id": "dcolqwx",
+   "title": "Core Vitals Optimization, SSR Deployments, and Signal-First Architecture ⚡",
+   "url": "https://blog.angular.dev/core-vitals-optimization-ssr-deployments-and-signal-first-architecture-be82fd4a8c87?source=rss----447683c3d9a3---4",
+   "source": "Angular Blog",
+   "date": "2026-11-06",
+   "summary": "The Angular community is firing on all cylinders! From shaving milliseconds off your Core Web Vitals to deploying server-side rendered apps in production, mastering professional form submissions, and architecting enterprise Nx monorepos, this week’s lineup is packed with practical engineering gems. Dive into these…",
+   "topics": [
+    "angular",
+    "architecture"
+   ],
+   "score": 6,
+   "added": "2026-11-10"
+  },
+  {
+   "id": "d6g40h6",
+   "title": "Delivering Skills in NuGet packages",
+   "url": "https://devblogs.microsoft.com/dotnet/delivering-skills-in-nuget-packages/",
+   "source": ".NET Blog",
+   "date": "2026-11-03",
+   "summary": "Agent skills can be delivered in NuGet packages as a way to deliver up-to-date library documentation to models. The post Delivering Skills in NuGet packages appeared first on .NET Blog .",
+   "topics": [
+    "dotnet"
+   ],
+   "score": 6,
+   "added": "2026-11-10"
+  },
+  {
+   "id": "d1re17ji",
+   "title": "Blazor Welcomes Open-Source Contributions from Syncfusion",
+   "url": "https://devblogs.microsoft.com/dotnet/blazor-welcomes-syncfusion/",
+   "source": ".NET Blog",
+   "date": "2026-10-29",
+   "summary": "Microsoft and Syncfusion are collaborating on Blazor through a free, open-source component toolkit, framework contributions, and developer tooling. The post Blazor Welcomes Open-Source Contributions from Syncfusion appeared first on .NET Blog .",
+   "topics": [
+    "dotnet"
+   ],
+   "score": 6,
+   "added": "2026-11-10"
+  },
+  {
+   "id": "d1uslq31",
+   "title": "Blazor Welcomes Open-Source Contributions from Infragistics",
+   "url": "https://devblogs.microsoft.com/dotnet/blazor-welcomes-infragistics/",
+   "source": ".NET Blog",
+   "date": "2026-10-27",
+   "summary": "Microsoft and Infragistics are collaborating on Blazor through free, open-source components, new .NET 11 analyzers, and developer tooling. The post Blazor Welcomes Open-Source Contributions from Infragistics appeared first on .NET Blog .",
+   "topics": [
+    "dotnet"
+   ],
+   "score": 6,
+   "added": "2026-11-10"
+  },
+  {
+   "id": "dhk9ml0",
+   "title": "From running edge-rendered Angular apps on Cloudflare Workers to crafting lifelike speech with…",
+   "url": "https://blog.angular.dev/from-running-edge-rendered-angular-apps-on-cloudflare-workers-to-crafting-lifelike-speech-with-67513b4b85e1?source=rss----447683c3d9a3---4",
+   "source": "Angular Blog",
+   "date": "2026-10-23",
+   "summary": "From running edge-rendered Angular apps on Cloudflare Workers to crafting lifelike speech with Gemini’s latest TTS models, the Angular ecosystem is charging ahead with incredible speed and flexibility. This week, community leaders have delivered tactical blueprints for monorepos, interview prep, state modeling, and…",
+   "topics": [
+    "angular",
+    "interview"
+   ],
+   "score": 6,
+   "added": "2026-11-10"
+  }
+ ]
+}

@@ -1,0 +1,20 @@
+import { parseFeed, scoreItem, buildFeed } from "../scripts/daily-digest.mjs";
+import fs from "node:fs";
+const cfg = JSON.parse(fs.readFileSync(new URL("../content/daily/config.json", import.meta.url), "utf8"));
+let fails = 0; const check = (c, m) => { if (!c) { fails++; console.log("FAIL:", m); } else console.log("ok  :", m); };
+const rss = `<?xml version="1.0"?><rss><channel><item><title><![CDATA[What's new in EF Core 10 &amp; SQL Server]]></title><link>https://example.org/efcore-10</link><pubDate>Mon, 02 Nov 2026 09:00:00 GMT</pubDate><description><![CDATA[<p>Entity Framework improvements for <b>SQL Server</b> indexes and queries.</p>]]></description></item>
+<item><title>My holiday photos</title><link>https://example.org/photos</link><pubDate>Mon, 02 Nov 2026 09:00:00 GMT</pubDate><description>Beach.</description></item></channel></rss>`;
+const atom = `<feed xmlns="http://www.w3.org/2005/Atom"><entry><title>Angular signals in practice</title><link rel="alternate" href="https://example.org/signals"/><updated>2026-11-03T10:00:00Z</updated><summary>Using signals and RxJS together in Angular.</summary></entry></feed>`;
+const a = parseFeed(rss), b = parseFeed(atom);
+check(a.length === 2 && a[0].title === "What's new in EF Core 10 & SQL Server" && a[0].url === "https://example.org/efcore-10", "RSS items are read, CDATA and entities decoded");
+check(!/<|&lt;/.test(a[0].summary) && /Entity Framework/.test(a[0].summary), "HTML is stripped from the excerpt");
+check(b.length === 1 && b[0].url === "https://example.org/signals" && b[0].t > 0, "Atom entries are read (link href, updated)");
+check(scoreItem(a[0], { weight: 2 }, cfg).topics.includes("efcore") && scoreItem(a[1], { weight: 2 }, cfg).topics.length === 0, "items are matched to your topics, off topic ones are not");
+const now = Date.parse("2026-11-05T00:00:00Z");
+const f1 = buildFeed({ items: [] }, [{ source: { name: "Blog", weight: 2 }, items: [...a, ...b] }], cfg, now);
+check(f1.items.length === 2 && f1.items.every((x) => x.added === "2026-11-05" && x.topics.length), "only matching items are kept and stamped with the day they were found");
+const f2 = buildFeed(f1, [{ source: { name: "Blog", weight: 2 }, items: [...a, ...b] }], cfg, now + 864e5);
+check(f2.items.length === 2 && f2.added === 0, "running again does not duplicate anything");
+const old = buildFeed({ items: [] }, [{ source: { name: "B", weight: 2 }, items: [{ title: "Angular signals old", url: "https://example.org/old", t: now - 90 * 864e5, summary: "angular" }] }], cfg, now);
+check(old.items.length === 0, "items older than the keep window are dropped");
+console.log(fails ? `${fails} FAILED` : "all passed"); process.exit(fails ? 1 : 0);

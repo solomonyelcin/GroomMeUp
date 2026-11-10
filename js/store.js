@@ -21,6 +21,7 @@ const fresh = () => ({
   cats: {},            // topics created by imports: key -> {name, color}
   imports: [],         // {id, name, kind, t}
   mocks: [],           // mock interview reports
+  libmeta: {},         // Library: art/pick -> id -> { fav, opened, pct, done, read, saved, hide, t }, prefs: { size, wide }
   stars: {},           // qid -> true (questions to revisit)
   notes: {},           // qid -> your own note
   articles: [],        // {id, title, topic, blocks, source, conf, t}: study notes read from pictures or typed in

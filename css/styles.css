@@ -596,3 +596,58 @@ body.gating > :not(.gate):not(#toasts):not(script):not(noscript) { display: none
 @keyframes livepulse { 50% { transform: scale(1.35); opacity: .6; } }
 @media (prefers-reduced-motion: reduce) { .live-dot { animation: none !important; } }
 [hidden] { display: none !important; }
+
+/* ---------- Library (home, daily picks, articles) ---------- */
+.mode-tabs { overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; -webkit-overflow-scrolling: touch; position: sticky; top: 0; z-index: 5; background: var(--paper); padding-top: 4px; }
+.mode-tabs::-webkit-scrollbar { display: none; }
+.mode-tabs a { white-space: nowrap; flex: none; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; }
+.mode-tabs .badge { background: var(--thread); color: #fff; border-radius: 999px; font-size: .72rem; font-weight: 700; padding: 1px 7px; line-height: 1.5; }
+.lib-search input { width: 100%; min-height: 48px; font-size: 1rem; border-radius: 12px; padding: 0 14px; }
+.lib-types { margin: 10px 0 14px; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; scrollbar-width: none; }
+.lib-types .chip { flex: none; }
+.lib-tiles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 6px 0 18px; }
+@media (min-width: 760px) { .lib-tiles { grid-template-columns: repeat(4, 1fr); } }
+.lib-tile { display: grid; gap: 2px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); text-decoration: none; color: inherit; }
+.lib-tile b { font: 700 1.9rem/1 var(--font-head); }
+.lib-tile span { color: var(--ink-2); font-size: .88rem; }
+.lib-tile:hover, .lib-card:hover, .lib-row:hover { border-color: var(--cobalt); }
+.lib-tile.hot { border-color: var(--moss); background: var(--moss-tint); }
+.lib-h { margin: 22px 0 10px; font-size: 1.15rem; }
+.lib-list { display: grid; gap: 10px; grid-template-columns: 1fr; }
+@media (min-width: 700px) { .lib-list { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1100px) { .lib-list { grid-template-columns: repeat(3, 1fr); } }
+.lib-card { display: grid; gap: 6px; align-content: start; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); text-decoration: none; color: inherit; }
+.lib-card .tag { justify-self: start; }
+.lib-jump { display: flex; flex-wrap: wrap; gap: 8px; }
+.lib-rows { display: grid; gap: 8px; }
+.lib-row { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); text-decoration: none; color: inherit; }
+.lib-row mark { background: var(--chalk-tint); color: inherit; border-radius: 3px; padding: 0 2px; }
+.lib-filters { display: grid; gap: 10px; margin-bottom: 8px; }
+.lib-day { font-size: 1.05rem; margin: 18px 0 8px; color: var(--ink-2); }
+.pick-grid { display: grid; gap: 12px; grid-template-columns: 1fr; }
+@media (min-width: 760px) { .pick-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1200px) { .pick-grid { grid-template-columns: repeat(3, 1fr); } }
+.pick { display: grid; gap: 8px; align-content: start; }
+.pick h3 { margin: 0; font-size: 1.05rem; }
+.pick h3 a { color: inherit; text-decoration: none; } .pick h3 a:hover { text-decoration: underline; }
+.pick p { margin: 0; }
+.pick.read h3 a { color: var(--ink-2); font-weight: 600; }
+.pick-actions { gap: 6px; flex-wrap: wrap; margin-top: 2px; }
+.art-tools { display: grid; gap: 8px; margin: 8px 0; }
+.art-tools select { min-height: 40px; }
+.art-back { margin-bottom: 10px; }
+.art-bar { align-items: center; gap: 6px; margin-top: 10px; }
+.art-bar .spacer { flex: 1; }
+.art { font-size: calc(1rem * var(--art-scale, 1)); }
+.art.wide { max-width: none; }
+.art:not(.wide) { max-width: 74ch; }
+.art-progress { position: fixed; left: 0; right: 0; top: 0; height: 3px; z-index: 50; background: transparent; pointer-events: none; }
+.art-progress i { display: block; height: 100%; width: 0; background: var(--chalk); transition: width .15s; }
+@media (max-width: 859px) {
+  .faq-layout.m-list .faq-main { display: none; }
+  .faq-layout.m-detail .faq-side { display: none; }
+  .art-item { padding: 12px; }
+  .art-tools .chip { min-height: 40px; }
+}
+@media (min-width: 860px) { .art-back { display: none; } }
+.pick-grid > .card, .pick-grid > .pick { margin: 0; }

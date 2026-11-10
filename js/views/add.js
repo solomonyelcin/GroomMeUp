@@ -178,6 +178,9 @@ export function view(root, ctx) {
   ["dragleave", "drop"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
   drop.addEventListener("drop", (e) => handle([...(e.dataTransfer?.files || [])]));
   $("#afile").onchange = (e) => { handle([...e.target.files]); e.target.value = ""; };
+  // opened from a Daily pick: fetch that page straight away
+  const pre = ctx?.params?.get("url");
+  if (pre && /^https?:\/\//i.test(pre)) { $("#purl").value = pre; $("#purl").scrollIntoView({ block: "center" }); setTimeout(() => $("#pgoUrl")?.click(), 50); }
   return () => { try { cleanup?.(); } catch { /* ignore */ } };
 }
 void ARTICLE_TYPES;

@@ -2,7 +2,7 @@
 import { store } from "./store.js";
 import { markBackup } from "./backup.js";
 
-const FIELDS = ["attempts", "srs", "quizzes", "code", "mocks", "log", "mcqSeen", "stars", "notes", "badges"];
+const FIELDS = ["attempts", "srs", "quizzes", "code", "mocks", "log", "mcqSeen", "stars", "notes", "badges", "libmeta"];
 const toB64 = (u8) => { let s = ""; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode(...u8.subarray(i, i + 0x8000)); return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); };
 const fromB64 = (t) => { t = t.replace(/-/g, "+").replace(/_/g, "/"); while (t.length % 4) t += "="; return Uint8Array.from(atob(t), (c) => c.charCodeAt(0)); };
 async function pipe(bytes, stream) { return new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(stream)).arrayBuffer()); }
@@ -26,6 +26,8 @@ export function mergeProgress(local, o) {
   out.log = [...local.log]; const lk = new Set(local.log.map((x) => JSON.stringify(x))); for (const x of o.log || []) if (!lk.has(JSON.stringify(x))) out.log.push(x);
   out.code = { ...local.code }; for (const [id, v] of Object.entries(o.code || {})) { const a = out.code[id]; if (!a || (v.solved && !a.solved) || ((v.t || 0) > (a.t || 0) && !(a.solved && !v.solved))) out.code[id] = v; }
   out.mcqSeen = { ...local.mcqSeen }; for (const [id, v] of Object.entries(o.mcqSeen || {})) if (!out.mcqSeen[id] || (v.t || 0) > (out.mcqSeen[id].t || 0)) out.mcqSeen[id] = v;
+  out.libmeta = { ...(local.libmeta || {}), prefs: { ...(o.libmeta?.prefs || {}), ...(local.libmeta?.prefs || {}) } };
+  for (const grp of ["art", "pick"]) { out.libmeta[grp] = { ...(local.libmeta?.[grp] || {}) }; for (const [id, v] of Object.entries(o.libmeta?.[grp] || {})) if (!out.libmeta[grp][id] || (v.t || 0) > (out.libmeta[grp][id].t || 0)) out.libmeta[grp][id] = v; }
   out.stars = { ...(local.stars || {}), ...(o.stars || {}) };
   out.notes = { ...(o.notes || {}), ...(local.notes || {}) };
   out.badges = { ...(o.badges || {}) }; for (const [id, t] of Object.entries(local.badges || {})) out.badges[id] = Math.min(t, out.badges[id] || t);

@@ -4,12 +4,15 @@ import { toMarkdown, fromMarkdown } from "../import/ocrlayout.js";
 import { mountViewer } from "./imgviewer.js";
 import { delBlob, getBlob } from "../imgstore.js";
 import { loadRemote, connected, unpublish, updateDoc, publishDoc, fetchBlob, resolvePages } from "../github.js";
+import { metaOf, setMeta, prefs, setPrefs, readMinutes } from "../libmeta.js";
 import { esc, toast, fmtDate, $ } from "../ui.js";
 
 const plain = searchText;
 
 export function view(root, ctx) {
-  let q = "", editing = false, cur = ctx?.params?.get("id") || null, closeViewer = null, freeImgs = null, mode = "read";
+  let q = "", editing = false, cur = ctx?.params?.get("id") || null, closeViewer = null, freeImgs = null, mode = "read", sort = "recent", filt = "all", listFirst = !ctx?.params?.get("id"), offScroll = null;
+  const narrow = () => window.matchMedia("(max-width: 859px)").matches;
+  const wc = (a) => (a.kind === "images" ? 0 : (searchText(a).match(/\S+/g) || []).length);
   let remote = [];
   const list = () => { const mine = store.get().articles || []; return [...mine, ...remote.filter((r) => !mine.some((m) => m.id === r.id))].sort((a, b) => (b.t || 0) - (a.t || 0)); };
   loadRemote().then((r) => { remote = r; if (r.length && document.body.contains(host)) draw(); });
@@ -29,20 +32,40 @@ export function view(root, ctx) {
       return;
     }
     const a = current(); cur = a.id;
-    const hits = all.filter((x) => !q || plain(x).includes(q.toLowerCase()));
-    host.innerHTML = `<div class="faq-layout">
+    const hits = all.filter((x) => (!q || plain(x).includes(q.toLowerCase())) && (filt === "all" || (filt === "star" ? metaOf("art", x.id).fav : !metaOf("art", x.id).done)))
+      .sort((x, y) => sort === "az" ? x.title.localeCompare(y.title) : sort === "star" ? (!!metaOf("art", y.id).fav - !!metaOf("art", x.id).fav) || (y.t || 0) - (x.t || 0) : (y.t || 0) - (x.t || 0));
+    const pf = prefs(), me = metaOf("art", a.id), mob = narrow();
+    host.innerHTML = `<div class="faq-layout ${mob ? (listFirst ? "m-list" : "m-detail") : ""}">
       <aside class="faq-side" aria-label="Articles"><input id="aq" type="search" value="${esc(q)}" placeholder="Search articles" aria-label="Search articles" autocomplete="off">
-        <div class="art-list">${hits.map((x) => `<button class="art-item ${x.id === a.id ? "on" : ""}" data-id="${x.id}"><strong>${esc(x.title)}</strong><span class="small muted">${esc(x.topic || "")} · ${fmtDate(x.t)}</span></button>`).join("") || '<p class="small muted">No match.</p>'}</div>
+        <div class="art-tools"><div class="chips" role="group" aria-label="Filter">${[["all", "All"], ["star", "★ Starred"], ["unread", "Unread"]].map(([k, l]) => `<button class="chip" data-filt="${k}" aria-pressed="${filt === k}">${l}</button>`).join("")}</div>
+          <select id="asort" aria-label="Sort articles"><option value="recent"${sort === "recent" ? " selected" : ""}>Newest first</option><option value="az"${sort === "az" ? " selected" : ""}>A to Z</option><option value="star"${sort === "star" ? " selected" : ""}>Starred first</option></select></div>
+        <div class="art-list">${hits.map((x) => `<button class="art-item ${x.id === a.id && !(mob && listFirst) ? "on" : ""}" data-id="${x.id}"><strong>${metaOf("art", x.id).fav ? "★ " : ""}${esc(x.title)}</strong><span class="small muted">${esc(x.topic || "")} · ${fmtDate(x.t)}${wc(x) ? ` · ${readMinutes(wc(x))} min` : ""}${metaOf("art", x.id).done ? " · read ✓" : metaOf("art", x.id).pct > 3 ? ` · ${metaOf("art", x.id).pct}%` : ""}</span></button>`).join("") || '<p class="small muted">No match.</p>'}</div>
         <a class="btn sm" href="#/library?tab=add" style="margin-top:8px">Add more</a></aside>
-      <div class="faq-main"><div class="card">
+      <div class="faq-main"><div class="card" style="--art-scale:${pf.size / 100}">
+        ${mob ? `<button class="btn sm art-back" id="aback">← All articles</button>` : ""}
         <div class="row" style="justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center"><div><h2 style="margin:0">${esc(a.title)}</h2>
           <span class="small muted">${esc(a.topic || "")}${a.kind === "images" ? ` · ${a.pages.length} picture${a.pages.length > 1 ? "s" : ""}, kept as images${a.remote || a.published ? " · on GitHub, all devices" : " · this device only"}` : ""}${a.source?.conf ? ` · read at ${a.source.conf}% confidence` : ""}${a.source?.pages ? ` · ${a.source.pages} page${a.source.pages > 1 ? "s" : ""}` : ""}${a.source?.file ? ` · from ${esc(a.source.file)}` : ""}${a.kind === "doc" ? (a.remote || a.published ? " · on GitHub, all devices" : " · this device only") : ""}</span></div>
-          <div class="row" style="gap:6px">${a.kind === "doc" && !a.remote && !a.published && connected() ? `<button class="btn sm" id="apub" title="Move this article into your GitHub repository">Move to GitHub</button>` : ""}${a.original ? `<div class="seg" role="group" aria-label="View"><button id="mRead" aria-pressed="${mode === "read"}">Reading view</button><button id="mOrig" aria-pressed="${mode === "orig"}">Original</button></div>` : ""}${a.kind === "images" || (a.remote && !a.mine) ? "" : `<button class="btn sm" id="aedit">${editing ? "Cancel" : "Edit"}</button><button class="btn sm" id="acopy">Copy</button>`}<button class="btn sm danger" id="adel">Delete</button></div></div>
+          <div class="row" style="gap:6px"><button class="btn sm" id="astar" aria-pressed="${!!me.fav}" title="Star this article">${me.fav ? "★ Starred" : "☆ Star"}</button>${a.kind === "doc" && !a.remote && !a.published && connected() ? `<button class="btn sm" id="apub" title="Move this article into your GitHub repository">Move to GitHub</button>` : ""}${a.original ? `<div class="seg" role="group" aria-label="View"><button id="mRead" aria-pressed="${mode === "read"}">Reading view</button><button id="mOrig" aria-pressed="${mode === "orig"}">Original</button></div>` : ""}${a.kind === "images" || (a.remote && !a.mine) ? "" : `<button class="btn sm" id="aedit">${editing ? "Cancel" : "Edit"}</button><button class="btn sm" id="acopy">Copy</button>`}<button class="btn sm danger" id="adel">Delete</button></div></div>
         ${a.kind === "images" ? `<div id="aview" style="margin-top:12px"></div>` : editing ? `<textarea id="amd" rows="22" style="width:100%;margin-top:10px;font-family:ui-monospace,monospace;font-size:13px" aria-label="Article text">${esc(toMarkdown(a.blocks))}</textarea><button class="btn primary" id="asave" style="margin-top:8px">Save changes</button>`
-          : mode === "orig" && a.original ? `<div id="aorig" style="margin-top:12px"></div>` : `${(() => { const t = tocOf(a.blocks); return t.length >= 4 ? `<details class="art-toc"><summary>Contents (${t.length})</summary>${t.map((x) => `<a class="l${x.level}" href="#" data-toc="${x.id}">${x.n ? x.n + ". " : ""}${esc(x.text)}</a>`).join("")}</details>` : ""; })()}<article class="art" style="margin-top:12px">${articleHtml(a.blocks)}</article>`}
-      </div></div></div>`;
+          : mode === "orig" && a.original ? `<div id="aorig" style="margin-top:12px"></div>` : `${(() => { const t = tocOf(a.blocks); return t.length >= 4 ? `<details class="art-toc"><summary>Contents (${t.length})</summary>${t.map((x) => `<a class="l${x.level}" href="#" data-toc="${x.id}">${x.n ? x.n + ". " : ""}${esc(x.text)}</a>`).join("")}</details>` : ""; })()}<div class="art-bar row" role="group" aria-label="Reading options"><span class="small muted">${wc(a) ? readMinutes(wc(a)) + " min read" : ""}</span><span class="spacer"></span><button class="btn sm" id="afsm" aria-label="Smaller text">A−</button><button class="btn sm" id="afsp" aria-label="Larger text">A+</button><button class="btn sm" id="awide" aria-pressed="${pf.wide}">${pf.wide ? "Narrow" : "Wide"}</button></div><article class="art ${pf.wide ? "wide" : ""}" style="margin-top:12px">${articleHtml(a.blocks)}</article>`}
+      </div></div></div><div class="art-progress" id="aprog" aria-hidden="true"><i></i></div>`;
     $("#aq").oninput = (e) => { q = e.target.value; const pos = e.target.selectionStart; draw(); const n = $("#aq"); n.focus(); n.setSelectionRange(pos, pos); };
-    host.querySelectorAll(".art-item").forEach((b) => (b.onclick = () => { cur = b.dataset.id; editing = false; draw(); }));
+    host.querySelectorAll(".art-item").forEach((b) => (b.onclick = () => { cur = b.dataset.id; editing = false; listFirst = false; draw(); window.scrollTo({ top: 0 }); }));
+    host.querySelectorAll("[data-filt]").forEach((b) => (b.onclick = () => { filt = b.dataset.filt; draw(); }));
+    $("#asort").onchange = (e) => { sort = e.target.value; draw(); };
+    if ($("#aback")) $("#aback").onclick = () => { listFirst = true; draw(); window.scrollTo({ top: 0 }); };
+    $("#astar").onclick = () => { setMeta("art", a.id, { fav: !metaOf("art", a.id).fav }); draw(); };
+    const bump = (d) => { setPrefs({ size: Math.min(160, Math.max(80, prefs().size + d)) }); draw(); };
+    if ($("#afsm")) { $("#afsm").onclick = () => bump(-10); $("#afsp").onclick = () => bump(10); $("#awide").onclick = () => { setPrefs({ wide: !prefs().wide }); draw(); }; }
+    // reading progress: remembered per article, marked read near the end
+    offScroll?.(); offScroll = null;
+    if (!(mob && listFirst) && $(".art", host)) {
+      const bar = $("#aprog i"), art = $(".art", host); let tmr = null;
+      setMeta("art", a.id, { opened: Date.now() });
+      const upd = () => { const r = art.getBoundingClientRect(), total = r.height - innerHeight * 0.6, done = Math.min(1, Math.max(0, (-r.top + innerHeight * 0.3) / Math.max(total, 1))); if (bar) bar.style.width = Math.round(done * 100) + "%"; clearTimeout(tmr); tmr = setTimeout(() => { const p = Math.round(done * 100), m = metaOf("art", a.id); if (p > (m.pct || 0) || (p >= 92 && !m.done)) setMeta("art", a.id, { pct: Math.max(p, m.pct || 0), done: m.done || p >= 92 }); }, 600); };
+      window.addEventListener("scroll", upd, { passive: true }); upd();
+      offScroll = () => { window.removeEventListener("scroll", upd); clearTimeout(tmr); };
+    }
     if (a.kind === "images") {
       const v = $("#aview");
       if (a.mine && a.pages.some((p) => !p.url)) { v.innerHTML = `<p class="muted"><span class="spinner"></span> Loading your pictures from GitHub…</p>`; resolvePages(a).then((pp) => { a.pages = pp; if (document.body.contains(v)) closeViewer = mountViewer(v, a.pages); }).catch((e) => { v.innerHTML = `<div class="callout warn">${esc(e.message)}</div>`; }); }
@@ -79,6 +102,7 @@ export function view(root, ctx) {
     };
   }
   draw();
+  return () => { offScroll?.(); closeViewer?.(); freeImgs?.(); };
 }
 
 // The original file, as it is: PDF and pictures open in the page, Word and Excel can only be downloaded (a browser cannot draw them).

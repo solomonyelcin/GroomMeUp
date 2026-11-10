@@ -184,3 +184,12 @@ Quizzes only use questions with **clear options and one marked correct answer**:
 - multiple choice made from the curated built-in answers, never from imported text, which can be split badly.
 
 Anything else you import (plain Q&A, articles, notes) stays in the Library as reading material and still works in Practice and Mock interview. Items with unclear options (duplicates, no marked answer, an option that is itself a question) are left out, and the Quiz page tells you how many. Test: `node tests/quizgate.test.mjs`.
+
+## Library home, daily picks and reading
+
+- **Library** has six tabs (scrollable on a phone): Home, Daily picks, Questions, Articles, FAQs, Add material.
+- **Home**: one search across articles, questions, FAQs and daily picks (filter by kind), counts, Continue reading, Fresh for you, Starred, Recently added.
+- **Articles**: star, sort (newest, A to Z, starred first), filter (starred, unread), reading time, text size A−/A+, narrow or wide lines, reading progress that is remembered and marks an article read near the end. On a phone the list and the article are separate screens with a back button. Stars and progress are saved with your progress, so they follow you across devices when signed in.
+- **Daily picks**: a free GitHub Action (`.github/workflows/daily.yml`) runs every morning at 6:00 India time, reads public feeds (.NET Blog, Andrew Lock, Milan Jovanovic, Angular Blog, Martin Fowler, release notes and more), keeps what matches your skills and writes `content/daily/feed.json`, then redeploys the site. Only the title, a short excerpt and a link are stored. **Add to library** reads the page and keeps your own copy in your private repository.
+- Tune it: edit `content/daily/config.json` (topics and keywords, sources, how many picks per day, how long to keep them). Run it now: GitHub → Actions → Daily picks → Run workflow.
+- Tests: `npm run test:libui`, `node tests/digest.test.mjs`.

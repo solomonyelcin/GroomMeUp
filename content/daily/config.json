@@ -4,25 +4,167 @@
   "keepDays": 45,
   "minScore": 3,
   "topics": {
-    "dotnet": { "name": ".NET and C#", "keywords": [".net", "c#", "csharp", "asp.net", "aspnet", "blazor", "minimal api", "dotnet", "nuget", "roslyn", "linq", "async", "performance"] },
-    "efcore": { "name": "EF Core and SQL", "keywords": ["entity framework", "ef core", "efcore", "sql server", "t-sql", "index", "query plan", "transaction", "dapper", "postgres"] },
-    "angular": { "name": "Angular and frontend", "keywords": ["angular", "rxjs", "signals", "typescript", "ngrx", "change detection", "standalone component"] },
-    "azure": { "name": "Azure and DevOps", "keywords": ["azure", "app service", "functions", "service bus", "cosmos", "kubernetes", "aks", "docker", "ci/cd", "github actions", "devops", "terraform"] },
-    "architecture": { "name": "Architecture and system design", "keywords": ["architecture", "microservice", "system design", "event-driven", "cqrs", "saga", "outbox", "domain-driven", "ddd", "scalab", "resilien", "caching", "messaging", "idempoten", "distributed"] },
-    "security": { "name": "Security", "keywords": ["security", "oauth", "openid", "jwt", "authentication", "authorization", "owasp", "identity", "cors", "csrf", "vulnerab"] },
-    "interview": { "name": "Interviews and career", "keywords": ["interview", "career", "senior engineer", "staff engineer", "tech lead", "leadership", "code review"] }
+    "dotnet": {
+      "name": ".NET and C#",
+      "keywords": [
+        ".net",
+        "c#",
+        "csharp",
+        "asp.net",
+        "aspnet",
+        "blazor",
+        "minimal api",
+        "dotnet",
+        "nuget",
+        "roslyn",
+        "linq",
+        "async",
+        "performance"
+      ]
+    },
+    "efcore": {
+      "name": "EF Core and SQL",
+      "keywords": [
+        "entity framework",
+        "ef core",
+        "efcore",
+        "sql server",
+        "t-sql",
+        "index",
+        "query plan",
+        "transaction",
+        "dapper",
+        "postgres"
+      ]
+    },
+    "angular": {
+      "name": "Angular and frontend",
+      "keywords": [
+        "angular",
+        "rxjs",
+        "signals",
+        "typescript",
+        "ngrx",
+        "change detection",
+        "standalone component"
+      ]
+    },
+    "azure": {
+      "name": "Azure and DevOps",
+      "keywords": [
+        "azure",
+        "app service",
+        "functions",
+        "service bus",
+        "cosmos",
+        "kubernetes",
+        "aks",
+        "docker",
+        "ci/cd",
+        "github actions",
+        "devops",
+        "terraform"
+      ]
+    },
+    "architecture": {
+      "name": "Architecture and system design",
+      "keywords": [
+        "architecture",
+        "microservice",
+        "system design",
+        "event-driven",
+        "cqrs",
+        "saga",
+        "outbox",
+        "domain-driven",
+        "ddd",
+        "scalab",
+        "resilien",
+        "caching",
+        "messaging",
+        "idempoten",
+        "distributed"
+      ]
+    },
+    "security": {
+      "name": "Security",
+      "keywords": [
+        "security",
+        "oauth",
+        "openid",
+        "jwt",
+        "authentication",
+        "authorization",
+        "owasp",
+        "identity",
+        "cors",
+        "csrf",
+        "vulnerab"
+      ]
+    },
+    "interview": {
+      "name": "Interviews and career",
+      "keywords": [
+        "interview",
+        "career",
+        "senior engineer",
+        "staff engineer",
+        "tech lead",
+        "leadership",
+        "code review"
+      ]
+    }
   },
   "sources": [
-    { "name": ".NET Blog", "url": "https://devblogs.microsoft.com/dotnet/feed/", "weight": 2 },
-    { "name": "Visual Studio Blog", "url": "https://devblogs.microsoft.com/visualstudio/feed/", "weight": 1 },
-    { "name": "ASP.NET Core releases", "url": "https://github.com/dotnet/aspnetcore/releases.atom", "weight": 1 },
-    { "name": "EF Core releases", "url": "https://github.com/dotnet/efcore/releases.atom", "weight": 1 },
-    { "name": "Andrew Lock", "url": "https://andrewlock.net/rss.xml", "weight": 2 },
-    { "name": "Milan Jovanovic", "url": "https://www.milanjovanovic.tech/blog/rss.xml", "weight": 2 },
-    { "name": "Code Maze", "url": "https://code-maze.com/feed/", "weight": 1 },
-    { "name": "Angular Blog", "url": "https://blog.angular.dev/feed", "weight": 2 },
-    { "name": "Azure Blog", "url": "https://azure.microsoft.com/en-us/blog/feed/", "weight": 1 },
-    { "name": "Martin Fowler", "url": "https://martinfowler.com/feed.atom", "weight": 2 },
-    { "name": "Microsoft Azure Architecture", "url": "https://devblogs.microsoft.com/azure-sdk/feed/", "weight": 1 }
+    {
+      "name": ".NET Blog",
+      "url": "https://devblogs.microsoft.com/dotnet/feed/",
+      "weight": 2
+    },
+    {
+      "name": "Visual Studio Blog",
+      "url": "https://devblogs.microsoft.com/visualstudio/feed/",
+      "weight": 1
+    },
+    {
+      "name": "ASP.NET Core releases",
+      "url": "https://github.com/dotnet/aspnetcore/releases.atom",
+      "weight": 1
+    },
+    {
+      "name": "EF Core releases",
+      "url": "https://github.com/dotnet/efcore/releases.atom",
+      "weight": 1
+    },
+    {
+      "name": "Andrew Lock",
+      "url": "https://andrewlock.net/rss.xml",
+      "weight": 2
+    },
+    {
+      "name": "Code Maze",
+      "url": "https://code-maze.com/feed/",
+      "weight": 1
+    },
+    {
+      "name": "Angular Blog",
+      "url": "https://blog.angular.dev/feed",
+      "weight": 2
+    },
+    {
+      "name": "Azure Blog",
+      "url": "https://azure.microsoft.com/en-us/blog/feed/",
+      "weight": 1
+    },
+    {
+      "name": "Martin Fowler",
+      "url": "https://martinfowler.com/feed.atom",
+      "weight": 2
+    },
+    {
+      "name": "Microsoft Azure Architecture",
+      "url": "https://devblogs.microsoft.com/azure-sdk/feed/",
+      "weight": 1
+    }
   ]
 }

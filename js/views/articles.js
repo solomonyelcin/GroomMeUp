@@ -31,7 +31,7 @@ export function view(root, ctx) {
       host.innerHTML = `<div class="card"><h2>No articles yet</h2><p class="muted">Add a PDF, Word, Excel, text or markdown file, or a picture of a notes page. It is read on your device and saved here as an article.</p><a class="btn primary" href="#/library?tab=add">Add material</a></div>`;
       return;
     }
-    const a = current(); cur = a.id;
+    const a = current(); if (all.some((x) => x.id === cur) || !cur) cur = a.id;
     const hits = all.filter((x) => (!q || plain(x).includes(q.toLowerCase())) && (filt === "all" || (filt === "star" ? metaOf("art", x.id).fav : !metaOf("art", x.id).done)))
       .sort((x, y) => sort === "az" ? x.title.localeCompare(y.title) : sort === "star" ? (!!metaOf("art", y.id).fav - !!metaOf("art", x.id).fav) || (y.t || 0) - (x.t || 0) : (y.t || 0) - (x.t || 0));
     const pf = prefs(), me = metaOf("art", a.id), mob = narrow();
@@ -39,7 +39,7 @@ export function view(root, ctx) {
       <aside class="faq-side" aria-label="Articles"><input id="aq" type="search" value="${esc(q)}" placeholder="Search articles" aria-label="Search articles" autocomplete="off">
         <div class="art-tools"><div class="chips" role="group" aria-label="Filter">${[["all", "All"], ["star", "★ Starred"], ["unread", "Unread"]].map(([k, l]) => `<button class="chip" data-filt="${k}" aria-pressed="${filt === k}">${l}</button>`).join("")}</div>
           <select id="asort" aria-label="Sort articles"><option value="recent"${sort === "recent" ? " selected" : ""}>Newest first</option><option value="az"${sort === "az" ? " selected" : ""}>A to Z</option><option value="star"${sort === "star" ? " selected" : ""}>Starred first</option></select></div>
-        <div class="art-list">${hits.map((x) => `<button class="art-item ${x.id === a.id && !(mob && listFirst) ? "on" : ""}" data-id="${x.id}"><strong>${metaOf("art", x.id).fav ? "★ " : ""}${esc(x.title)}</strong><span class="small muted">${esc(x.topic || "")} · ${fmtDate(x.t)}${wc(x) ? ` · ${readMinutes(wc(x))} min` : ""}${metaOf("art", x.id).done ? " · read ✓" : metaOf("art", x.id).pct > 3 ? ` · ${metaOf("art", x.id).pct}%` : ""}</span></button>`).join("") || '<p class="small muted">No match.</p>'}</div>
+        <div class="art-list">${(() => { const item = (x) => `<button class="art-item ${x.id === a.id && !(mob && listFirst) ? "on" : ""}" data-id="${x.id}"><strong>${metaOf("art", x.id).fav ? "★ " : ""}${esc(x.title)}</strong><span class="small muted">${esc(x.topic || "")} · ${fmtDate(x.t)}${wc(x) ? ` · ${readMinutes(wc(x))} min` : ""}${metaOf("art", x.id).done ? " · read ✓" : metaOf("art", x.id).pct > 3 ? ` · ${metaOf("art", x.id).pct}%` : ""}</span></button>`; const rm = hits.filter((x) => x.group === "roadmap").sort((x, y) => (x.order || 0) - (y.order || 0)), rest = hits.filter((x) => x.group !== "roadmap"); return (rm.length ? `<div class="art-group">Roadmap 2026-27 study guides</div>${rm.map(item).join("")}` : "") + (rm.length && rest.length ? `<div class="art-group">Other articles</div>` : "") + rest.map(item).join("") || '<p class="small muted">No match.</p>'; })()}</div>
         <a class="btn sm" href="#/library?tab=add" style="margin-top:8px">Add more</a></aside>
       <div class="faq-main"><div class="card" style="--art-scale:${pf.size / 100}">
         ${mob ? `<button class="btn sm art-back" id="aback">← All articles</button>` : ""}

@@ -20,5 +20,133 @@
   },
   "questions": "content/dotnet-guide/questions.json",
   "questionCount": 15
+ },
+ {
+  "id": "rm-csharp-dotnet",
+  "title": "Master C# and Modern .NET: senior interview guide",
+  "topic": "Roadmap 1: Master C# & Modern .NET",
+  "t": 1794592800000,
+  "kind": "doc",
+  "file": "content/roadmap/rm-csharp-dotnet/article.json",
+  "group": "roadmap",
+  "track": "rm-csharp",
+  "order": 1,
+  "source": {
+   "file": "GroomMeUp study guide",
+   "format": "Guide"
+  },
+  "questionCount": 0
+ },
+ {
+  "id": "rm-backend",
+  "title": "Backend fundamentals: data, security, caching, background work",
+  "topic": "Roadmap 2: Backend Fundamentals",
+  "t": 1794592800001,
+  "kind": "doc",
+  "file": "content/roadmap/rm-backend/article.json",
+  "group": "roadmap",
+  "track": "rm-backend",
+  "order": 2,
+  "source": {
+   "file": "GroomMeUp study guide",
+   "format": "Guide"
+  },
+  "questionCount": 0
+ },
+ {
+  "id": "rm-cloud-native",
+  "title": "Cloud-native development on Azure: Docker, Kubernetes, PaaS and messaging",
+  "topic": "Roadmap 3: Cloud-Native Development",
+  "t": 1794592800002,
+  "kind": "doc",
+  "file": "content/roadmap/rm-cloud-native/article.json",
+  "group": "roadmap",
+  "track": "rm-cloud",
+  "order": 3,
+  "source": {
+   "file": "GroomMeUp study guide",
+   "format": "Guide"
+  },
+  "questionCount": 0
+ },
+ {
+  "id": "rm-architecture",
+  "title": "Architecture and system design: patterns, trade-offs and distributed systems",
+  "topic": "Roadmap 4: Architecture & System Design",
+  "t": 1794592800003,
+  "kind": "doc",
+  "file": "content/roadmap/rm-architecture/article.json",
+  "group": "roadmap",
+  "track": "rm-arch",
+  "order": 4,
+  "source": {
+   "file": "GroomMeUp study guide",
+   "format": "Guide"
+  },
+  "questionCount": 0
+ },
+ {
+  "id": "rm-ai-fundamentals",
+  "title": "AI fundamentals for engineers: LLMs, tokens, prompts, embeddings, RAG and evaluation",
+  "topic": "Roadmap 5: AI Fundamentals",
+  "t": 1794592800004,
+  "kind": "doc",
+  "file": "content/roadmap/rm-ai-fundamentals/article.json",
+  "group": "roadmap",
+  "track": "rm-aifund",
+  "order": 5,
+  "source": {
+   "file": "GroomMeUp study guide",
+   "format": "Guide"
+  },
+  "questionCount": 0
+ },
+ {
+  "id": "rm-ai-with-dotnet",
+  "title": "AI with .NET: Microsoft.Extensions.AI, agents, MCP and Foundry",
+  "topic": "Roadmap 6: AI with .NET",
+  "t": 1794592800005,
+  "kind": "doc",
+  "file": "content/roadmap/rm-ai-with-dotnet/article.json",
+  "group": "roadmap",
+  "track": "rm-aidotnet",
+  "order": 6,
+  "source": {
+   "file": "GroomMeUp study guide",
+   "format": "Guide"
+  },
+  "questionCount": 0
+ },
+ {
+  "id": "rm-production-ai",
+  "title": "Production AI: observability, cost, security, limits and delivery",
+  "topic": "Roadmap 7: Production AI",
+  "t": 1794592800006,
+  "kind": "doc",
+  "file": "content/roadmap/rm-production-ai/article.json",
+  "group": "roadmap",
+  "track": "rm-prodai",
+  "order": 7,
+  "source": {
+   "file": "GroomMeUp study guide",
+   "format": "Guide"
+  },
+  "questionCount": 0
+ },
+ {
+  "id": "rm-real-projects",
+  "title": "Build real projects: a portfolio plan and how to talk about it",
+  "topic": "Roadmap 8: Build Real Projects",
+  "t": 1794592800007,
+  "kind": "doc",
+  "file": "content/roadmap/rm-real-projects/article.json",
+  "group": "roadmap",
+  "track": "rm-proj",
+  "order": 8,
+  "source": {
+   "file": "GroomMeUp study guide",
+   "format": "Guide"
+  },
+  "questionCount": 0
  }
 ]

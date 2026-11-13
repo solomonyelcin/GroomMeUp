@@ -12,6 +12,8 @@ const ROUNDS = {
   frontend: { name: "Technical: Angular & TypeScript", cats: ["angular"], tip: "Signals, RxJS, performance and architecture." },
   arch: { name: "Technical 2: architecture & data", cats: ["micro", "cloud", "design", "snowflake"], tip: "Microservices, cloud, Snowflake and system design." },
   resume: { name: "Project deep dive (your resume)", cats: ["resume"], tip: "Defend every number and decision on your resume." },
+  aieng: { name: "AI engineer round (roadmap)", cats: ["rm-aifund", "rm-aidotnet", "rm-prodai", "rm-proj"], tip: "LLMs, RAG, agents, MCP, production AI and your projects." },
+  platform: { name: "Cloud and architecture round (roadmap)", cats: ["rm-csharp", "rm-backend", "rm-cloud", "rm-arch"], tip: "Modern .NET, data, Azure and system design." },
   hr: { name: "HR & behavioural", cats: ["hr", "ai"], tip: "Story-telling, salary, motivation." },
 };
 

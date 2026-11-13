@@ -14,4 +14,13 @@ export const CATEGORIES = {
   resume: { name: "My resume defence", color: "#A8741A" },
   hr: { name: "HR & behavioural", color: "#546178" },
   ai: { name: "AI in engineering", color: "#D1488E" },
+  // Roadmap 2026-27 tracks (see js/data/roadmap.js)
+  "rm-csharp": { name: "Roadmap: C# & modern .NET", color: "#3446E8" },
+  "rm-backend": { name: "Roadmap: Backend fundamentals", color: "#0F7C8F" },
+  "rm-cloud": { name: "Roadmap: Cloud-native on Azure", color: "#2E7D4F" },
+  "rm-arch": { name: "Roadmap: Architecture & system design", color: "#7A4B9E" },
+  "rm-aifund": { name: "Roadmap: AI fundamentals", color: "#D1488E" },
+  "rm-aidotnet": { name: "Roadmap: AI with .NET", color: "#B8590B" },
+  "rm-prodai": { name: "Roadmap: Production AI", color: "#C8264B" },
+  "rm-proj": { name: "Roadmap: AI projects & portfolio", color: "#A8741A" },
 };

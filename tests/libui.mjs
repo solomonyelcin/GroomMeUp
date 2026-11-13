@@ -33,10 +33,10 @@ const seed = { custom: [], articles: [
 for (const [name, w, h] of [["desk", 1280, 900], ["phone", 390, 800]]) {
   const page = await open(w, h, seed);
   await page.goto(base + "/#/library"); await page.waitForSelector("#lq");
-  check(await page.locator(".mode-tabs a").count() === 6, `${name}: six Library tabs`);
+  check(await page.locator(".mode-tabs a").count() === 7, `${name}: seven Library tabs`);
   check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${name}: home has no horizontal scroll`);
   await page.waitForSelector(".lib-tile"); const tiles = await page.locator(".lib-tile b").allTextContents();
-  check(tiles[0] === "3" && Number(tiles[3]) === 2, `${name}: home counts articles (${tiles[0]}) and new picks (${tiles[3]})`);
+  check(tiles[0] === "11" && Number(tiles[3]) === 2, `${name}: home counts articles (${tiles[0]}) and new picks (${tiles[3]})`);
   await page.waitForSelector(".mode-tabs .badge"); check((await page.textContent(".mode-tabs .badge")) === "2", `${name}: Daily picks tab shows 2 new`);
   await page.screenshot({ path: `${SHOTS}/lib-${name}-home.png`, fullPage: true });
   // search across everything
@@ -47,6 +47,16 @@ for (const [name, w, h] of [["desk", 1280, 900], ["phone", 390, 800]]) {
   check((await page.locator(".lib-row .tag").allTextContents()).includes("Pick"), `${name}: search finds daily picks`);
   await page.click('[data-type="faqs"]'); await page.fill("#lq", "zzzzqq"); check(/Nothing matches/.test(await page.textContent("#lhBody")), `${name}: empty search says so`);
   await page.fill("#lq", ""); await page.click('[data-type="all"]');
+  // roadmap
+  await page.goto(base + "/#/library?tab=roadmap"); await page.waitForSelector(".rm-card");
+  check(await page.locator(".rm-card").count() === 8, `${name}: Roadmap shows the eight tracks`);
+  await page.waitForSelector('.rm-card a:has-text("Read guide")'); check(await page.locator('.rm-card a:has-text("Read guide")').count() === 8, `${name}: every track links its study guide`);
+  check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${name}: roadmap has no horizontal scroll`);
+  await page.screenshot({ path: `${SHOTS}/lib-${name}-roadmap.png`, fullPage: true });
+  await page.locator('.rm-card a:has-text("Read guide")').first().click(); await page.waitForFunction(() => /senior interview guide/.test(document.querySelector("article.art")?.textContent || ""), null, { timeout: 8000 }).catch(() => {});
+  check(/C#|\.NET/.test(await page.textContent("article.art")), `${name}: a roadmap guide opens in the reader`);
+  await page.goto(base + "/#/library?tab=articles"); await page.waitForSelector(".art-group");
+  check((await page.locator(".art-group").allTextContents()).join().includes("Roadmap"), `${name}: Articles groups the roadmap guides`);
   // daily picks
   await page.goto(base + "/#/library?tab=daily"); await page.waitForSelector(".pick");
   check(await page.locator(".pick").count() === 2, `${name}: Daily picks shows the 2 new items by default`);

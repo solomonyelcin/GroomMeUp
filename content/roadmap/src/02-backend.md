@@ -1,0 +1,126 @@
+# Backend fundamentals: data, security, caching, background work
+
+**Interview focus:** at senior level the questions are about correctness under load: slow queries, concurrency, token security, cache invalidation and jobs that must not run twice.
+
+## Entity Framework Core
+
+**What to be able to explain**
+
+- **Change tracking** records entity state so `SaveChanges` knows what to write. For read-only queries use `AsNoTracking()` (or set no-tracking as default) to save memory and time.
+- **N+1 queries:** loading a list, then one query per row for a related entity. Fix with `Include`, a projection (`Select` into a DTO), or a split query.
+- **Cartesian explosion:** several collection `Include`s in one query multiply rows. Use `AsSplitQuery()` and compare the plans.
+- **Project to DTOs** instead of loading whole entities for read endpoints.
+- **Bulk operations:** `ExecuteUpdateAsync` and `ExecuteDeleteAsync` run set-based SQL without loading entities.
+- **Concurrency:** add a `rowversion` column and mark it `[Timestamp]` (or `IsRowVersion()`). EF throws `DbUpdateConcurrencyException` when someone else changed the row. Decide the policy: retry, merge or tell the user.
+- **Global query filters** (soft delete, multi-tenancy). Newer EF Core versions add named filters so you can turn one off without disabling all of them.
+- **DbContext lifetime:** scoped, not thread-safe, short-lived. Use `AddDbContextPool` for hot paths, or `IDbContextFactory` in background services and Blazor.
+- **Migrations in production:** generate SQL scripts or a migration bundle and run them in the pipeline, do not call `Migrate()` on startup of many replicas at once.
+- **Transactions:** one `SaveChanges` is already one transaction. Use an explicit transaction when several `SaveChanges` or raw SQL must be atomic.
+
+```csharp
+var page = await db.Orders
+    .AsNoTracking()
+    .Where(o => o.CustomerId == id && o.Id > lastSeenId)   // keyset pagination
+    .OrderBy(o => o.Id)
+    .Select(o => new OrderRow(o.Id, o.Total, o.Status))
+    .Take(50)
+    .ToListAsync(ct);
+```
+
+## Dapper and when to choose it
+
+Dapper is a micro-ORM: you write SQL, it maps rows to objects and adds almost no overhead. Choose it for **hot read paths, reports and bulk reads**, and keep EF Core for the write model and migrations. Always use parameters (`new { id }`), never string concatenation (SQL injection). You can share one connection and transaction between EF Core and Dapper.
+
+```csharp
+var rows = await conn.QueryAsync<OrderRow>(
+    "select Id, Total, Status from Orders where CustomerId = @id", new { id });
+```
+
+## SQL Server essentials
+
+- **Indexes:** clustered index defines physical order (one per table). Nonclustered indexes point back to it. A **covering index** uses `INCLUDE` columns so a query never touches the base table.
+- Read the **execution plan**: look for scans where you expect seeks, key lookups, warnings and big estimate vs actual row differences.
+- **Parameter sniffing:** a plan compiled for one parameter value is bad for another. Options: `OPTION (RECOMPILE)`, `OPTIMIZE FOR`, better statistics or an index, or Query Store plan forcing.
+- **Isolation:** default READ COMMITTED blocks readers behind writers. **READ_COMMITTED_SNAPSHOT** uses row versioning so readers do not block.
+- **Deadlocks:** access tables in the same order, keep transactions short, add the right index so fewer rows are locked, and retry on error 1205.
+- **Pagination:** `OFFSET/FETCH` gets slower for deep pages. Use keyset (seek) pagination.
+- Know window functions (`ROW_NUMBER`, `LAG`), CTEs and `MERGE` caveats.
+
+## MongoDB (document database)
+
+- Model for your **access patterns**: embed data that is read together and changes together, reference data that grows without bound or is shared.
+- Indexes work like SQL: compound index order follows equality, sort, range. Use `explain()`.
+- The **aggregation pipeline** (`$match`, `$group`, `$lookup`, `$project`) replaces joins and reporting queries. `$lookup` is not a free join, so design to avoid it.
+- Multi-document transactions exist (replica set required) but cost performance. Prefer designs where one document is the unit of consistency.
+- Choose it when schema varies, documents are naturally nested or you need horizontal scale. Do not choose it because you dislike SQL.
+
+## Authentication and JWT
+
+- **Authentication** proves who you are, **authorization** decides what you can do. Mixing them up is a common slip.
+- A **JWT** has a header, a payload of claims and a signature. It is signed, not encrypted, so never put secrets in it.
+- Validate **issuer, audience, lifetime and signing key**. Keep clock skew small. Prefer asymmetric keys (RS256/ES256) so APIs only need the public key, and rotate keys.
+- Use **short-lived access tokens** plus **refresh tokens** with rotation and reuse detection. Store refresh tokens server-side hashed.
+- For browsers prefer **HttpOnly, Secure, SameSite cookies** (often with a backend-for-frontend) over keeping tokens in `localStorage`, which XSS can read.
+- Use **OpenID Connect with authorization code + PKCE** for user sign-in, and a managed identity or client credentials for service-to-service.
+- Authorization: **policies and claims**, resource-based checks for "can this user edit this order".
+- A JWT cannot be revoked by itself. Handle logout and compromise with short lifetimes, a deny list or token introspection.
+
+```csharp
+builder.Services.AddAuthentication().AddJwtBearer(o =>
+{
+    o.Authority = "https://login.example.com";   // metadata and signing keys
+    o.Audience = "orders-api";
+});
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy("CanRefund", p => p.RequireClaim("scope", "orders.refund"));
+```
+
+## Caching with Redis
+
+- **Cache-aside:** read cache, on miss read the database and store with a TTL. Writes update the database first then invalidate or update the key.
+- Problems to name: **stale data**, **stampede** (many callers rebuild the same missing key at once), **cache penetration** (keys that never exist), **hot keys**, memory eviction policy.
+- **HybridCache** (.NET 9+) combines a fast in-process cache with a distributed one and adds stampede protection.
+- Set TTLs with jitter, version keys (`orders:v2:{id}`) so a deploy cannot read incompatible data, and cache the right layer (HTTP output cache, data, or computed results).
+- Redis is single-threaded per shard for commands, so avoid slow commands like `KEYS` in production. Locks built on Redis are advisory, so do not use them for strict correctness.
+
+```csharp
+var order = await cache.GetOrCreateAsync($"orders:v1:{id}",
+    async ct => await repo.GetAsync(id, ct),
+    cancellationToken: ct);
+```
+
+## Background services
+
+- Use `BackgroundService` (long-running loop) or `IHostedService`. Create a **scope per unit of work** to use scoped services.
+- Honour the `stoppingToken` so deployments shut down cleanly. Use `PeriodicTimer` for schedules.
+- With several instances, a timer runs on every one. Use a distributed lock, a database lease, or a real scheduler (Hangfire, Quartz, Azure Functions timer) when a job must run once.
+- For reliable work use a **queue** (Service Bus, RabbitMQ) with **idempotent** handlers and the **outbox pattern**, so "save the order" and "publish the event" cannot diverge.
+- Handle poison messages with retries, backoff and a dead-letter queue.
+
+## Red flags
+
+- `SELECT *` into entities for a list page, or `Count()` after `ToList()`.
+- Storing JWTs in `localStorage`, long-lived access tokens, or skipping audience validation.
+- Caching without a plan for invalidation.
+- A hosted service doing database work with a captive `DbContext`.
+
+## Tell it from your experience
+
+Prepare one story each about a slow query you fixed (plan, index, number before and after), a data consistency or concurrency bug, and a caching or messaging decision (what you cached, how you invalidated, what you would change now). If you used RabbitMQ or Elasticsearch, be ready to compare them with the Azure options on reliability and cost.
+
+## Skill-upgrade checklist
+
+1. Take one slow EF query, read the generated SQL and the plan, and fix it with a projection or index.
+2. Add a `rowversion` column and write a test that triggers a concurrency exception.
+3. Build JWT login with refresh token rotation in a sample API.
+4. Add `HybridCache` to an endpoint and test a stampede with parallel requests.
+5. Write a hosted service that processes a bounded channel and stops cleanly.
+
+## Read next (official)
+
+- [Entity Framework Core docs](https://learn.microsoft.com/ef/core/)
+- [Dapper on GitHub](https://github.com/DapperLib/Dapper)
+- [ASP.NET Core authentication](https://learn.microsoft.com/aspnet/core/security/authentication/)
+- [HybridCache in ASP.NET Core](https://learn.microsoft.com/aspnet/core/performance/caching/hybrid)
+- [Background tasks with hosted services](https://learn.microsoft.com/aspnet/core/fundamentals/host/hosted-services)
+- [MongoDB data modeling](https://www.mongodb.com/docs/manual/data-modeling/)

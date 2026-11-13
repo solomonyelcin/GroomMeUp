@@ -1,0 +1,127 @@
+# Master C# and Modern .NET: senior interview guide
+
+**Who this is for:** a senior .NET engineer (9+ years) who must show current knowledge (C# 14, .NET 10) and deep fundamentals (DI, async, minimal APIs) in the same interview. Interviewers at this level stop asking "what is" and start asking "what goes wrong, and how did you decide".
+
+## What interviewers expect at senior level
+
+- You know what is new in the current LTS and can say which parts you would actually adopt, and why.
+- You explain async, DI lifetimes and the request pipeline from the inside, including the failure modes.
+- You give trade-offs, not slogans: minimal APIs vs controllers, records vs classes, ValueTask vs Task.
+- You can read a short code sample and spot the bug (captive dependency, sync-over-async, missing cancellation).
+
+## .NET 10 and C# 14 in two minutes
+
+.NET 10 is a **long-term support (LTS)** release, shipped November 2025 and supported for three years. C# 14 is its language version. The features to be able to explain:
+
+| Feature | One-line meaning |
+| --- | --- |
+| Extension members | `extension` blocks can add extension **properties**, static members and operators, not just methods |
+| `field` keyword | An accessor can use the compiler-generated backing field without declaring one |
+| Null-conditional assignment | `customer?.Order = Load();` runs the right side only if `customer` is not null |
+| Implicit span conversions | Arrays, `Span<T>` and `ReadOnlySpan<T>` convert to each other in more places |
+| Lambda parameter modifiers | `(text, out result) => int.TryParse(text, out result)` without writing the types |
+| `nameof` on unbound generics | `nameof(List<>)` gives `"List"` |
+| Partial constructors and events | Helps source generators |
+
+```csharp
+public string Message
+{
+    get;
+    set => field = value ?? throw new ArgumentNullException(nameof(value));
+}
+
+extension<T>(IEnumerable<T> source)
+{
+    public bool IsEmpty => !source.Any();
+}
+```
+
+**How to answer "would you use it?":** `field` and null-conditional assignment are low risk and remove boilerplate. Extension members are great for library authors, but check tooling and analyzers in your team before using them widely. Also mention .NET 10 lets you run a single file with `dotnet run app.cs` (file-based apps), handy for scripts and demos.
+
+## Async programming: the part that separates seniors
+
+- `async/await` does not create threads. It frees the thread while an I/O operation is pending, and the continuation runs later.
+- **Sync over async** (`.Result`, `.Wait()`, `GetAwaiter().GetResult()`) can deadlock on a context that is captured and wastes threads in ASP.NET Core under load. Make the chain async all the way.
+- **`ConfigureAwait(false)`** matters in library code that may run under a `SynchronizationContext`. ASP.NET Core has no such context, so it is rarely needed in app code.
+- **Cancellation:** accept a `CancellationToken` and pass it down. In ASP.NET Core `HttpContext.RequestAborted` is bound for you when you add the parameter.
+- **`Task.WhenAll`** for independent calls. Remember that it throws only the first exception when awaited, the others are in `task.Exception`.
+- **`ValueTask`** avoids an allocation when the result is often synchronous. Never await it twice and never block on it.
+- **`async void`** only for event handlers. **`IAsyncEnumerable<T>`** for streaming. **`Channel<T>`** (bounded) for producer and consumer with back-pressure.
+- Never `await` inside a `lock`. Use `SemaphoreSlim.WaitAsync`.
+
+```csharp
+public async Task<Order[]> LoadAsync(int[] ids, CancellationToken ct)
+{
+    var tasks = ids.Select(id => _repo.GetAsync(id, ct));
+    return await Task.WhenAll(tasks);          // parallel, not sequential
+}
+```
+
+## Dependency injection: lifetimes and traps
+
+- **Singleton** one per app, **Scoped** one per request (or scope), **Transient** new each time.
+- **Captive dependency:** a singleton that holds a scoped service keeps it alive forever (often a `DbContext`). In Development the container validates scopes and throws. Fix by injecting `IServiceScopeFactory` and creating a scope per operation, or change the lifetime.
+- **Keyed services** (`AddKeyedSingleton`, `[FromKeyedServices("x")]`) replace hand-written factories when you have several implementations.
+- Prefer **constructor injection**. Do not inject `IServiceProvider` to resolve things ad hoc, it hides dependencies (service locator).
+- Register options with the **options pattern** (`IOptions`, `IOptionsSnapshot`, `IOptionsMonitor`) and validate on start with `ValidateOnStart()`.
+- Disposal: the container disposes what it creates. Instances you register yourself are your responsibility.
+
+## ASP.NET Core Web API and minimal APIs
+
+**Request pipeline:** middleware order matters. Typical order: exception handling, HTTPS, static files, routing, CORS, authentication, authorization, rate limiting, endpoints.
+
+```csharp
+var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddProblemDetails();
+builder.Services.AddScoped<IOrderService, OrderService>();
+
+var app = builder.Build();
+app.UseExceptionHandler();
+
+var api = app.MapGroup("/api/orders").RequireAuthorization();
+api.MapGet("/{id:int}", async Task<Results<Ok<OrderDto>, NotFound>> (int id, IOrderService s, CancellationToken ct)
+    => await s.FindAsync(id, ct) is { } o ? TypedResults.Ok(o) : TypedResults.NotFound());
+app.Run();
+```
+
+- **Minimal APIs vs controllers:** minimal APIs have less ceremony and start faster, and `MapGroup` plus endpoint filters give you shared behaviour. Controllers still win for large teams that want conventions, filters and model-binding features. Both sit on the same pipeline, so it is a style and team choice, not a performance cliff.
+- **TypedResults** make the response types visible to OpenAPI and to tests.
+- **Validation:** DataAnnotations, FluentValidation, or the built-in validation support for minimal APIs added in .NET 10. Return `ValidationProblem` (RFC 9457 problem details).
+- **Errors:** `IExceptionHandler` plus `ProblemDetails` for one consistent error shape.
+- **Built-in features to know:** rate limiting middleware, output caching, `HybridCache`, health checks, OpenAPI document generation, Native AOT friendly minimal APIs.
+- **Versioning and compatibility:** never break clients silently. Use URL or header versioning and a deprecation policy.
+
+## Performance habits worth mentioning
+
+- Measure first (BenchmarkDotNet, dotnet-counters, dotnet-trace), then change.
+- Avoid allocations on hot paths: `Span<T>`, `ArrayPool<T>`, `StringBuilder`, struct enumerators. Large objects (85,000 bytes and above) go to the Large Object Heap and are expensive to collect.
+- Use `HttpClientFactory` or typed clients, never `new HttpClient()` per request.
+- Use `System.Text.Json` source generation for hot serialisation paths.
+
+## Common red flags interviewers listen for
+
+- "I use `.Result` because it is simpler."
+- Registering a `DbContext` as a singleton.
+- Catching `Exception` and swallowing it, or `throw ex;` which resets the stack trace (use `throw;`).
+- Saying minimal APIs are "only for demos".
+
+## How to connect it to your own experience
+
+Prepare two short stories: (1) a performance or reliability problem you solved by fixing async or lifetimes (what you measured, what you changed, the result), and (2) a time you upgraded a service to a newer .NET version (what broke, how you tested, how you rolled out). Use real numbers from your projects.
+
+## Skill-upgrade checklist (do these, then you can speak about them)
+
+1. Create a minimal API with a route group, typed results, problem details and rate limiting.
+2. Reproduce a captive dependency, then fix it with `IServiceScopeFactory`.
+3. Write a bounded `Channel<T>` producer and consumer with cancellation.
+4. Convert one of your old projects' property to use `field` and note what the compiler generates.
+5. Read the C# 14 and .NET 10 "what's new" pages end to end once.
+
+## Read next (official)
+
+- [What's new in C# 14](https://learn.microsoft.com/dotnet/csharp/whats-new/csharp-14)
+- [Introducing C# 14 (.NET Blog)](https://devblogs.microsoft.com/dotnet/introducing-csharp-14/)
+- [What's new in .NET](https://learn.microsoft.com/dotnet/core/whats-new)
+- [Asynchronous programming in C#](https://learn.microsoft.com/dotnet/csharp/asynchronous-programming/)
+- [Dependency injection in .NET](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection)
+- [ASP.NET Core minimal APIs](https://learn.microsoft.com/aspnet/core/fundamentals/minimal-apis)

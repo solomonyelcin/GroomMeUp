@@ -18,6 +18,7 @@ async function api(method, path, body) {
     method,
     headers: { Authorization: `Bearer ${c.token}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", ...(body ? { "Content-Type": "application/json" } : {}) },
     body: body ? JSON.stringify(body) : undefined,
+    cache: "no-store", // GitHub answers GET with max-age=60: a cached old sha makes every save fail with 409
   });
   if (res.status === 401) throw new Error("GitHub rejected the token (expired or wrong). Make a new one in Settings.");
   if (res.status === 403 || res.status === 404) { if (method !== "GET" || path === "") throw new Error(res.status === 404 ? "Repository not found, or the token has no access to it." : "The token is not allowed to do this. It needs Contents: Read and write on this repository."); }
@@ -57,22 +58,34 @@ async function sha(path) {
   const res = await api("GET", `contents/${path}?ref=${encodeURIComponent(getCfg().branch)}`);
   return res.ok ? (await res.json()).sha : null;
 }
-async function putFile(path, contentB64, message) {
-  for (let i = 0; i < 3; i++) {
-    const body = { message, content: contentB64, branch: getCfg().branch }, s = await sha(path); if (s) body.sha = s;
-    const res = await api("PUT", `contents/${path}`, body);
-    if (res.ok) return;
-    if (res.status !== 409 && res.status !== 422) throw new Error("GitHub could not save " + path + " (" + res.status + ").");
-  }
-  throw new Error("GitHub kept refusing " + path + ". Try again in a moment.");
+// GitHub commits to one branch one at a time: two saves at once (progress, library list, a picture) make one fail with 409.
+// So every write goes through one queue, and a conflict is retried with a short, growing pause.
+let writeQueue = Promise.resolve();
+const queued = (job) => { const run = writeQueue.then(job, job); writeQueue = run.catch(() => {}); return run; };
+const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+function putFile(path, contentB64, message) {
+  return queued(async () => {
+    let last = 0;
+    for (let i = 0; i < 5; i++) {
+      const body = { message, content: contentB64, branch: getCfg().branch }, s = await sha(path); if (s) body.sha = s;
+      const res = await api("PUT", `contents/${path}`, body);
+      if (res.ok) return;
+      last = res.status;
+      if (res.status !== 409 && res.status !== 422) throw new Error("GitHub could not save " + path + " (" + res.status + ").");
+      await pause(500 * (i + 1));
+    }
+    throw new Error(`GitHub kept refusing ${path} (${last}). Open the app again in a minute; if it keeps happening, check that no other device is saving at the same time.`);
+  });
 }
-async function delFile(path, message) {
+function delFile(path, message) { return queued(() => delInner(path, message)); }
+async function delInner(path, message) {
   const s = await sha(path); if (!s) return;
   await api("DELETE", `contents/${path}`, { message, sha: s, branch: getCfg().branch });
 }
 
 // read the manifest, change it, write it back (retries if something else changed it in between)
-async function editManifest(fn, message) {
+function editManifest(fn, message) { return queued(() => editInner(fn, message)); }
+async function editInner(fn, message) {
   for (let i = 0; i < 4; i++) {
     const res = await api("GET", `contents/${MANIFEST}?ref=${encodeURIComponent(getCfg().branch)}`);
     let list = [], s = null;

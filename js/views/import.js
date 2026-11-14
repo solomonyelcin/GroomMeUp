@@ -34,7 +34,7 @@ export function view(root, ctx) {
       <p class="small muted" style="margin-top:0">Copy and paste content straight in. Choose what kind of content it is, check the result below, then import it.</p>
       <div class="grid g2"><div><label for="pmode">Kind of content</label><select id="pmode"><option value="qa">Descriptive questions and answers</option><option value="mcq">Multiple choice questions (MCQ)</option><option value="notes">Paragraphs or notes</option></select></div>
       <div><label for="ptopic">Topic name</label><input id="ptopic" list="ptopics" placeholder="e.g. SQL Server" autocomplete="off"><datalist id="ptopics"></datalist></div></div>
-      <label for="ptext" style="margin-top:8px">Content</label><textarea id="ptext" rows="8" style="width:100%"></textarea>
+      <label for="qtext" style="margin-top:8px">Content</label><textarea id="qtext" rows="8" style="width:100%"></textarea>
       <p class="small muted" id="phint" style="margin:6px 0"></p>
       <button class="btn primary" id="pgo">Read this text</button></section>
     <section class="card" id="libCard" style="margin-top:16px" hidden aria-labelledby="lib"><h2 id="lib">My library (encrypted)</h2>
@@ -69,7 +69,7 @@ export function view(root, ctx) {
   $("#pmode").onchange = () => { $("#phint").textContent = HINTS[pm()]; };
   $("#phint").textContent = HINTS.qa; fillTopics();
   $("#pgo").onclick = async () => {
-    const text = $("#ptext").value;
+    const text = $("#qtext").value;
     if (text.trim().length < 8) { toast("Paste some text first"); return; }
     const topic = $("#ptopic").value.trim();
     if (!topic) { toast("Give it a topic name"); $("#ptopic").focus(); return; }
@@ -79,7 +79,7 @@ export function view(root, ctx) {
       const res = await parsePasted(text, { mode: pm(), topic });
       const r0 = { id, res, opts: { seed: true, update: true, dedupe: false }, excl: new Set(), filter: "flagged", shown: 25, editing: new Set() };
       prepare(r0); results.push(r0); draw(r0);
-      $("#ptext").value = "";
+      $("#qtext").value = "";
     } catch (e) {
       $("#r" + id).innerHTML = `<div class="callout warn"><strong>Could not read that text.</strong> ${esc(e.message)}</div>`;
     }

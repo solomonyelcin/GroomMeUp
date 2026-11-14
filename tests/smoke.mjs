@@ -465,14 +465,21 @@ for (const r of ["dashboard", "bank", "code", "market", "import", "quiz"]) {
 }
 // ---- paste text: Q&A, MCQ and notes ----
 {
+  // regression: on the Library Add tab the Q&A box and the article box must be different elements (a duplicate id once made "Read this text" see an empty box)
+  await page.goto(base + "/#/library?tab=add"); await page.reload(); await page.waitForSelector("#pgo");
+  check(await page.evaluate(() => { const ids = [...document.querySelectorAll("[id]")].map((e) => e.id); return ids.length === new Set(ids).size; }), "Library Add tab has no duplicate element ids");
+  await page.fill("#ptopic", "Numbered Demo");
+  await page.fill("#qtext", "1. What is ASP.NET Core and what are its key features?\nASP.NET Core is a free, open-source framework from Microsoft to build web apps and APIs. Key features: cross-platform, fast performance, built-in dependency injection, middleware pipeline and cloud-ready configuration.\n2. What is middleware in ASP.NET Core?\nMiddleware is a component in the request pipeline that can handle a request, pass it to the next component, and act on the response on the way back; the order of registration matters.");
+  await page.click("#pgo"); await page.waitForSelector("[data-act=import]");
+  check(/2 questions/.test(await page.textContent("#results")), "numbered Q&A pasted on the Library Add tab is read as 2 questions");
   await page.goto(base + "/#/import"); await page.reload(); await page.waitForSelector("#pgo");
   await page.fill("#ptopic", "Pasted Demo");
-  await page.fill("#ptext", "Q: What is a primary key?\nA: A column that uniquely identifies each row in a table.\n\nQ: What is a foreign key?\nA: A column that references the primary key of another table.");
+  await page.fill("#qtext", "Q: What is a primary key?\nA: A column that uniquely identifies each row in a table.\n\nQ: What is a foreign key?\nA: A column that references the primary key of another table.");
   await page.click("#pgo"); await page.waitForSelector("[data-act=import]");
   check(/2 questions/.test(await page.textContent("#results")), "pasted Q&A is read as 2 questions");
   await page.click("[data-act=import]"); await page.waitForSelector("text=Imported Pasted");
   await page.fill("#ptopic", "Pasted Notes"); await page.selectOption("#pmode", "notes");
-  await page.fill("#ptext", "Normalization\n\nNormalization removes redundancy by splitting data into related tables.\n\nDenormalization\n\nIt adds redundancy back on purpose to make reads faster.");
+  await page.fill("#qtext", "Normalization\n\nNormalization removes redundancy by splitting data into related tables.\n\nDenormalization\n\nIt adds redundancy back on purpose to make reads faster.");
   await page.click("#pgo"); await page.waitForTimeout(500);
   check(/2 questions/.test(await page.textContent("#results")), "pasted paragraphs become 2 Explain: questions");
 }

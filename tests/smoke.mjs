@@ -826,7 +826,7 @@ check((await page.locator(".tstr").count()) >= 5 && dlf.suggestedFilename().ends
   await page.click("#ac3 [data-go]"); await page.waitForSelector("#ac3 .callout.ok");
   await page.goto(base + "/#/library?tab=articles"); await page.waitForSelector("#aq");
   await page.fill("#aq", "partitions"); await page.waitForTimeout(150);
-  check((await page.locator(".art-item").count()) === 1 && /Message Queues/.test(await page.textContent(".art-item")), "article search finds text on page 2 of a PDF");
+  check((await page.locator(".art-item", { hasText: "Message Queues" }).count()) === 1, "article search finds text on page 2 of a PDF");
   await page.fill("#aq", "");
   const cnt = await page.evaluate(() => (JSON.parse(localStorage.getItem("groommeup.v1")).articles || []).length);
   check(cnt >= 4, `${cnt} articles saved`);

@@ -1,0 +1,51 @@
+# Payments and FX domain for a senior .NET engineer
+
+**Why this matters:** Corpay is a corporate payments company: AP automation, cross-border payments and FX, commercial cards, and fuel and lodging payments. Its Alpha division (acquired Alpha Group, announced July 2025 as a roughly 2.2 billion dollar deal) focuses on business cross-border FX. Interviewers in this space listen for one thing: do you design as if money, duplicates and regulators exist?
+
+## Vocabulary you should use correctly
+
+- **FX spot, forward, option:** spot settles in about two business days at today's rate; a forward fixes a rate for a future date to remove rate risk; options give the right but not the obligation.
+- **Eligible rails:** ACH (batch, cheap, slow, domestic US), wire (fast, expensive, final), SWIFT (messaging network for cross-border), card networks (authorisation then clearing and settlement), SEPA in Europe, Faster Payments in the UK, UPI and NEFT/RTGS in India.
+- **eMoney:** stored value held in a regulated wallet that can be received, held, exchanged and sent. The wallet is a **ledger**, not a number column.
+- **KYC, KYB, AML, sanctions screening:** identify customers and businesses, monitor transactions, and block prohibited parties. These are flows the code must support and audit.
+- **PCI DSS:** rules for handling card data. Best answer: avoid storing card numbers; use tokens from a vault or provider; never log PANs or CVV; encrypt in transit and at rest.
+- **Settlement versus authorisation, reconciliation:** matching your records against bank or network statements and handling breaks.
+
+## The six engineering ideas behind almost every payments question
+
+1. **Money type:** use decimal (never float or double) with an explicit currency, and a rounding rule written down. Store minor units (cents, paise) as integers in persisted data where possible. Do not add amounts of different currencies.
+2. **Idempotency:** a client can retry a payment request after a timeout; the server must not pay twice. Require an Idempotency-Key header, store key plus request hash plus response in a table with a unique constraint, return the stored response on a repeat, and reject the same key with a different body.
+3. **Double-entry ledger:** every transfer is two or more entries that sum to zero, written in one database transaction; balances are derived, entries are append-only, and corrections are new reversing entries.
+4. **State machines:** a payment moves through Created, Validated, Pending, Sent, Settled, Failed, Reversed; only allowed transitions are accepted, each transition is recorded with time and actor, and handlers are idempotent.
+5. **Consistency across systems:** you cannot have one transaction across your database, a message broker and a bank. Use the outbox pattern, at-least-once delivery with idempotent consumers, sagas with compensations, and reconciliation as the safety net.
+6. **Audit and security:** immutable audit trail, least privilege, four-eyes approval for risky actions, secrets in a vault, correlation id on every log line, and no personal or card data in logs.
+
+## Red flags interviewers react to
+
+- double or float for money; "we retry until it works" with no idempotency;
+- updating a balance column in place without a ledger or locking;
+- calling a bank API inside a database transaction;
+- no plan for the case where the request times out and you do not know whether the payment happened (answer: query status by your reference, never blindly resend; reconcile);
+- logging full request bodies containing personal or card data.
+
+## Rate quoting and FX flow (talk through it)
+
+A customer asks for a quote: fetch market rate, add margin, return a quote id with an expiry. The customer books against the quote id before it expires; you re-validate expiry and limits, lock the rate, create a deal, debit the source wallet and instruct the beneficiary payment, then settle and reconcile. Interview points: quotes expire, rates must be traceable to a source and timestamp, and booking must be idempotent.
+
+## Tell it from your experience
+
+Prepare one story with a retry, duplicate, ordering or consistency problem you solved (RabbitMQ redelivery and an idempotent consumer is ideal), with the number of messages, the failure you saw and the fix. Never claim payments experience you do not have; say "I have not built a ledger, but I have solved the same duplicate and ordering problems with messaging and here is how I would apply it."
+
+## Skill-upgrade checklist
+
+- [ ] Explain idempotency keys and draw the table.
+- [ ] Explain why not float, and where rounding happens.
+- [ ] Sketch a double-entry ledger with two tables.
+- [ ] Explain outbox, saga and reconciliation in one minute each.
+- [ ] Define KYC, AML, PCI DSS and spot versus forward in one sentence each.
+
+## Read next (official)
+
+- [Stripe: idempotent requests](https://docs.stripe.com/api/idempotent_requests)
+- [PCI Security Standards Council: PCI DSS](https://www.pcisecuritystandards.org/)
+- [Microservices.io: transactional outbox](https://microservices.io/patterns/data/transactional-outbox.html)

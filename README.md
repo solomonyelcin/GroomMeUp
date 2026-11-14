@@ -193,3 +193,8 @@ Anything else you import (plain Q&A, articles, notes) stays in the Library as re
 - **Daily picks**: a free GitHub Action (`.github/workflows/daily.yml`) runs every morning at 6:00 India time, reads public feeds (.NET Blog, Andrew Lock, Code Maze, Angular Blog, Martin Fowler, release notes and more), keeps what matches your skills and writes `content/daily/feed.json`, then redeploys the site. Only the title, a short excerpt and a link are stored. **Add to library** reads the page and keeps your own copy in your private repository.
 - Tune it: edit `content/daily/config.json` (topics and keywords, sources, how many picks per day, how long to keep them). Run it now: GitHub → Actions → Daily picks → Run workflow.
 - Tests: `npm run test:libui`, `node tests/digest.test.mjs`.
+
+## Roadmap and Corpay prep (Library)
+
+- **Roadmap tab:** the .NET AI Engineer Roadmap 2026-27 as eight steps. Guides live in `content/roadmap/src/*.md`; run `node scripts/build-roadmap.mjs` to turn them into shared articles. Questions: `js/data/questions-e.js`, quiz: `js/data/mcq-roadmap.js`.
+- **Corpay prep tab:** guides in `content/corpay/src/*.md` (`node scripts/build-corpay.mjs`), questions `js/data/questions-f.js`, quiz `js/data/mcq-corpay.js`, mock round "Corpay technical round". Information is labelled as reported, from public listings, inferred, or unknown.

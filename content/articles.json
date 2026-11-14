@@ -148,5 +148,80 @@
    "format": "Guide"
   },
   "questionCount": 0
+ },
+ {
+  "id": "cp-start-here",
+  "title": "Corpay interview: start here (process, evidence and a 3-day plan)",
+  "topic": "Corpay interview prep",
+  "t": 1794621600000,
+  "kind": "doc",
+  "file": "content/corpay/cp-start-here/article.json",
+  "group": "corpay",
+  "order": 1,
+  "source": {
+   "file": "GroomMeUp prep guide",
+   "format": "Guide"
+  },
+  "questionCount": 0
+ },
+ {
+  "id": "cp-payments-domain",
+  "title": "Payments and FX domain for a senior .NET engineer",
+  "topic": "Corpay interview prep",
+  "t": 1794621600001,
+  "kind": "doc",
+  "file": "content/corpay/cp-payments-domain/article.json",
+  "group": "corpay",
+  "order": 2,
+  "source": {
+   "file": "GroomMeUp prep guide",
+   "format": "Guide"
+  },
+  "questionCount": 0
+ },
+ {
+  "id": "cp-aws-for-dotnet",
+  "title": "AWS for a .NET engineer who knows Azure",
+  "topic": "Corpay interview prep",
+  "t": 1794621600002,
+  "kind": "doc",
+  "file": "content/corpay/cp-aws-for-dotnet/article.json",
+  "group": "corpay",
+  "order": 3,
+  "source": {
+   "file": "GroomMeUp prep guide",
+   "format": "Guide"
+  },
+  "questionCount": 0
+ },
+ {
+  "id": "cp-coding-playbook",
+  "title": "Coding round playbook: .NET snippets, SOLID design, SQL and the API take-home",
+  "topic": "Corpay interview prep",
+  "t": 1794621600003,
+  "kind": "doc",
+  "file": "content/corpay/cp-coding-playbook/article.json",
+  "group": "corpay",
+  "order": 4,
+  "source": {
+   "file": "GroomMeUp prep guide",
+   "format": "Guide"
+  },
+  "questionCount": 0
+ },
+ {
+  "id": "cp-behavioural-and-questions",
+  "title": "Behavioural answers, production stories and questions to ask Corpay",
+  "topic": "Corpay interview prep",
+  "t": 1794621600004,
+  "kind": "doc",
+  "file": "content/corpay/cp-behavioural-and-questions/article.json",
+  "group": "corpay",
+  "order": 5,
+  "source": {
+   "file": "GroomMeUp prep guide",
+   "format": "Guide"
+  },
+  "questionCount": 0
  }
 ]

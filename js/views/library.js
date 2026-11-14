@@ -2,7 +2,7 @@
 import { esc } from "../ui.js";
 import { newCount } from "../dailypicks.js";
 
-const TABS = [["home", "Home", "./libhome.js"], ["roadmap", "Roadmap", "./roadmap.js"], ["daily", "Daily picks", "./daily.js"], ["questions", "Questions", "./bank.js"], ["articles", "Articles", "./articles.js"], ["faqs", "FAQs", "./faq.js"], ["add", "Add material", "./add.js"]];
+const TABS = [["home", "Home", "./libhome.js"], ["roadmap", "Roadmap", "./roadmap.js"], ["corpay", "Corpay prep", "./corpay.js"], ["daily", "Daily picks", "./daily.js"], ["questions", "Questions", "./bank.js"], ["articles", "Articles", "./articles.js"], ["faqs", "FAQs", "./faq.js"], ["add", "Add material", "./add.js"]];
 export const TAB_ALIAS = { bank: "questions", articles: "articles", faq: "faqs", import: "add" };
 
 export async function view(root, ctx) {

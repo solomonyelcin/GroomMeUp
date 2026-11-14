@@ -23,4 +23,5 @@ export const CATEGORIES = {
   "rm-aidotnet": { name: "Roadmap: AI with .NET", color: "#B8590B" },
   "rm-prodai": { name: "Roadmap: Production AI", color: "#C8264B" },
   "rm-proj": { name: "Roadmap: AI projects & portfolio", color: "#A8741A" },
+  corpay: { name: "Corpay interview prep", color: "#0B6E4F" },
 };

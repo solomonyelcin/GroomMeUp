@@ -14,6 +14,7 @@ const ROUNDS = {
   resume: { name: "Project deep dive (your resume)", cats: ["resume"], tip: "Defend every number and decision on your resume." },
   aieng: { name: "AI engineer round (roadmap)", cats: ["rm-aifund", "rm-aidotnet", "rm-prodai", "rm-proj"], tip: "LLMs, RAG, agents, MCP, production AI and your projects." },
   platform: { name: "Cloud and architecture round (roadmap)", cats: ["rm-csharp", "rm-backend", "rm-cloud", "rm-arch"], tip: "Modern .NET, data, Azure and system design." },
+  corpay: { name: "Corpay technical round", cats: ["corpay", "csharp", "efsql"], tip: "Payments reliability, messaging, AWS, C# snippets, SQL and SOLID design." },
   hr: { name: "HR & behavioural", cats: ["hr", "ai"], tip: "Story-telling, salary, motivation." },
 };
 
@@ -98,6 +99,7 @@ export function view(root, ctx) {
       </div>
       ${past.length ? `<div class="card" style="margin-top:16px"><h3>Previous mocks</h3>${past.map((m) => `<div class="row between small" style="padding:6px 0;border-bottom:1px dashed var(--line)"><span>${fmtDate(m.t)}: ${esc(ROUNDS[m.round]?.name || m.round)}</span><span>${scoreBadge(m.avg)}</span></div>`).join("")}</div>` : ""}`;
     if (ctx?.params?.get("mine") === "1" && ROUNDS.mine) $("#r").value = "mine";
+    else if (ROUNDS[ctx?.params?.get("round")]) $("#r").value = ctx.params.get("round");
     const updMode = () => { const live = $("#md").value === "live"; $("#liveSet").hidden = !live; $("#textSet").hidden = live; $("#mdt").textContent = live ? (canListen() && canTalk() ? "Full voice mode: works in Chrome and Edge. The microphone is used only inside your browser." : "This browser has limited voice support, so some parts will be on screen or typed.") : "No voice, same as before."; };
     const updLv = () => { const L = LEVELS[$("#lv").value], m = +$("#du").value, r = $("#r").value, { techN, codeN } = livePlan(r, $("#lv").value, m, $("#pg").value === "1"); $("#lvt").textContent = `${L.tip} About ${techN} questions${codeN ? ` and ${codeN} programming question${codeN > 1 ? "s" : ""}` : ""}, plus the opening${r === "full" || r === "hr" ? " and closing" : ""}.` + (r === "hr" && $("#pg").value === "1" ? " (No programming in an HR round.)" : ""); };
     ["lv", "du", "pg", "r"].forEach((id) => $("#" + id).addEventListener("change", updLv)); $("#md").addEventListener("change", updLv);

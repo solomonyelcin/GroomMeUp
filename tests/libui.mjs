@@ -33,10 +33,10 @@ const seed = { custom: [], articles: [
 for (const [name, w, h] of [["desk", 1280, 900], ["phone", 390, 800]]) {
   const page = await open(w, h, seed);
   await page.goto(base + "/#/library"); await page.waitForSelector("#lq");
-  check(await page.locator(".mode-tabs a").count() === 7, `${name}: seven Library tabs`);
+  check(await page.locator(".mode-tabs a").count() === 8, `${name}: eight Library tabs`);
   check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${name}: home has no horizontal scroll`);
   await page.waitForSelector(".lib-tile"); const tiles = await page.locator(".lib-tile b").allTextContents();
-  check(tiles[0] === "11" && Number(tiles[3]) === 2, `${name}: home counts articles (${tiles[0]}) and new picks (${tiles[3]})`);
+  check(tiles[0] === "16" && Number(tiles[3]) === 2, `${name}: home counts articles (${tiles[0]}) and new picks (${tiles[3]})`);
   await page.waitForSelector(".mode-tabs .badge"); check((await page.textContent(".mode-tabs .badge")) === "2", `${name}: Daily picks tab shows 2 new`);
   await page.screenshot({ path: `${SHOTS}/lib-${name}-home.png`, fullPage: true });
   // search across everything
@@ -57,6 +57,15 @@ for (const [name, w, h] of [["desk", 1280, 900], ["phone", 390, 800]]) {
   check(/C#|\.NET/.test(await page.textContent("article.art")), `${name}: a roadmap guide opens in the reader`);
   await page.goto(base + "/#/library?tab=articles"); await page.waitForSelector(".art-group");
   check((await page.locator(".art-group").allTextContents()).join().includes("Roadmap"), `${name}: Articles groups the roadmap guides`);
+  // corpay prep
+  await page.goto(base + "/#/library?tab=corpay"); await page.waitForSelector('.art-item');
+  check(await page.locator(".art-item").count() === 5, `${name}: Corpay tab lists its five guides`);
+  check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${name}: corpay tab has no horizontal scroll`);
+  await page.screenshot({ path: `${SHOTS}/lib-${name}-corpay.png`, fullPage: true });
+  await page.goto(base + "/#/library?tab=articles"); await page.waitForSelector(".art-group");
+  check((await page.locator(".art-group").allTextContents()).join().includes("Corpay"), `${name}: Articles groups the Corpay guides`);
+  await page.goto(base + "/#/mock?round=corpay"); await page.waitForSelector("#r");
+  check((await page.inputValue("#r")) === "corpay", `${name}: Corpay mock round can be opened from the tab`);
   // daily picks
   await page.goto(base + "/#/library?tab=daily"); await page.waitForSelector(".pick");
   check(await page.locator(".pick").count() === 2, `${name}: Daily picks shows the 2 new items by default`);

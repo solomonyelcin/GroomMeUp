@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-13T07:06:49.256Z",
+ "updated": "2026-11-14T06:55:29.135Z",
  "items": [
   {
    "id": "d1a84zkl",
@@ -206,20 +206,6 @@
    "summary": "In this post I describe how to perform method-substitutions with the NativeAOT linker to remove additional dependencies that the linker couldn't see were unused",
    "topics": [
     "dotnet"
-   ],
-   "score": 5,
-   "added": "2026-11-12"
-  },
-  {
-   "id": "drybde2",
-   "title": "Everything released in September 2026 for Azure Developer CLI",
-   "url": "https://devblogs.microsoft.com/azure-sdk/azure-developer-cli-azd-september-2026/",
-   "source": "Microsoft Azure Architecture",
-   "date": "2026-09-30",
-   "summary": "The September recap for the Azure Developer CLI (`azd`). Extension management gains dependency-aware uninstall and versioned contracts, project configuration adds top-level infrastructure and service layers, deployment phases support concurrency limits, and external authentication hosts can use local socket…",
-   "topics": [
-    "azure",
-    "security"
    ],
    "score": 5,
    "added": "2026-11-12"

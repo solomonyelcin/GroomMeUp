@@ -95,25 +95,25 @@ await page.click("#themeBtn");
 check((await page.evaluate(() => document.documentElement.dataset.theme)) !== "graphite", "rail theme button cycles themes");
 await page.evaluate(() => localStorage.setItem("groommeup.theme", "chalk"));
 
+const startQuiz = async (pg, { n = 10, sel = '[data-feat="mixed"]', url = "/#/quiz" } = {}) => { if (url) await pg.goto(base + url); await pg.waitForSelector(".qz-card"); await pg.click(sel); await pg.waitForSelector("#go"); if (n !== 10) await pg.click(`#sn [data-v="${n}"]`); await pg.click("#go"); await pg.waitForSelector(".qz-opt"); };
 // quiz: answer all
-await page.goto(base + "/#/quiz");
-await page.click("#start");
+await startQuiz(page);
 const q1 = [], q1ok = new Set(); let topicShown = true;
 for (let i = 0; i < 10; i++) {
-  const text = (await page.textContent(".card h2")).trim(); q1.push(text);
-  topicShown = topicShown && (await page.textContent(".card .tag")).trim().length > 0;
-  await page.click(".opt >> nth=0");
-  if (!(await page.$(".opt.wrong"))) q1ok.add(text);
+  const text = (await page.textContent(".qz-q")).trim(); q1.push(text);
+  topicShown = topicShown && (await page.textContent(".qz .tag")).trim().length > 0;
+  await page.click(".qz-opt >> nth=0");
+  if (!(await page.$(".qz-opt.wrong"))) q1ok.add(text);
   await page.click("#nx");
 }
-await page.waitForSelector("text=By topic");
+await page.waitForSelector("text=Your quiz report");
 check((await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")).quizzes.length)) === 1, "quiz result saved");
 check(topicShown, "quiz shows the topic name above each question");
 {
-  await page.click("#again"); await page.click("#start");
+  await page.click("#again"); await startQuiz(page, { url: null });
   const q2 = [];
-  for (let i = 0; i < 10; i++) { q2.push((await page.textContent(".card h2")).trim()); await page.click(".opt >> nth=0"); await page.click("#nx"); }
-  await page.waitForSelector("text=By topic");
+  for (let i = 0; i < 10; i++) { q2.push((await page.textContent(".qz-q")).trim()); await page.click(".qz-opt >> nth=0"); await page.click("#nx"); }
+  await page.waitForSelector("text=Your quiz report");
   check(q2.every((t) => !q1ok.has(t)), `a second quiz does not repeat the ${q1ok.size} questions already answered correctly`);
   const r = await page.evaluate(async () => {
     const { pickQuiz } = await import("/js/views/quiz.js");
@@ -207,11 +207,11 @@ await page.goto(base + "/#/bank?src=mine"); await page.waitForSelector(".q-card"
 check((await page.locator(".q-card").count()) > 0, "bank filters to imported questions");
 await page.goto(base + "/#/practice?mine=1"); await page.waitForSelector("#ans");
 check(true, "practice serves imported questions");
-await page.goto(base + "/#/quiz"); await page.waitForSelector("#start");
-check((await page.locator("#cc h4").count()) === 0 && /stay in the Library as reading material/.test(await page.textContent("#cc")), "imported Q&A without options are kept out of the quiz and the page says so");
-await page.click("#start");
-const qn = await page.locator(".opt").count();
-check(qn === 4, "generated multiple choice has 4 options");
+await page.goto(base + "/#/quiz"); await page.waitForSelector(".qz-card");
+check((await page.locator(".qz-sec h2", { hasText: "Your material" }).count()) === 0 && /stay in the Library to read/.test(await page.textContent(".qz")), "imported Q&A without options are kept out of the quiz and the page says so");
+await startQuiz(page, { url: null });
+const qn = await page.locator(".qz-opt").count();
+check(qn === 4, "quiz questions have 4 options");
 await page.goto(base + "/#/mock?mine=1"); await page.waitForSelector("#r");
 check((await page.inputValue("#r")) === "mine", "mock offers imported round");
 await page.goto(base + "/#/dashboard"); await page.waitForSelector("#mine");
@@ -243,7 +243,7 @@ if (process.env.WORKBOOK_PATH) {
   await page.setInputFiles("#file", process.env.WORKBOOK_PATH);
   await page.waitForSelector("[data-act=import]", { timeout: 20000 });
   await page.click("[data-act=import]"); await page.waitForSelector("text=Imported");
-  await page.goto(base + "/#/quiz?mine=1"); await page.click("#start"); await page.click(".opt >> nth=0");
+  await startQuiz(page, { sel: ".qz-sec:has(h2:text(\"Your material\")) + .qz-grid .qz-card >> nth=0" }); await page.click(".qz-opt >> nth=0");
   check(true, "real workbook imports and quizzes in the browser");
 }
 
@@ -335,13 +335,10 @@ await page.goto(base + "/#/dashboard"); await page.waitForSelector(".motive");
 check(/streak|Start a streak/.test(await page.textContent(".motive")), "home shows the streak card");
 
 // quiz uses real MCQs from files, no topic picking needed
-await page.goto(base + "/#/quiz"); await page.waitForSelector("#start");
-check(!(await page.locator("#cc").isVisible()), "quiz topics are hidden by default (optional)");
-await page.selectOption("#n", "50");
-await page.click("#start"); await page.waitForSelector(".opt");
+await startQuiz(page, { n: 50 });
 const quizQs = [];
-for (let i = 0; i < 50; i++) { quizQs.push(await page.textContent("h2")); await page.click(".opt >> nth=0"); await page.click("#nx"); if (i < 49) await page.waitForSelector(".opt"); }
-await page.waitForSelector("text=By topic");
+for (let i = 0; i < 50; i++) { quizQs.push(await page.textContent(".qz-q")); await page.click(".qz-opt >> nth=0"); await page.click("#nx"); if (i < 49) await page.waitForSelector(".qz-opt"); }
+await page.waitForSelector("text=Your quiz report");
 const quizSeen = await page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem("groommeup.v1")).mcqSeen || {}).length);
 check(quizSeen >= 40, `quiz of 50 mixed built-in, imported and generated questions, ${quizSeen} recorded as asked`);
 
@@ -751,11 +748,11 @@ await page.click("[data-star]"); await page.click(".note summary"); await page.f
 const stUx = await page.evaluate(() => JSON.parse(localStorage.getItem("groommeup.v1")));
 check(Object.keys(stUx.stars).length === 1 && Object.values(stUx.notes)[0] === "remember the trade-off", "star and note are saved");
 // quiz: end early + retry
-await page.goto(base + "/#/quiz"); await page.waitForSelector("#start"); await page.click("#start"); await page.waitForSelector("#quit");
-await page.click(".opt >> nth=0"); await page.waitForSelector("#nx");
+await startQuiz(page);
+await page.click(".qz-opt >> nth=0"); await page.waitForSelector("#nx");
 page.once("dialog", (d) => d.accept());
-await page.click("#quit"); await page.waitForSelector("h1");
-check(/^\d+ \/ 1$/.test((await page.textContent("main h1")).trim()), "End quiz saves the answers so far (1 answered)");
+await page.click("#quit"); await page.waitForSelector(".qz-bigring");
+check(/ of 1$/.test((await page.textContent(".qz-bigring")).trim()), "End quiz saves the answers so far (1 answered)");
 // job match
 await page.goto(base + "/#/jd"); await page.waitForSelector("#jd");
 await page.fill("#jd", "We need a senior .NET developer with ASP.NET Core Web API, Entity Framework Core, SQL Server performance tuning, Azure, microservices and message queues like RabbitMQ and Service Bus, plus Angular.");

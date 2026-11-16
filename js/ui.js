@@ -8,6 +8,8 @@ export const fmtTime = (sec) => `${String(Math.floor(sec / 60)).padStart(2, "0")
 export const pct = (n) => `${Math.round(n)}%`;
 
 // Inline text with `code` and **bold**
+// like rich(), and also draws ``` fenced code blocks (used by quiz questions)
+export const richq = (s) => String(s ?? "").split(/```(?:\w+)?\n?/).map((part, i) => i % 2 ? `<pre class="qcode"><code>${esc(part.replace(/\n$/, ""))}</code></pre>` : rich(part).replace(/\n/g, "<br>")).join("");
 export const rich = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
 
 export function toast(msg, isErr = false) {

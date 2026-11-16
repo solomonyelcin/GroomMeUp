@@ -339,13 +339,4 @@ export const MCQ_E = [
       "202 for create, 403 for duplicate, 500 for validation errors"
     ], 2,
     "201 with Location signals a new resource, 409 signals a conflict with existing state, and 400 or 422 tells the client its input was invalid. Returning 200 with an error flag hides failures from clients, proxies and monitoring."),
-  m("ce44", "corpay", "s",
-    "You have a few hours for a take-home payments API. Which submission is most likely to show production-minded judgement?",
-    [
-      "A multi-service solution with Kafka and Kubernetes manifests to show breadth",
-      "A generic repository and mediator framework with maximum abstraction",
-      "Unit tests focused on getters and setters to reach 100 percent coverage",
-      "A small layered API with tests on core payment rules, input validation, consistent error responses and a README that states assumptions and trade-offs"
-    ], 3,
-    "A focused, well-tested solution with clear error handling and documented trade-offs shows judgement under a time limit. Over-engineering or vanity coverage metrics add noise and usually leave the core requirements less polished."),
 ];

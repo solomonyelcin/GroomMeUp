@@ -1,6 +1,32 @@
 {
- "updated": "2026-11-17T08:22:26.332Z",
+ "updated": "2026-11-18T07:51:36.597Z",
  "items": [
+  {
+   "id": "d1q5nh18",
+   "title": "Introducing staged publishing on NuGet.org",
+   "url": "https://devblogs.microsoft.com/dotnet/nuget-staged-publishing/",
+   "source": ".NET Blog",
+   "date": "2026-11-17",
+   "summary": "Stage and validate packages privately on NuGet.org, then approve their release when you are ready. The post Introducing staged publishing on NuGet.org appeared first on .NET Blog .",
+   "topics": [
+    "dotnet"
+   ],
+   "score": 6,
+   "added": "2026-11-18"
+  },
+  {
+   "id": "d1k8v1nw",
+   "title": "Deterministic Simulation Testing",
+   "url": "https://martinfowler.com/articles/deterministic-simulation-testing.html",
+   "source": "Martin Fowler",
+   "date": "2026-11-17",
+   "summary": "Distributed systems are hard to test because partial failures overlap with live traffic and the same fault can produce different execution traces on different runs. Unmesh Joshi describes how deterministic simulation testing addresses this by replacing real clocks, networks, and storage with simulated components…",
+   "topics": [
+    "architecture"
+   ],
+   "score": 3,
+   "added": "2026-11-18"
+  },
   {
    "id": "d1a84zkl",
    "title": ".NET 8.0.33",

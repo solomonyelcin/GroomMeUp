@@ -1,6 +1,46 @@
 {
- "updated": "2026-11-18T07:51:36.597Z",
+ "updated": "2026-11-19T07:47:50.850Z",
  "items": [
+  {
+   "id": "d1fjykm1",
+   "title": "Azure Cobalt 200 VMs now available, proven on real workloads and built for the agentic era",
+   "url": "https://azure.microsoft.com/en-us/blog/azure-cobalt-200-vms-now-available-proven-on-real-workloads-and-built-for-the-agentic-era/",
+   "source": "Azure Blog",
+   "date": "2026-11-17",
+   "summary": "Azure Cobalt 200 VMs bring improved performance and efficiency to cloud-native applications, databases, developer tools, and agentic AI workloads. The post Azure Cobalt 200 VMs now available, proven on real workloads and built for the agentic era appeared first on Microsoft Azure Blog .",
+   "topics": [
+    "dotnet",
+    "azure"
+   ],
+   "score": 5,
+   "added": "2026-11-19"
+  },
+  {
+   "id": "d143y834",
+   "title": "Microsoft Ignite 2026: What’s new in Azure, the platform purpose-built for AI",
+   "url": "https://azure.microsoft.com/en-us/blog/microsoft-ignite-2026-whats-new-in-azure-the-platform-purpose-built-for-ai/",
+   "source": "Azure Blog",
+   "date": "2026-11-17",
+   "summary": "At Microsoft Ignite, we're sharing what's new across every layer of the platform. New capabilities spanning compute, storage, and networking let you run AI at scale with the control of your own infrastructure, without having to build, secure, and operate all of it yourself. The post Microsoft Ignite 2026: What’s new…",
+   "topics": [
+    "azure"
+   ],
+   "score": 4,
+   "added": "2026-11-19"
+  },
+  {
+   "id": "duw2067",
+   "title": "Introducing Azure Catalyst agentic modernization and new AI infrastructure innovations",
+   "url": "https://azure.microsoft.com/en-us/blog/introducing-azure-catalyst-agentic-modernization-and-new-ai-infrastructure-innovations/",
+   "source": "Azure Blog",
+   "date": "2026-11-17",
+   "summary": "At Microsoft Ignite 2026, we’ll showcase what’s possible when models, silicon, and cloud infrastructure converge into a single, co-engineered system. By tuning the entire stack, and introducing new capabilities across isolated execution, networking, context management, and inference efficiency, we’re fundamentally…",
+   "topics": [
+    "azure"
+   ],
+   "score": 4,
+   "added": "2026-11-19"
+  },
   {
    "id": "d1q5nh18",
    "title": "Introducing staged publishing on NuGet.org",
@@ -500,19 +540,6 @@
    "source": "Microsoft Azure Architecture",
    "date": "2026-10-06",
    "summary": "Add bounded AI reasoning to Python function apps with Azure Functions Agent bindings, while keeping deterministic application code in control. The post Bring agentic reasoning to Python function apps with Azure Functions Agent bindings (preview) appeared first on Azure SDK Blog .",
-   "topics": [
-    "azure"
-   ],
-   "score": 7,
-   "added": "2026-11-10"
-  },
-  {
-   "id": "d1gg8o67",
-   "title": "Connect Azure Functions to more services with managed connectors",
-   "url": "https://devblogs.microsoft.com/azure-sdk/connect-azure-functions-to-more-services-with-managed-connectors/",
-   "source": "Microsoft Azure Architecture",
-   "date": "2026-10-05",
-   "summary": "Learn how Azure Functions managed connectors provide access to 1,700 services, with triggers and typed clients available for supported service connectors, and walk through a sample that automates RFP intake across SharePoint, Azure Content Understanding, and Teams. The post Connect Azure Functions to more services…",
    "topics": [
     "azure"
    ],

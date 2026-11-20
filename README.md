@@ -198,3 +198,7 @@ Anything else you import (plain Q&A, articles, notes) stays in the Library as re
 
 - **Roadmap tab:** the .NET AI Engineer Roadmap 2026-27 as eight steps. Guides live in `content/roadmap/src/*.md`; run `node scripts/build-roadmap.mjs` to turn them into shared articles. Questions: `js/data/questions-e.js`, quiz: `js/data/mcq-roadmap.js`.
 - **Corpay prep tab:** guides in `content/corpay/src/*.md` (`node scripts/build-corpay.mjs`), questions `js/data/questions-f.js`, quiz `js/data/mcq-corpay.js`, mock round "Corpay technical round". Information is labelled as reported, from public listings, inferred, or unknown.
+
+## C#, .NET and SQL study set
+
+`content/study/src/*.md` holds 18 senior-level study guides (6 C#, 6 .NET, 6 SQL). `node scripts/build-study.mjs` turns them into shared articles grouped under "C# / .NET / SQL study guides" in Articles. Questions `cg01-cg60` (js/data/questions-g.js) and quiz items `mg01-mg70` (js/data/mcq-g.js) go with them.

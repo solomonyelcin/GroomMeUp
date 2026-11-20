@@ -36,7 +36,7 @@ for (const [name, w, h] of [["desk", 1280, 900], ["phone", 390, 800]]) {
   check(await page.locator(".mode-tabs a").count() === 8, `${name}: eight Library tabs`);
   check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${name}: home has no horizontal scroll`);
   await page.waitForSelector(".lib-tile"); const tiles = await page.locator(".lib-tile b").allTextContents();
-  check(tiles[0] === "16" && Number(tiles[3]) === 2, `${name}: home counts articles (${tiles[0]}) and new picks (${tiles[3]})`);
+  check(tiles[0] === "34" && Number(tiles[3]) === 2, `${name}: home counts articles (${tiles[0]}) and new picks (${tiles[3]})`);
   await page.waitForSelector(".mode-tabs .badge"); check((await page.textContent(".mode-tabs .badge")) === "2", `${name}: Daily picks tab shows 2 new`);
   await page.screenshot({ path: `${SHOTS}/lib-${name}-home.png`, fullPage: true });
   // search across everything

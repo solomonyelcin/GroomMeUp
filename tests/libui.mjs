@@ -33,7 +33,7 @@ const seed = { custom: [], articles: [
 for (const [name, w, h] of [["desk", 1280, 900], ["phone", 390, 800]]) {
   const page = await open(w, h, seed);
   await page.goto(base + "/#/library"); await page.waitForSelector("#lq");
-  check(await page.locator(".mode-tabs a").count() === 8, `${name}: eight Library tabs`);
+  check(await page.locator(".mode-tabs a").count() === 9, `${name}: nine Library tabs`);
   check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${name}: home has no horizontal scroll`);
   await page.waitForSelector(".lib-tile"); const tiles = await page.locator(".lib-tile b").allTextContents();
   check(tiles[0] === "34" && Number(tiles[3]) === 2, `${name}: home counts articles (${tiles[0]}) and new picks (${tiles[3]})`);

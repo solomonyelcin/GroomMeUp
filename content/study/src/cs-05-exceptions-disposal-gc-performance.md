@@ -1,0 +1,208 @@
+# Exceptions, disposal, GC and performance: senior study guide
+
+**Who this is for:** an experienced .NET engineer who writes correct code every day and now needs to explain what the runtime does with exceptions, unmanaged resources and memory, and to prove a performance claim with numbers. Targets .NET 10 (LTS) and C# 14, with notes on what already exists in .NET 8 and C# 12.
+
+## What interviewers expect at senior level
+
+- You use exceptions for exceptional cases, keep stack traces intact, and know what exception filters buy you.
+- You implement `IDisposable` and `IAsyncDisposable` correctly and can say when a finalizer is justified (rarely).
+- You explain generations, the Large Object Heap, and when Server GC or Workstation GC fits.
+- You reach for `Span<T>`, `ArrayPool<T>` and `ValueTask` for measured reasons, not by habit.
+- You measure with BenchmarkDotNet or a profiler before and after, and you read allocation numbers.
+
+## Exceptions and exception filters
+
+Throwing is slow compared with returning a value (stack trace capture and two-pass unwinding), although .NET 9 switched to a managed exception handler that is several times faster than before. Even so, do not use exceptions for expected control flow such as parsing user input; use `TryParse`-style methods or a result type.
+
+| Practice | Do | Avoid |
+| --- | --- | --- |
+| Rethrow | `throw;` keeps the original stack | `throw ex;` resets the stack trace |
+| Wrap | `throw new DomainException("msg", inner)` | losing the inner exception |
+| Catch | the specific type you can handle | `catch (Exception)` that swallows |
+| Guard clauses | `ArgumentNullException.ThrowIfNull(x)` | hand-rolled `if` blocks everywhere |
+| Cancellation | let `OperationCanceledException` flow, filter it out of error logs | logging every cancel as a failure |
+
+**Exception filters** (`when`) run during the first pass, before the stack unwinds. If the filter returns false the exception is not caught and the stack is untouched, so a debugger or dump still shows the original frames.
+
+```csharp
+try { await client.SendAsync(request, ct); }
+catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.TooManyRequests)
+{
+    await Task.Delay(backoff, ct);
+}
+catch (OperationCanceledException) when (ct.IsCancellationRequested)
+{
+    // caller asked for it: not an error
+}
+```
+
+Filters are also used for logging without catching: `when (Log(ex))` where `Log` returns false. Be careful that a filter can itself throw, and that it runs before `finally` blocks of inner frames.
+
+**Async specifics.** `await` rethrows the first exception of a faulted task; `Task.WhenAll` collects all, but `await` shows only the first (inspect `task.Exception` for the rest). `async void` exceptions go to the synchronization context and can crash the process, so use it only for event handlers. A fire-and-forget task that faults is unobserved; since .NET 4.5 it no longer crashes the process by default, which hides the bug. Use `ExceptionDispatchInfo.Capture(ex).Throw()` to rethrow on another thread while preserving the stack. In ASP.NET Core centralise handling with `IExceptionHandler` (.NET 8) and `ProblemDetails`, and do not leak stack traces to clients.
+
+## IDisposable, IAsyncDisposable and finalizers
+
+`IDisposable` releases deterministic resources: handles, sockets, connections, locks, timers. The garbage collector only reclaims memory; it does not know when a file handle should close.
+
+```csharp
+public sealed class Report : IAsyncDisposable
+{
+    private readonly Stream _stream;
+    private bool _disposed;
+    public Report(Stream s) => _stream = s;
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        await _stream.DisposeAsync().ConfigureAwait(false);
+    }
+}
+
+await using var report = new Report(File.OpenWrite(path));
+```
+
+Rules to state clearly:
+
+- `Dispose` must be idempotent and must not throw on a second call.
+- A **sealed** class that owns only managed disposables needs no `protected virtual Dispose(bool)`; the full pattern is for unsealed bases that may hold unmanaged state.
+- Prefer wrapping unmanaged handles in a `SafeHandle` over writing a finalizer. `SafeHandle` is reliable even during abnormal shutdown.
+- If a type implements both interfaces, make `DisposeAsync` release everything and have `Dispose` do the synchronous equivalent.
+- `using var x = ...;` (C# 8) disposes at the end of the enclosing scope; `await using` calls `DisposeAsync`.
+- The DI container disposes services it created, not instances you registered yourself. Resolving a disposable transient from the root provider keeps it alive until the app stops.
+- Do not dispose `HttpClient` per call; share one via `IHttpClientFactory` or a static instance, otherwise you risk socket exhaustion.
+
+**Finalizers** (`~Type()`) run on a dedicated finalizer thread after the object is found unreachable. An object with a finalizer survives at least one extra collection (it is queued for finalization and promoted), so it is costly and non-deterministic. In .NET Core and later, finalizers are not guaranteed to run at process exit. Use `GC.SuppressFinalize(this)` in `Dispose` so the object skips the queue. `GC.KeepAlive(obj)` stops an object from being collected before a point in code, which matters in interop where only a raw handle is in use.
+
+## GC: generations, LOH, modes
+
+| Heap | What lives there | Collected |
+| --- | --- | --- |
+| Gen 0 | newly allocated small objects | very often, cheap |
+| Gen 1 | survivors of gen 0, a buffer | often |
+| Gen 2 | long-lived objects | rarely, expensive |
+| LOH | objects of 85,000 bytes or more (arrays, big strings) | with gen 2 |
+| POH | pinned object heap for long-lived pinned arrays (.NET 5+) | with gen 2 |
+
+Most objects die young, so the generational design makes common collections cheap. A gen 2 collection walks everything. The LOH is not compacted by default, which can fragment; you can request one-off compaction with `GCSettings.LargeObjectHeapCompactionMode`, but the better fix is to avoid allocating large short-lived arrays and pool them instead. Since .NET 7 the heap is organised in regions, which makes memory return and compaction more flexible.
+
+| Setting | Workstation | Server |
+| --- | --- | --- |
+| Heaps and GC threads | one heap | one heap and dedicated GC thread per logical core |
+| Goal | low latency, small footprint | throughput on many cores |
+| Memory use | lower | higher |
+| Typical use | desktop, small containers | high-load services |
+
+**Concurrent (background) GC** is on by default and lets gen 2 marking run alongside the app, shortening pauses. Configure with `<ServerGarbageCollector>`, `<ConcurrentGarbageCollection>` in the project file or `DOTNET_gcServer=1`. In containers the GC reads the cgroup memory limit and defaults its hard limit to 75 percent of it; `GCHeapHardLimit` and `GCHeapAffinitizeMask` tune this. **DATAS** (dynamic adaptation to application sizes), on by default for Server GC since .NET 9, adjusts the heap count to the workload, which suits bursty, small containers. `GCSettings.LatencyMode` and `GC.TryStartNoGCRegion` exist for narrow cases only. Never call `GC.Collect()` in normal code.
+
+Diagnose with `dotnet-counters` (gen sizes, allocation rate, GC pause time), `dotnet-gcdump`, `dotnet-trace` and PerfView. A high gen 2 count with a growing heap usually points to a leak through events, statics, caches without eviction or captured closures.
+
+## Span, Memory, ArrayPool and ValueTask
+
+`Span<T>` is a `ref struct`: a view over contiguous memory (array, stack, native) with no copy. It lives on the stack only, so it cannot be a field of a class, be captured by a lambda, or cross an `await`. Use `Memory<T>` when you need to store the slice or pass it across async calls.
+
+```csharp
+static int CountCommas(ReadOnlySpan<char> text)
+{
+    int n = 0;
+    foreach (var c in text) if (c == ',') n++;
+    return n;
+}
+
+var line = "a,b,c";
+var n = CountCommas(line.AsSpan());          // no allocation
+Span<byte> buffer = stackalloc byte[256];    // small, bounded sizes only
+```
+
+C# 13 allows `params ReadOnlySpan<T>` and C# 14 adds first-class implicit conversions between arrays, spans and `ReadOnlySpan<T>`, so more APIs can take spans without call-site noise. C# 12 collection expressions (`int[] a = [1, 2, 3];`) can target spans too.
+
+**ArrayPool<T>.Shared** rents reusable buffers to avoid LOH allocations:
+
+```csharp
+var buffer = ArrayPool<byte>.Shared.Rent(minimumLength: 100_000); // may be larger than asked
+try { /* use buffer.AsSpan(0, actualLength) */ }
+finally { ArrayPool<byte>.Shared.Return(buffer, clearArray: true); }
+```
+
+Return exactly once, never use the array after returning it, and clear it if it held secrets. Rented arrays are not zeroed.
+
+**ValueTask<T>** avoids a `Task` allocation when an operation often completes synchronously (cache hit, buffered read). The rules are strict: await it once, do not store it and await twice, do not call `.Result` or `GetAwaiter().GetResult()` before it completes, and call `.AsTask()` if you must fan it out. For ordinary I/O-bound methods, plain `Task` is simpler and often just as fast. Related tools: `FrozenDictionary` and `FrozenSet` (.NET 8) for read-mostly lookups, `SearchValues<T>` (.NET 8) for vectorised searching, and `static` lambdas so closures are not allocated.
+
+## Measuring with BenchmarkDotNet
+
+Micro-optimising without measurement is guessing. BenchmarkDotNet handles warm-up, JIT tiering, statistics and allocation counting.
+
+```csharp
+[MemoryDiagnoser]
+public class JoinBench
+{
+    private readonly string[] _items = Enumerable.Range(0, 100).Select(i => i.ToString()).ToArray();
+
+    [Benchmark(Baseline = true)]
+    public string Concat() { var s = ""; foreach (var i in _items) s += i; return s; }
+
+    [Benchmark]
+    public string Builder() { var sb = new StringBuilder(); foreach (var i in _items) sb.Append(i); return sb.ToString(); }
+}
+// BenchmarkRunner.Run<JoinBench>();  run with: dotnet run -c Release
+```
+
+Always run in Release without a debugger, return or consume results so the JIT cannot eliminate the work, use `[Params]` for sizes, and read the Allocated and Gen0/Gen1/Gen2 columns, not only the mean. A benchmark answers a micro question; confirm real impact with a profiler or production metrics (`dotnet-counters`, OpenTelemetry runtime metrics).
+
+## Allocation sources and string handling
+
+Common hidden allocations: boxing of value types to `object` or interfaces, closures capturing locals, `params` arrays, LINQ in hot loops (delegates and enumerators), `string.Split`, `ToString()` in a tight loop, and `async` state machines when a method does not complete synchronously. Value-type enumerators and `foreach` over arrays or `List<T>` avoid most of these. .NET 9 and 10 improve escape analysis, so more small arrays, delegates and enumerators can be stack-allocated by the JIT, but do not depend on it.
+
+Strings are immutable, so every concatenation in a loop builds a new object; use `StringBuilder`, `string.Join`, or `string.Create` when you know the length. Interpolated strings use handlers since C# 10 and avoid intermediate allocations when you pass them to APIs that support handlers (logging with `LoggerMessage` source generation avoids formatting work when the level is off). Rules worth stating:
+
+- Compare with `StringComparison.Ordinal` or `OrdinalIgnoreCase` for identifiers; culture-sensitive comparison is slower and can differ by machine (the Turkish I problem).
+- `"text"u8` literals (C# 11) give `ReadOnlySpan<byte>` UTF-8 data with no allocation.
+- Interning (`string.Intern`) is rarely a win and the pool is never freed.
+- Use `System.Text.Json` with `Utf8JsonReader` or source generation for hot paths, and `CompositeFormat` for repeated format strings.
+- Build secrets in `char[]` or bytes you can clear; a `string` cannot be wiped.
+
+## Common traps and red flags
+
+- `throw ex;` instead of `throw;`, or catching `Exception` and returning null.
+- Exceptions for normal flow in a loop (login failures, parse errors).
+- `async void` methods outside event handlers.
+- `using` forgotten on `HttpResponseMessage`, `Stream` or `SqlConnection`; disposable transients resolved from the root provider.
+- Finalizer on a class that holds only managed objects.
+- `.Result` or `.Wait()` on tasks in ASP.NET code, causing thread-pool starvation.
+- Allocating a new large array per request instead of pooling.
+- Calling `GC.Collect()` to fix a leak, or choosing Server GC in a one-core container.
+- Awaiting a `ValueTask` twice.
+- Quoting benchmark gains from a Debug build or a benchmark the JIT optimised away.
+
+## 10 questions to practise
+
+1. Why `throw;` and not `throw ex;`? *The first keeps the original stack trace; the second restarts it at the rethrow point.*
+2. What does an exception filter do that a catch plus rethrow does not? *It runs before unwinding, so the stack and state remain intact when it declines.*
+3. When do you implement `IAsyncDisposable`? *When cleanup needs async I/O such as flushing a stream; implement both interfaces if sync callers exist.*
+4. Why are finalizers costly, and what is `SuppressFinalize` for? *Objects survive an extra GC and run on one thread; suppressing removes them from the finalization queue after deterministic disposal.*
+5. Describe the GC generations and the LOH threshold. *Gen 0, 1, 2 by age; LOH starts at 85,000 bytes and is collected with gen 2, not compacted by default.*
+6. Server versus Workstation GC? *Server uses a heap and thread per core for throughput at higher memory cost; Workstation is lighter and lower latency for small apps.*
+7. Why can't `Span<T>` be used in an async method? *It is a ref struct restricted to the stack, and async state machines are heap objects.*
+8. When is `ValueTask` better than `Task`, and what are its rules? *Hot paths that often complete synchronously; await once, never block on it early.*
+9. How do you find a memory leak in production? *Watch gen 2 and heap size with `dotnet-counters`, take `dotnet-gcdump` snapshots, compare roots (events, statics, caches).*
+10. How do you prove an optimisation worked? *BenchmarkDotNet in Release with `MemoryDiagnoser` for the micro case, then profiler or metrics under realistic load.*
+
+## Skill-upgrade checklist
+
+- [ ] Write a benchmark comparing string concatenation, `StringBuilder` and `string.Create`, and read the allocation column.
+- [ ] Parse a CSV line with `ReadOnlySpan<char>` and compare with `Split`.
+- [ ] Rent and return buffers from `ArrayPool<byte>` for a file-processing loop and watch gen 2 counts.
+- [ ] Implement a class with both `IDisposable` and `IAsyncDisposable` and test double disposal.
+- [ ] Reproduce an event-handler leak and find it in a `dotnet-gcdump`.
+- [ ] Toggle `ServerGarbageCollector` and concurrent GC on a load test and compare pause times.
+- [ ] Add an exception filter that logs and declines, and observe the intact stack in a dump.
+
+## Read next (official)
+
+- [Garbage collection fundamentals](https://learn.microsoft.com/dotnet/standard/garbage-collection/fundamentals)
+- [Implement a Dispose method](https://learn.microsoft.com/dotnet/standard/garbage-collection/implementing-dispose)
+- [Implement a DisposeAsync method](https://learn.microsoft.com/dotnet/standard/garbage-collection/implementing-disposeasync)
+- [Best practices for exceptions](https://learn.microsoft.com/dotnet/standard/exceptions/best-practices-for-exceptions)
+- [Memory and spans](https://learn.microsoft.com/dotnet/standard/memory-and-spans/)
+- [Runtime configuration options for garbage collection](https://learn.microsoft.com/dotnet/core/runtime-config/garbage-collector)
+- [The large object heap](https://learn.microsoft.com/dotnet/standard/garbage-collection/large-object-heap)

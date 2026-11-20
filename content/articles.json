@@ -223,5 +223,275 @@
    "format": "Guide"
   },
   "questionCount": 0
+ },
+ {
+  "id": "st-cs-01-types-and-memory",
+  "title": "C# types, equality and memory: senior interview guide",
+  "topic": "C# study guides",
+  "t": 1795140000000,
+  "kind": "doc",
+  "file": "content/study/st-cs-01-types-and-memory/article.json",
+  "group": "study-cs",
+  "order": 1,
+  "source": {
+   "file": "GroomMeUp study guide",
+   "format": "Guide"
+  },
+  "questionCount": 0
+ },
+ {
+  "id": "st-cs-02-generics-delegates-linq-collections",
+  "title": "Generics, delegates, LINQ and collections: senior interview guide",
+  "topic": "C# study guides",
+  "t": 1795140000001,
+  "kind": "doc",
+  "file": "content/study/st-cs-02-generics-delegates-linq-collections/article.json",
+  "group": "study-cs",
+  "order": 2,
+  "source": {
+   "file": "GroomMeUp study guide",
+   "format": "Guide"
+  },
+  "questionCount": 0
+ },
+ {
+  "id": "st-cs-03-async-and-concurrency",
+  "title": "Async, tasks and concurrency in C#: senior interview guide",
+  "topic": "C# study guides",
+  "t": 1795140000002,
+  "kind": "doc",
+  "file": "content/study/st-cs-03-async-and-concurrency/article.json",
+  "group": "study-cs",
+  "order": 3,
+  "source": {
+   "file": "GroomMeUp study guide",
+   "format": "Guide"
+  },
+  "questionCount": 0
+ },
+ {
+  "id": "st-cs-04-modern-csharp-12-to-14",
+  "title": "Modern C# 12 to 14: features, trade-offs and adoption advice",
+  "topic": "C# study guides",
+  "t": 1795140000003,
+  "kind": "doc",
+  "file": "content/study/st-cs-04-modern-csharp-12-to-14/article.json",
+  "group": "study-cs",
+  "order": 4,
+  "source": {
+   "file": "GroomMeUp study guide",
+   "format": "Guide"
+  },
+  "questionCount": 0
+ },
+ {
+  "id": "st-cs-05-exceptions-disposal-gc-performance",
+  "title": "Exceptions, disposal, GC and performance: senior study guide",
+  "topic": "C# study guides",
+  "t": 1795140000004,
+  "kind": "doc",
+  "file": "content/study/st-cs-05-exceptions-disposal-gc-performance/article.json",
+  "group": "study-cs",
+  "order": 5,
+  "source": {
+   "file": "GroomMeUp study guide",
+   "format": "Guide"
+  },
+  "questionCount": 0
+ },
+ {
+  "id": "st-cs-06-oop-solid-patterns",
+  "title": "OOP, SOLID and design patterns in C#: senior study guide",
+  "topic": "C# study guides",
+  "t": 1795140000005,
+  "kind": "doc",
+  "file": "content/study/st-cs-06-oop-solid-patterns/article.json",
+  "group": "study-cs",
+  "order": 6,
+  "source": {
+   "file": "GroomMeUp study guide",
+   "format": "Guide"
+  },
+  "questionCount": 0
+ },
+ {
+  "id": "st-net-01-runtime-di-config-logging",
+  "title": ".NET runtime, DI, configuration and logging: senior study guide",
+  "topic": ".NET study guides",
+  "t": 1795140000006,
+  "kind": "doc",
+  "file": "content/study/st-net-01-runtime-di-config-logging/article.json",
+  "group": "study-net",
+  "order": 7,
+  "source": {
+   "file": "GroomMeUp study guide",
+   "format": "Guide"
+  },
+  "questionCount": 0
+ },
+ {
+  "id": "st-net-02-aspnetcore-pipeline-and-apis",
+  "title": "ASP.NET Core pipeline and APIs: senior study guide",
+  "topic": ".NET study guides",
+  "t": 1795140000007,
+  "kind": "doc",
+  "file": "content/study/st-net-02-aspnetcore-pipeline-and-apis/article.json",
+  "group": "study-net",
+  "order": 8,
+  "source": {
+   "file": "GroomMeUp study guide",
+   "format": "Guide"
+  },
+  "questionCount": 0
+ },
+ {
+  "id": "st-net-03-ef-core-deep-dive",
+  "title": "EF Core deep dive: senior study guide",
+  "topic": ".NET study guides",
+  "t": 1795140000008,
+  "kind": "doc",
+  "file": "content/study/st-net-03-ef-core-deep-dive/article.json",
+  "group": "study-net",
+  "order": 9,
+  "source": {
+   "file": "GroomMeUp study guide",
+   "format": "Guide"
+  },
+  "questionCount": 0
+ },
+ {
+  "id": "st-net-04-security-authn-authz",
+  "title": "Security: authentication and authorization in ASP.NET Core: senior study guide",
+  "topic": ".NET study guides",
+  "t": 1795140000009,
+  "kind": "doc",
+  "file": "content/study/st-net-04-security-authn-authz/article.json",
+  "group": "study-net",
+  "order": 10,
+  "source": {
+   "file": "GroomMeUp study guide",
+   "format": "Guide"
+  },
+  "questionCount": 0
+ },
+ {
+  "id": "st-net-05-caching-resilience-background-work",
+  "title": "Caching, resilience and background work: senior study guide",
+  "topic": ".NET study guides",
+  "t": 1795140000010,
+  "kind": "doc",
+  "file": "content/study/st-net-05-caching-resilience-background-work/article.json",
+  "group": "study-net",
+  "order": 11,
+  "source": {
+   "file": "GroomMeUp study guide",
+   "format": "Guide"
+  },
+  "questionCount": 0
+ },
+ {
+  "id": "st-net-06-testing-diagnostics-deployment",
+  "title": "Testing, diagnostics and deployment: senior study guide",
+  "topic": ".NET study guides",
+  "t": 1795140000011,
+  "kind": "doc",
+  "file": "content/study/st-net-06-testing-diagnostics-deployment/article.json",
+  "group": "study-net",
+  "order": 12,
+  "source": {
+   "file": "GroomMeUp study guide",
+   "format": "Guide"
+  },
+  "questionCount": 0
+ },
+ {
+  "id": "st-sql-01-joins-sets-and-subqueries",
+  "title": "SQL Joins, Set Operators and Subqueries: senior interview guide",
+  "topic": "SQL study guides",
+  "t": 1795140000012,
+  "kind": "doc",
+  "file": "content/study/st-sql-01-joins-sets-and-subqueries/article.json",
+  "group": "study-sql",
+  "order": 13,
+  "source": {
+   "file": "GroomMeUp study guide",
+   "format": "Guide"
+  },
+  "questionCount": 0
+ },
+ {
+  "id": "st-sql-02-aggregation-and-window-functions",
+  "title": "SQL Aggregation and Window Functions: senior interview guide",
+  "topic": "SQL study guides",
+  "t": 1795140000013,
+  "kind": "doc",
+  "file": "content/study/st-sql-02-aggregation-and-window-functions/article.json",
+  "group": "study-sql",
+  "order": 14,
+  "source": {
+   "file": "GroomMeUp study guide",
+   "format": "Guide"
+  },
+  "questionCount": 0
+ },
+ {
+  "id": "st-sql-03-indexes-and-execution-plans",
+  "title": "SQL Indexes and Execution Plans: senior interview guide",
+  "topic": "SQL study guides",
+  "t": 1795140000014,
+  "kind": "doc",
+  "file": "content/study/st-sql-03-indexes-and-execution-plans/article.json",
+  "group": "study-sql",
+  "order": 15,
+  "source": {
+   "file": "GroomMeUp study guide",
+   "format": "Guide"
+  },
+  "questionCount": 0
+ },
+ {
+  "id": "st-sql-04-transactions-isolation-locking",
+  "title": "SQL Server transactions, isolation and locking: senior study guide",
+  "topic": "SQL study guides",
+  "t": 1795140000015,
+  "kind": "doc",
+  "file": "content/study/st-sql-04-transactions-isolation-locking/article.json",
+  "group": "study-sql",
+  "order": 16,
+  "source": {
+   "file": "GroomMeUp study guide",
+   "format": "Guide"
+  },
+  "questionCount": 0
+ },
+ {
+  "id": "st-sql-05-tsql-programming-cte-procs-merge",
+  "title": "T-SQL Programming: CTEs, procedures, MERGE and dynamic SQL, senior interview guide",
+  "topic": "SQL study guides",
+  "t": 1795140000016,
+  "kind": "doc",
+  "file": "content/study/st-sql-05-tsql-programming-cte-procs-merge/article.json",
+  "group": "study-sql",
+  "order": 17,
+  "source": {
+   "file": "GroomMeUp study guide",
+   "format": "Guide"
+  },
+  "questionCount": 0
+ },
+ {
+  "id": "st-sql-06-design-pagination-and-classic-exercises",
+  "title": "SQL Design, Pagination and Classic Exercises: senior interview guide",
+  "topic": "SQL study guides",
+  "t": 1795140000017,
+  "kind": "doc",
+  "file": "content/study/st-sql-06-design-pagination-and-classic-exercises/article.json",
+  "group": "study-sql",
+  "order": 18,
+  "source": {
+   "file": "GroomMeUp study guide",
+   "format": "Guide"
+  },
+  "questionCount": 0
  }
 ]

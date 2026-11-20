@@ -743,3 +743,5 @@ pre.qcode { background: #0f1722; color: #e6edf6; padding: 12px 14px; border-radi
 .qz-rev .body { padding: 0 14px 14px 48px; }
 @media (prefers-reduced-motion: reduce) { .qz-card, .qz-fcard, .qz-opt, .qz-ring .fg, .qz-bigring .fg, .qz-sheet, .qz-exp { transition: none; animation: none; } }
 @media print { .qz-noprint, #nav, header.top, .btn { display: none !important; } }
+.mode-tabs { max-width: 100%; min-width: 0; box-sizing: border-box; }
+#libBody, main, .view { min-width: 0; }

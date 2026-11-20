@@ -1,6 +1,20 @@
 {
- "updated": "2026-11-19T07:47:50.850Z",
+ "updated": "2026-11-20T07:40:14.905Z",
  "items": [
+  {
+   "id": "d222zjm",
+   "title": "The momentum across the global Angular ecosystem never slows down!",
+   "url": "https://blog.angular.dev/the-momentum-across-the-global-angular-ecosystem-never-slows-down-7d69d0d07a69?source=rss----447683c3d9a3---4",
+   "source": "Angular Blog",
+   "date": "2026-11-20",
+   "summary": "The momentum across the global Angular ecosystem never slows down! From moving past imperative event streams into pure signal-driven form state, to full-stack meta-frameworks with Analog, async validations, and a massive drop of 9 free online textbook chapters, this week’s community contributions are packed with…",
+   "topics": [
+    "dotnet",
+    "angular"
+   ],
+   "score": 6,
+   "added": "2026-11-20"
+  },
   {
    "id": "d1fjykm1",
    "title": "Azure Cobalt 200 VMs now available, proven on real workloads and built for the agentic era",
@@ -264,19 +278,6 @@
    "added": "2026-11-12"
   },
   {
-   "id": "d1u2wug9",
-   "title": "Stripping extra dependencies in .NET NativeAOT apps using linker substitutions",
-   "url": "https://andrewlock.net/stripping-extra-dependencies-in-.net-nativeaot-apps-using-linker-substitutions/",
-   "source": "Andrew Lock",
-   "date": "2026-10-06",
-   "summary": "In this post I describe how to perform method-substitutions with the NativeAOT linker to remove additional dependencies that the linker couldn't see were unused",
-   "topics": [
-    "dotnet"
-   ],
-   "score": 5,
-   "added": "2026-11-12"
-  },
-  {
    "id": "dqi91wh",
    "title": ".NET 8.0.33",
    "url": "https://github.com/dotnet/efcore/releases/tag/v8.0.33",
@@ -528,19 +529,6 @@
    "summary": "The GitHub Copilot SDK gives your application an agent runtime. BYOK lets you keep that runtime while sending model requests to your own Microsoft Foundry or Azure OpenAI deployment. Here is the complete C# setup. The post Bring Your Own Model to the GitHub Copilot SDK with C# appeared first on .NET Blog .",
    "topics": [
     "dotnet",
-    "azure"
-   ],
-   "score": 7,
-   "added": "2026-11-10"
-  },
-  {
-   "id": "dlw5l2n",
-   "title": "Bring agentic reasoning to Python function apps with Azure Functions Agent bindings (preview)",
-   "url": "https://devblogs.microsoft.com/azure-sdk/azure-functions-agent-binding/",
-   "source": "Microsoft Azure Architecture",
-   "date": "2026-10-06",
-   "summary": "Add bounded AI reasoning to Python function apps with Azure Functions Agent bindings, while keeping deterministic application code in control. The post Bring agentic reasoning to Python function apps with Azure Functions Agent bindings (preview) appeared first on Azure SDK Blog .",
-   "topics": [
     "azure"
    ],
    "score": 7,

@@ -1,6 +1,19 @@
 {
- "updated": "2026-11-20T07:40:14.905Z",
+ "updated": "2026-11-21T07:37:24.529Z",
  "items": [
+  {
+   "id": "dphyl1i",
+   "title": "AI is Changing the Cross-Platform Decision Matrix",
+   "url": "https://devblogs.microsoft.com/dotnet/ai-cross-platform-decision-matrix/",
+   "source": ".NET Blog",
+   "date": "2026-11-20",
+   "summary": "AI agents rebuilt a .NET MAUI app with platform UI in days. See what that cost to build, what it costs to maintain, and what changed at runtime, so you can weigh the same choice for your app. The post AI is Changing the Cross-Platform Decision Matrix appeared first on .NET Blog .",
+   "topics": [
+    "dotnet"
+   ],
+   "score": 3,
+   "added": "2026-11-21"
+  },
   {
    "id": "d222zjm",
    "title": "The momentum across the global Angular ecosystem never slows down!",

@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-21T07:37:24.529Z",
+ "updated": "2026-11-22T07:19:32.606Z",
  "items": [
   {
    "id": "dphyl1i",
@@ -476,20 +476,6 @@
    ],
    "score": 5,
    "added": "2026-11-11"
-  },
-  {
-   "id": "dflusql",
-   "title": "Dynamic Workflows in Azure Functions Hosted Skills: Durable, AI-Led Work for Event-Driven Apps",
-   "url": "https://devblogs.microsoft.com/azure-sdk/dynamic-workflows-azure-functions-hosted-skills/",
-   "source": "Microsoft Azure Architecture",
-   "date": "2026-10-08",
-   "summary": "Azure Functions is the event-driven application platform, and Hosted Skills adds AI reasoning to your app. Dynamic Workflows give the app a durable way to carry out AI-led, multi-step work after the triggering invocation is finished. The model writes a plan (a DAG) one time, and Durable Functions runs it. In our…",
-   "topics": [
-    "azure",
-    "architecture"
-   ],
-   "score": 10,
-   "added": "2026-11-10"
   },
   {
    "id": "d133t8d7",

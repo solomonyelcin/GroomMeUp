@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-22T07:19:32.606Z",
+ "updated": "2026-11-23T08:03:48.958Z",
  "items": [
   {
    "id": "dphyl1i",
@@ -169,19 +169,6 @@
    "topics": [
     "azure",
     "architecture"
-   ],
-   "score": 3,
-   "added": "2026-11-13"
-  },
-  {
-   "id": "d1250kss",
-   "title": "Signal Value Transforms, Routing Essentials, and Video Extension with Veo! ⚡",
-   "url": "https://blog.angular.dev/signal-value-transforms-routing-essentials-and-video-extension-with-veo-3846cae9283a?source=rss----447683c3d9a3---4",
-   "source": "Angular Blog",
-   "date": "2026-10-09",
-   "summary": "The Angular ecosystem continues to deliver cutting-edge tools for interactive web apps, reactive form handling, and generative AI pipelines. This week, our global community experts share practical guides on fine-tuning inputs, mastering modern routing, and leveraging Google’s Veo model directly from Angular! Dive into…",
-   "topics": [
-    "angular"
    ],
    "score": 3,
    "added": "2026-11-13"

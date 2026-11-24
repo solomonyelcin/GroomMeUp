@@ -15,6 +15,7 @@ const ROUNDS = {
   aieng: { name: "AI engineer round (roadmap)", cats: ["rm-aifund", "rm-aidotnet", "rm-prodai", "rm-proj"], tip: "LLMs, RAG, agents, MCP, production AI and your projects." },
   platform: { name: "Cloud and architecture round (roadmap)", cats: ["rm-csharp", "rm-backend", "rm-cloud", "rm-arch"], tip: "Modern .NET, data, Azure and system design." },
   corpay: { name: "Corpay technical round", cats: ["corpay", "csharp", "efsql"], tip: "Payments reliability, messaging, AWS, C# snippets, SQL and SOLID design." },
+  accenture: { name: "Accenture technical round", cats: ["accenture", "csharp", "efsql"], tip: "Async and threads, SOLID, DI, REST, SQL joins and keys, plus your project walk-through." },
   hr: { name: "HR & behavioural", cats: ["hr", "ai"], tip: "Story-telling, salary, motivation." },
 };
 

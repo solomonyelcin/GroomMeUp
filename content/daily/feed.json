@@ -1,6 +1,19 @@
 {
- "updated": "2026-11-23T08:03:48.958Z",
+ "updated": "2026-11-24T10:19:54.324Z",
  "items": [
+  {
+   "id": "d1xhkyut",
+   "title": "Run local models in your .NET apps with Llama on Windows",
+   "url": "https://devblogs.microsoft.com/dotnet/local-models-dotnet-llama-windows/",
+   "source": ".NET Blog",
+   "date": "2026-11-23",
+   "summary": "Install Llama on Windows from Hugging Face and the llama.cpp team, download an open model, and call it from a .NET 11 C# file-based app. The post Run local models in your .NET apps with Llama on Windows appeared first on .NET Blog .",
+   "topics": [
+    "dotnet"
+   ],
+   "score": 6,
+   "added": "2026-11-24"
+  },
   {
    "id": "dphyl1i",
    "title": "AI is Changing the Cross-Platform Decision Matrix",

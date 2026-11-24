@@ -199,6 +199,14 @@ Anything else you import (plain Q&A, articles, notes) stays in the Library as re
 - **Roadmap tab:** the .NET AI Engineer Roadmap 2026-27 as eight steps. Guides live in `content/roadmap/src/*.md`; run `node scripts/build-roadmap.mjs` to turn them into shared articles. Questions: `js/data/questions-e.js`, quiz: `js/data/mcq-roadmap.js`.
 - **Corpay prep tab:** guides in `content/corpay/src/*.md` (`node scripts/build-corpay.mjs`), questions `js/data/questions-f.js`, quiz `js/data/mcq-corpay.js`, mock round "Corpay technical round". Information is labelled as reported, from public listings, inferred, or unknown.
 
+## Accenture assessment prep (Library)
+
+- **Accenture prep tab:** what is reported about the proctored cognitive, technical and coding assessment (each point labelled by source), what to practise, a short plan, test-day tips and a quick revision sheet.
+- **Quiz:** 47 multiple-choice questions in the `accenture` category (`js/data/mcq-h.js`): pseudocode tracing, aptitude, SQL and DBMS, networks, OS and cloud, .NET. Start it from Quick quiz, which lists it under *Interview prep*.
+- **Coding:** `js/data/coding-accenture.js` adds 10 JavaScript problems (hidden tests), 5 SQL problems (same sample schema) and 5 C# problems with a rubric, including a standard-input one. They appear in Coding tests with topics starting "Accenture".
+- **Questions and mock:** 12 interview questions (`js/data/questions-h.js`) and an *Accenture technical round* in Mock interview.
+- The personal test link is never stored in the app or the repository.
+
 ## C#, .NET and SQL study set
 
 `content/study/src/*.md` holds 18 senior-level study guides (6 C#, 6 .NET, 6 SQL). `node scripts/build-study.mjs` turns them into shared articles grouped under "C# / .NET / SQL study guides" in Articles. Questions `cg01-cg60` (js/data/questions-g.js) and quiz items `mg01-mg70` (js/data/mcq-g.js) go with them.

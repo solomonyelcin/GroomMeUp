@@ -28,14 +28,14 @@ export function pickQuiz(list, n, picked, onlyMissed = false) {
   return { chosen: [...open, ...shuffle(done)].slice(0, need), reset: done.length > 0, resetIds: done.map((x) => x.id) };
 }
 
-const GLYPH = { csharp: "C#", aspnet: "API", efsql: "SQL", angular: "NG", micro: "μS", snowflake: "SF", cloud: "AZ", design: "SD", ai: "AI", "rm-csharp": ".NET", "rm-backend": "DB", "rm-cloud": "K8", "rm-arch": "ARC", "rm-aifund": "LLM", "rm-aidotnet": "MCP", "rm-prodai": "OPS", "rm-proj": "BLD", corpay: "CPY" };
+const GLYPH = { csharp: "C#", aspnet: "API", efsql: "SQL", angular: "NG", micro: "μS", snowflake: "SF", cloud: "AZ", design: "SD", ai: "AI", "rm-csharp": ".NET", "rm-backend": "DB", "rm-cloud": "K8", "rm-arch": "ARC", "rm-aifund": "LLM", "rm-aidotnet": "MCP", "rm-prodai": "OPS", "rm-proj": "BLD", corpay: "CPY", accenture: "ACN" };
 const SECTIONS = [
   ["Core .NET and backend", ["csharp", "aspnet", "efsql", "rm-csharp", "rm-backend"]],
   ["Architecture and messaging", ["micro", "design", "rm-arch"]],
   ["Cloud and data", ["cloud", "rm-cloud", "snowflake"]],
   ["Front end", ["angular"]],
   ["AI engineering", ["ai", "rm-aifund", "rm-aidotnet", "rm-prodai", "rm-proj"]],
-  ["Interview prep", ["corpay"]],
+  ["Interview prep", ["corpay", "accenture"]],
 ];
 const LV = { j: "Junior", m: "Mid", s: "Senior" };
 const BAR = { j: 60, m: 70, s: 75, all: 70 };
@@ -228,7 +228,7 @@ export function view(root, ctx) {
     const topics = Object.entries(cats).map(([c, [ok, t]]) => ({ c, ok, t, p: Math.round((ok / t) * 100), name: CATEGORIES[c]?.name || c })).sort((a, b) => a.p - b.p);
     const weak = topics.filter((t) => t.p < 70);
     const avg = Math.round(secs / total), slow = items.slice().sort((a, b) => b.ms - a.ms)[0];
-    const link = (c) => c === "corpay" ? "#/library?tab=corpay" : c.startsWith("rm-") ? "#/library?tab=roadmap" : "#/library?tab=articles";
+    const link = (c) => c === "corpay" ? "#/library?tab=corpay" : c === "accenture" ? "#/library?tab=accenture" : c.startsWith("rm-") ? "#/library?tab=roadmap" : "#/library?tab=articles";
     const revItem = (x, k) => `<details class="qz-rev" data-ok="${x.ok ? 1 : 0}" data-fl="${x.flag ? 1 : 0}"><summary><span class="mk ${x.ok ? "ok" : "bad"}" aria-hidden="true">${x.ok ? "✓" : "✕"}</span><span style="flex:1">${richq(x.m.q).replace(/<pre[\s\S]*?<\/pre>/g, " [code] ")}</span><span class="small muted">${x.flag ? "⚑ " : ""}${Math.round(x.ms / 1000)}s</span></summary>
       <div class="body"><div class="qz-q" style="font-size:1rem">${richq(x.m.q)}</div>${x.m.o.map((o, j) => `<div class="small" style="padding:3px 0"><b>${j === x.m.a ? "✓ " : x.m.o[x.order?.[x.sel]] === o && !x.ok ? "✕ " : "• "}</b>${rich(o)}</div>`).join("")}<div class="qz-exp ${x.ok ? "ok" : "bad"}"><strong>${x.sel === -1 ? "No answer." : x.ok ? "You were right." : "Your answer: " + esc(x.m.o[x.order[x.sel]]) + "."}</strong> ${rich(x.m.e)}</div></div></details>`;
     root.innerHTML = `<div class="qz qz-run" style="max-width:860px"><div class="card">

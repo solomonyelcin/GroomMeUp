@@ -33,7 +33,7 @@ const seed = { custom: [], articles: [
 for (const [name, w, h] of [["desk", 1280, 900], ["phone", 390, 800]]) {
   const page = await open(w, h, seed);
   await page.goto(base + "/#/library"); await page.waitForSelector("#lq");
-  check(await page.locator(".mode-tabs a").count() === 9, `${name}: nine Library tabs`);
+  check(await page.locator(".mode-tabs a").count() === 10, `${name}: ten Library tabs`);
   check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${name}: home has no horizontal scroll`);
   await page.waitForSelector(".lib-tile"); const tiles = await page.locator(".lib-tile b").allTextContents();
   check(tiles[0] === "34" && Number(tiles[3]) === 2, `${name}: home counts articles (${tiles[0]}) and new picks (${tiles[3]})`);
@@ -66,6 +66,13 @@ for (const [name, w, h] of [["desk", 1280, 900], ["phone", 390, 800]]) {
   check((await page.locator(".art-group").allTextContents()).join().includes("Corpay"), `${name}: Articles groups the Corpay guides`);
   await page.goto(base + "/#/mock?round=corpay"); await page.waitForSelector("#r");
   check((await page.inputValue("#r")) === "corpay", `${name}: Corpay mock round can be opened from the tab`);
+  // accenture prep
+  await page.goto(base + "/#/library?tab=accenture"); await page.waitForSelector("text=Accenture online assessment prep");
+  check(await page.locator('a[href="#/quiz?cat=accenture"]').count() >= 1, `${name}: Accenture tab links to its quiz`);
+  check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${name}: accenture tab has no horizontal scroll`);
+  await page.screenshot({ path: `${SHOTS}/lib-${name}-accenture.png`, fullPage: true });
+  await page.goto(base + "/#/mock?round=accenture"); await page.waitForSelector("#r");
+  check((await page.inputValue("#r")) === "accenture", `${name}: Accenture mock round can be opened from the tab`);
   // daily picks
   await page.goto(base + "/#/library?tab=daily"); await page.waitForSelector(".pick");
   check(await page.locator(".pick").count() === 2, `${name}: Daily picks shows the 2 new items by default`);

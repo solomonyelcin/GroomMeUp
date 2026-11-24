@@ -24,4 +24,5 @@ export const CATEGORIES = {
   "rm-prodai": { name: "Roadmap: Production AI", color: "#C8264B" },
   "rm-proj": { name: "Roadmap: AI projects & portfolio", color: "#A8741A" },
   corpay: { name: "Corpay interview prep", color: "#0B6E4F" },
+  accenture: { name: "Accenture assessment prep", color: "#7500C0" },
 };

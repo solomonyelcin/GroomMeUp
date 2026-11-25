@@ -1,6 +1,19 @@
 {
- "updated": "2026-11-24T10:19:54.324Z",
+ "updated": "2026-11-25T09:00:27.040Z",
  "items": [
+  {
+   "id": "d1figc49",
+   "title": "Introducing DocumentExtractionClient (preview): Extract documents in .NET",
+   "url": "https://devblogs.microsoft.com/dotnet/document-extraction-dotnet-preview/",
+   "source": ".NET Blog",
+   "date": "2026-11-24",
+   "summary": "Meet DocumentExtractionClient, a preview .NET API that turns PDFs, images, and other documents into structured content, with a set of starter providers to choose from. The post Introducing DocumentExtractionClient (preview): Extract documents in .NET appeared first on .NET Blog .",
+   "topics": [
+    "dotnet"
+   ],
+   "score": 5,
+   "added": "2026-11-25"
+  },
   {
    "id": "d1xhkyut",
    "title": "Run local models in your .NET apps with Llama on Windows",

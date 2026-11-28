@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-27T08:58:19.925Z",
+ "updated": "2026-11-28T08:19:41.474Z",
  "items": [
   {
    "id": "d1figc49",
@@ -353,20 +353,6 @@
    "summary": "In this post I introduce CBOR as a JSON alternative, and show how to use the System.Formats.Cbor NuGet package to read and write CBOR encoded data",
    "topics": [
     "dotnet"
-   ],
-   "score": 6,
-   "added": "2026-11-11"
-  },
-  {
-   "id": "d1ib4m71",
-   "title": "Azure MCP Server 3.0 stable release: More tools. More possibilities",
-   "url": "https://devblogs.microsoft.com/azure-sdk/azure-mcp-server-3-0-stable-release/",
-   "source": "Microsoft Azure Architecture",
-   "date": "2026-10-14",
-   "summary": "Explore the new Azure MCP Server 3.0 stable release, with AI agent tools for Terraform, backup, recovery, and troubleshooting, plus stronger security defaults. The post Azure MCP Server 3.0 stable release: More tools. More possibilities appeared first on Azure SDK Blog .",
-   "topics": [
-    "azure",
-    "security"
    ],
    "score": 6,
    "added": "2026-11-11"
